@@ -1,0 +1,131 @@
+<template>
+  <AModal
+    v-if="dialog"
+    :open="dialog.visible"
+    @cancel="dialog.resolve()"
+    :footer="null"
+    :width="finalWidth"
+    :title="null"
+    :closable="false"
+    :keyboard="!disableEscapeKey"
+    :mask-closable="!disableMaskClosable"
+  >
+    <!-- v-loading="dialog.isLoading" -->
+    <div
+      :class="[
+        'bg-light-1 flex max-h-[70vh] flex-col',
+        !!size && size === 'large' && isAutoHeight ? 'min-h-[50vh]' : '',
+      ]"
+      :style="{
+        height: !isAutoHeight ? finalHeight : undefined,
+      }"
+    >
+      <slot v-if="$slots.title" name="title"></slot>
+      <div v-else-if="title" class="p-4 font-semibold">
+        {{ title }}
+      </div>
+      <div v-if="!$slots.autoPadding" class="stretch v">
+        <slot></slot>
+      </div>
+      <div
+        v-else
+        :class="[
+          'stretch flex flex-col gap-4 overflow-auto px-4',
+          $slots.title || title ? '' : 'pt-4',
+          $slots.footer ? '' : 'pb-4',
+        ]"
+      >
+        <slot name="autoPadding"></slot>
+      </div>
+      <div v-if="$slots.footer" class="flex items-center justify-end gap-3 p-4">
+        <slot name="footer"></slot>
+      </div>
+    </div>
+  </AModal>
+</template>
+<script lang="ts" setup>
+import { AnyDialogType } from "./dialog"
+
+export type Size = "small" | "medium" | "large"
+
+const props = withDefaults(
+  defineProps<{
+    dialog: AnyDialogType
+    title?: string | null
+    size?: Size
+    width?: string
+    height?: string | number
+    disableEscapeKey?: boolean
+    disableMaskClosable?: boolean
+    resolveByEnter?: boolean
+  }>(),
+  {
+    size: "medium",
+    title: null,
+    width: undefined,
+  },
+)
+
+const isAutoHeight = computed(() => props.height === undefined)
+const finalHeight = computed(() => {
+  if (typeof props.height === "string") {
+    // 判断是否带了单位
+    if (/^[0-9]+(px|em|rem|%|vh|vw)$/.test(props.height)) {
+      return props.height
+    } else {
+      return parseInt(props.height) + "px"
+    }
+  } else {
+    return props.height + "px"
+  }
+})
+const finalWidth = computed(() => {
+  if (props.width) {
+    return props.width
+  } else if (props.size) {
+    switch (props.size) {
+      case "small":
+        return "320px"
+      case "medium":
+        return "520px"
+      case "large":
+        return "1024px"
+    }
+  } else {
+    return undefined
+  }
+})
+
+function handleKeyup(e: KeyboardEvent) {
+  if (e.key === "Enter" && !props.resolveByEnter) {
+    props.dialog.finish()
+  }
+}
+const bindEvents = () => {
+  document.addEventListener("keyup", handleKeyup)
+}
+const unbindEvents = () => {
+  document.removeEventListener("keyup", handleKeyup)
+}
+watch(
+  () => props.resolveByEnter,
+  (v) => {
+    if (v) {
+      bindEvents()
+    } else {
+      unbindEvents()
+    }
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  unbindEvents()
+})
+</script>
+
+<style lang="scss">
+.ant-modal .ant-modal-content {
+  padding: 0;
+  overflow: hidden;
+}
+</style>
