@@ -10,24 +10,8 @@
  * ---------------------------------------------------------------
  */
 
-/** @example "OPENAI" */
-export enum ModelType {
-  OPENAI = "OPENAI",
-  ANTHROPIC = "ANTHROPIC",
-  GOOGLE = "GOOGLE",
-  MISTRAL = "MISTRAL",
-  META = "META",
-  DEEPSEEK = "DEEPSEEK",
-  ZHIPU = "ZHIPU",
-  QWEN = "QWEN",
-  BAIDU = "BAIDU",
-  MOONSHOT = "MOONSHOT",
-}
-
 export interface RootResponse {
-  /** @example "deno-hono-prisma-mysql" */
   name: string;
-  /** @example "Server is running" */
   message: string;
   /** @format date-time */
   now: string;
@@ -44,125 +28,110 @@ export interface HealthDownResponse {
 }
 
 export interface ErrorResponse {
-  /** @example "Not found" */
   error: string;
 }
 
 export interface ValidationErrorResponse {
   success: false;
-  error: object;
+  error: Record<string, any>;
 }
 
 export interface SuccessResponse {
   success: true;
 }
 
-/** OpenAPI 3.x JSON specification document */
-export type OpenApiDocumentResponse = object;
-
-export interface LoginRequest {
-  /**
-   * @format email
-   * @example "alice@example.com"
-   */
-  email: string;
-  /**
-   * @minLength 1
-   * @example "secret123"
-   */
-  password: string;
-}
-
-export interface SafeUser {
-  /** @example 1 */
+export interface SafeUserResponse {
   id: number;
-  /** @example "Alice" */
-  name: string;
-  /**
-   * @format email
-   * @example "alice@example.com"
-   */
-  email: string;
-  /** @example "13800138000" */
-  mobile: string;
+  name: string | null;
+  /** @format email */
+  email: string | null;
+  mobile: string | null;
 }
 
 export interface AuthResponse {
-  user: SafeUser;
-  /** @example "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." */
+  user: SafeUserResponse;
   token: string;
 }
 
 export interface ModelTypesResponse {
-  types: ModelType[];
+  types: string[];
 }
 
-export interface AIModel {
-  /** @example 1 */
+export interface AIModelResponse {
   id: number;
-  /** @example "GPT-4o" */
   name: string;
-  type: ModelType;
-  /** @example {"apiKey":"sk-..."} */
-  params: object;
+  type: string;
+  params: Record<string, any>;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalTokens?: number;
 }
 
-export interface CreateModelRequest {
-  /** @example "GPT-4o" */
-  name: string;
-  type: ModelType;
-  /** @example {"apiKey":"sk-..."} */
-  params: object;
-}
-
-export interface UpdateModelRequest {
-  /** @example "GPT-4o" */
-  name?: string;
-  type?: ModelType;
-  /** @example {"apiKey":"sk-..."} */
-  params?: object;
-}
-
-export interface Agent {
-  /** @example 1 */
+export interface AgentResponse {
   id: number;
-  /** @example "My Assistant" */
   name: string;
-  /** @example "A helpful coding assistant" */
   description?: string | null;
-  /** @example "code,search,summarize" */
   capacity?: string | null;
-  /** @example 1 */
   userId: number;
-  /** @example 1 */
   modelId: number;
-  user?: SafeUser;
-  model?: AIModel;
+  user?: Record<string, any>;
+  model?: AIModelResponse;
 }
 
-export interface CreateAgentRequest {
-  /** @example "My Assistant" */
-  name: string;
-  /** @example "A helpful coding assistant" */
-  description?: string;
-  /** @example "code,search,summarize" */
-  capacity?: string;
-  /** @example 1 */
-  userId: number;
-  /** @example 1 */
-  modelId: number;
+export interface SubAgentResponse {
+  id: number;
+  agentId: number;
+  parentAgentId: number;
+  agent?: AgentResponse;
+  parentAgent?: AgentResponse;
 }
 
-export interface UpdateAgentRequest {
-  /** @example "My Assistant" */
-  name?: string;
-  /** @example "A helpful coding assistant" */
-  description?: string;
-  /** @example "code,search,summarize" */
-  capacity?: string;
-  /** @example 1 */
-  modelId?: number;
+export interface AgentTaskResponse {
+  id: number;
+  agentId: number;
+  content: string;
+  ac: string;
+  state: string;
+  queueOrder: number;
+  /** @format date-time */
+  assignedAt: string;
+  agent?: AgentResponse;
 }
+
+export interface ChatHistoryResponse {
+  id: number;
+  role: "SYSTEM" | "USER" | "ASSISTANT";
+  content: string;
+  agentTaskId: number;
+  /** @format date-time */
+  createdAt: string;
+}
+
+export interface MCPServerResponse {
+  id: number;
+  name?: string | null;
+  description?: string | null;
+  /** @format uri */
+  url: string;
+  params?: Record<string, any>;
+}
+
+export interface AgentMcpServerRelationResponse {
+  id: number;
+  agentId: number;
+  mcpServerId: number;
+  enabled: boolean;
+  /** @format date-time */
+  assignedAt: string;
+  agent?: AgentResponse;
+  mcpServer?: MCPServerResponse;
+}
+
+export type GenericObjectResponse = Record<string, any>;
+
+export type GenericArrayResponse = Record<string, any>[];
+
+export type OpenApiDocumentResponse = Record<string, any>;
 
 export type QueryParamsType = Record<string | number, any>;
 export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
@@ -424,7 +393,7 @@ export class HttpClient<SecurityDataType = unknown> {
  * @version 1.0.0
  * @baseUrl http://localhost:8000
  *
- * Swagger documentation for the Deno + Hono + Prisma server.
+ * OpenAPI documentation generated from registered Hono routes and Zod validators.
  */
 export class Api<
   SecurityDataType extends unknown,
@@ -433,11 +402,11 @@ export class Api<
    * No description
    *
    * @tags System
-   * @name GetRoot
+   * @name Get
    * @summary Get service metadata
    * @request GET:/
    */
-  getRoot = (params: RequestParams = {}) =>
+  get = (params: RequestParams = {}) =>
     this.request<RootResponse, any>({
       path: `/`,
       method: "GET",
@@ -450,15 +419,64 @@ export class Api<
      * No description
      *
      * @tags System
-     * @name HealthList
+     * @name GetHealth
      * @summary Get database health
      * @request GET:/health
      */
-    healthList: (params: RequestParams = {}) =>
+    getHealth: (params: RequestParams = {}) =>
       this.request<HealthUpResponse, HealthDownResponse>({
         path: `/health`,
         method: "GET",
         format: "json",
+        ...params,
+      }),
+  };
+  swaggerJson = {
+    /**
+     * No description
+     *
+     * @tags Docs
+     * @name GetSwaggerJson
+     * @summary Get OpenAPI specification
+     * @request GET:/swagger.json
+     */
+    getSwaggerJson: (params: RequestParams = {}) =>
+      this.request<OpenApiDocumentResponse, any>({
+        path: `/swagger.json`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  openapiYaml = {
+    /**
+     * No description
+     *
+     * @tags Docs
+     * @name GetOpenapiYaml
+     * @summary Get OpenAPI YAML document
+     * @request GET:/openapi.yaml
+     */
+    getOpenapiYaml: (params: RequestParams = {}) =>
+      this.request<string, any>({
+        path: `/openapi.yaml`,
+        method: "GET",
+        ...params,
+      }),
+  };
+  docs = {
+    /**
+     * No description
+     *
+     * @tags Docs
+     * @name GetDocs
+     * @summary Get Swagger UI page
+     * @request GET:/docs
+     */
+    getDocs: (params: RequestParams = {}) =>
+      this.request<string, any>({
+        path: `/docs`,
+        method: "GET",
         ...params,
       }),
   };
@@ -467,11 +485,19 @@ export class Api<
      * No description
      *
      * @tags User
-     * @name LoginCreate
+     * @name PostUserLogin
      * @summary Login with email and password
      * @request POST:/user/login
      */
-    loginCreate: (data: LoginRequest, params: RequestParams = {}) =>
+    postUserLogin: (
+      data: {
+        /** @format email */
+        email: string;
+        /** @minLength 1 */
+        password: string;
+      },
+      params: RequestParams = {},
+    ) =>
       this.request<AuthResponse, ValidationErrorResponse | ErrorResponse>({
         path: `/user/login`,
         method: "POST",
@@ -481,16 +507,166 @@ export class Api<
         ...params,
       }),
   };
+  agent = {
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name GetAgent
+     * @summary List all agents
+     * @request GET:/agent
+     */
+    getAgent: (params: RequestParams = {}) =>
+      this.request<AgentResponse[], any>({
+        path: `/agent`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PostAgent
+     * @summary Create a new agent
+     * @request POST:/agent
+     */
+    postAgent: (
+      data: {
+        /** @minLength 1 */
+        name: string;
+        description?: string | null;
+        capacity?: string | null;
+        /** @min 0 */
+        modelId: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentResponse, ValidationErrorResponse>({
+        path: `/agent`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name GetAgentById
+     * @summary Get an agent by ID
+     * @request GET:/agent/{id}
+     */
+    getAgentById: (id: number, params: RequestParams = {}) =>
+      this.request<AgentResponse, ErrorResponse>({
+        path: `/agent/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PutAgentById
+     * @summary Update an agent
+     * @request PUT:/agent/{id}
+     */
+    putAgentById: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        name?: string | null;
+        description?: string | null;
+        capacity?: string | null;
+        /** @min 0 */
+        modelId?: number | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentResponse, ErrorResponse>({
+        path: `/agent/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name DeleteAgentById
+     * @summary Delete an agent
+     * @request DELETE:/agent/{id}
+     */
+    deleteAgentById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/agent/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name PostAgentByIdTasks
+     * @summary Create a task for an agent
+     * @request POST:/agent/{id}/tasks
+     */
+    postAgentByIdTasks: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        content: string;
+        /** @minLength 1 */
+        ac: string;
+        state?: "PENDING" | "ACTIVE" | "FAILED" | "FINISHED" | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentTaskResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/agent/${id}/tasks`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name GetAgentByIdTasks
+     * @summary List tasks for an agent
+     * @request GET:/agent/{id}/tasks
+     */
+    getAgentByIdTasks: (id: number, params: RequestParams = {}) =>
+      this.request<AgentTaskResponse[], ErrorResponse>({
+        path: `/agent/${id}/tasks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
   model = {
     /**
      * No description
      *
      * @tags Model
-     * @name TypesList
-     * @summary Get all supported AI model brand types
+     * @name GetModelTypes
+     * @summary Get supported AI model types
      * @request GET:/model/types
      */
-    typesList: (params: RequestParams = {}) =>
+    getModelTypes: (params: RequestParams = {}) =>
       this.request<ModelTypesResponse, any>({
         path: `/model/types`,
         method: "GET",
@@ -502,12 +678,12 @@ export class Api<
      * No description
      *
      * @tags Model
-     * @name ModelList
+     * @name GetModel
      * @summary List all AI models
      * @request GET:/model
      */
-    modelList: (params: RequestParams = {}) =>
-      this.request<AIModel[], any>({
+    getModel: (params: RequestParams = {}) =>
+      this.request<AIModelResponse[], any>({
         path: `/model`,
         method: "GET",
         format: "json",
@@ -518,12 +694,30 @@ export class Api<
      * No description
      *
      * @tags Model
-     * @name ModelCreate
+     * @name PostModel
      * @summary Create a new AI model
      * @request POST:/model
      */
-    modelCreate: (data: CreateModelRequest, params: RequestParams = {}) =>
-      this.request<AIModel, ValidationErrorResponse>({
+    postModel: (
+      data: {
+        /** @minLength 1 */
+        name: string;
+        type:
+          | "OPENAI"
+          | "ANTHROPIC"
+          | "GOOGLE"
+          | "MISTRAL"
+          | "META"
+          | "DEEPSEEK"
+          | "ZHIPU"
+          | "QWEN"
+          | "BAIDU"
+          | "MOONSHOT";
+        params: Record<string, any>;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AIModelResponse, ValidationErrorResponse>({
         path: `/model`,
         method: "POST",
         body: data,
@@ -536,12 +730,12 @@ export class Api<
      * No description
      *
      * @tags Model
-     * @name ModelDetail
+     * @name GetModelById
      * @summary Get an AI model by ID
      * @request GET:/model/{id}
      */
-    modelDetail: (id: number, params: RequestParams = {}) =>
-      this.request<AIModel, ErrorResponse>({
+    getModelById: (id: number, params: RequestParams = {}) =>
+      this.request<AIModelResponse, ErrorResponse>({
         path: `/model/${id}`,
         method: "GET",
         format: "json",
@@ -552,16 +746,32 @@ export class Api<
      * No description
      *
      * @tags Model
-     * @name ModelUpdate
+     * @name PutModelById
      * @summary Update an AI model
      * @request PUT:/model/{id}
      */
-    modelUpdate: (
+    putModelById: (
       id: number,
-      data: UpdateModelRequest,
+      data: {
+        /** @minLength 1 */
+        name?: string | null;
+        type?:
+          | "OPENAI"
+          | "ANTHROPIC"
+          | "GOOGLE"
+          | "MISTRAL"
+          | "META"
+          | "DEEPSEEK"
+          | "ZHIPU"
+          | "QWEN"
+          | "BAIDU"
+          | "MOONSHOT"
+          | null;
+        params?: Record<string, any>;
+      },
       params: RequestParams = {},
     ) =>
-      this.request<AIModel, ErrorResponse>({
+      this.request<AIModelResponse, ErrorResponse>({
         path: `/model/${id}`,
         method: "PUT",
         body: data,
@@ -574,11 +784,11 @@ export class Api<
      * No description
      *
      * @tags Model
-     * @name ModelDelete
+     * @name DeleteModelById
      * @summary Delete an AI model
      * @request DELETE:/model/{id}
      */
-    modelDelete: (id: number, params: RequestParams = {}) =>
+    deleteModelById: (id: number, params: RequestParams = {}) =>
       this.request<SuccessResponse, ErrorResponse>({
         path: `/model/${id}`,
         method: "DELETE",
@@ -586,18 +796,297 @@ export class Api<
         ...params,
       }),
   };
-  agent = {
+  subagent = {
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name GetSubagent
+     * @summary List all sub-agent relationships
+     * @request GET:/subagent
+     */
+    getSubagent: (params: RequestParams = {}) =>
+      this.request<SubAgentResponse[], any>({
+        path: `/subagent`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name PostSubagent
+     * @summary Create a sub-agent relationship
+     * @request POST:/subagent
+     */
+    postSubagent: (
+      data: {
+        /** @min 0 */
+        agentId: number;
+        /** @min 0 */
+        parentAgentId: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SubAgentResponse, ValidationErrorResponse>({
+        path: `/subagent`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name GetSubagentById
+     * @summary Get a sub-agent relationship by ID
+     * @request GET:/subagent/{id}
+     */
+    getSubagentById: (id: number, params: RequestParams = {}) =>
+      this.request<SubAgentResponse, ErrorResponse>({
+        path: `/subagent/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name PutSubagentById
+     * @summary Update a sub-agent relationship
+     * @request PUT:/subagent/{id}
+     */
+    putSubagentById: (
+      id: number,
+      data: {
+        /** @min 0 */
+        agentId?: number | null;
+        /** @min 0 */
+        parentAgentId?: number | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SubAgentResponse, ErrorResponse>({
+        path: `/subagent/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name DeleteSubagentById
+     * @summary Delete a sub-agent relationship
+     * @request DELETE:/subagent/{id}
+     */
+    deleteSubagentById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/subagent/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name GetSubagentAgentByAgentId
+     * @summary List sub-agent relationships by child agent ID
+     * @request GET:/subagent/agent/{agentId}
+     */
+    getSubagentAgentByAgentId: (agentId: number, params: RequestParams = {}) =>
+      this.request<SubAgentResponse[], ErrorResponse>({
+        path: `/subagent/agent/${agentId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SubAgent
+     * @name GetSubagentParentByParentAgentId
+     * @summary List sub-agent relationships by parent agent ID
+     * @request GET:/subagent/parent/{parentAgentId}
+     */
+    getSubagentParentByParentAgentId: (
+      parentAgentId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SubAgentResponse[], ErrorResponse>({
+        path: `/subagent/parent/${parentAgentId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  chatHistory = {
+    /**
+     * No description
+     *
+     * @tags Chat History
+     * @name GetChatHistoryById
+     * @summary Get a chat history record by ID
+     * @request GET:/chat-history/{id}
+     */
+    getChatHistoryById: (id: number, params: RequestParams = {}) =>
+      this.request<ChatHistoryResponse, ErrorResponse>({
+        path: `/chat-history/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Chat History
+     * @name GetChatHistoryAgentTaskByAgentTaskId
+     * @summary List chat history records for an agent task
+     * @request GET:/chat-history/agent-task/{agentTaskId}
+     */
+    getChatHistoryAgentTaskByAgentTaskId: (
+      agentTaskId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<ChatHistoryResponse[], ErrorResponse>({
+        path: `/chat-history/agent-task/${agentTaskId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  mcpServer = {
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name GetMcpServer
+     * @summary List all MCP servers
+     * @request GET:/mcp-server
+     */
+    getMcpServer: (params: RequestParams = {}) =>
+      this.request<MCPServerResponse[], any>({
+        path: `/mcp-server`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name PostMcpServer
+     * @summary Create a new MCP server
+     * @request POST:/mcp-server
+     */
+    postMcpServer: (
+      data: {
+        /** @minLength 1 */
+        name?: string | null;
+        description?: string | null;
+        /** @format uri */
+        url: string;
+        params?: Record<string, any>;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<MCPServerResponse, ValidationErrorResponse>({
+        path: `/mcp-server`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name GetMcpServerById
+     * @summary Get an MCP server by ID
+     * @request GET:/mcp-server/{id}
+     */
+    getMcpServerById: (id: number, params: RequestParams = {}) =>
+      this.request<MCPServerResponse, ErrorResponse>({
+        path: `/mcp-server/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name PutMcpServerById
+     * @summary Update an MCP server
+     * @request PUT:/mcp-server/{id}
+     */
+    putMcpServerById: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        name?: string | null;
+        description?: string | null;
+        /** @format uri */
+        url?: string | null;
+        params?: Record<string, any>;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<MCPServerResponse, ErrorResponse>({
+        path: `/mcp-server/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name DeleteMcpServerById
+     * @summary Delete an MCP server
+     * @request DELETE:/mcp-server/{id}
+     */
+    deleteMcpServerById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/mcp-server/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+  };
+  agentMcpServer = {
     /**
      * No description
      *
      * @tags Agent
-     * @name AgentList
-     * @summary List all agents
-     * @request GET:/agent
+     * @name GetAgentMcpServer
+     * @summary List all agent MCP server assignments
+     * @request GET:/agent-mcp-server
      */
-    agentList: (params: RequestParams = {}) =>
-      this.request<Agent[], any>({
-        path: `/agent`,
+    getAgentMcpServer: (params: RequestParams = {}) =>
+      this.request<AgentMcpServerRelationResponse[], any>({
+        path: `/agent-mcp-server`,
         method: "GET",
         format: "json",
         ...params,
@@ -607,13 +1096,22 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name AgentCreate
-     * @summary Create a new agent
-     * @request POST:/agent
+     * @name PostAgentMcpServer
+     * @summary Assign an MCP server to an agent
+     * @request POST:/agent-mcp-server
      */
-    agentCreate: (data: CreateAgentRequest, params: RequestParams = {}) =>
-      this.request<Agent, ValidationErrorResponse>({
-        path: `/agent`,
+    postAgentMcpServer: (
+      data: {
+        /** @min 0 */
+        agentId: number;
+        /** @min 0 */
+        mcpServerId: number;
+        enabled?: boolean | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentMcpServerRelationResponse, ValidationErrorResponse>({
+        path: `/agent-mcp-server`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -625,13 +1123,16 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name AgentDetail
-     * @summary Get an agent by ID
-     * @request GET:/agent/{id}
+     * @name GetAgentMcpServerAgentByAgentId
+     * @summary List MCP servers assigned to an agent
+     * @request GET:/agent-mcp-server/agent/{agentId}
      */
-    agentDetail: (id: number, params: RequestParams = {}) =>
-      this.request<Agent, ErrorResponse>({
-        path: `/agent/${id}`,
+    getAgentMcpServerAgentByAgentId: (
+      agentId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentMcpServerRelationResponse[], ErrorResponse>({
+        path: `/agent-mcp-server/agent/${agentId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -641,17 +1142,35 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name AgentUpdate
-     * @summary Update an agent
-     * @request PUT:/agent/{id}
+     * @name GetAgentMcpServerById
+     * @summary Get an agent MCP server assignment by ID
+     * @request GET:/agent-mcp-server/{id}
      */
-    agentUpdate: (
+    getAgentMcpServerById: (id: number, params: RequestParams = {}) =>
+      this.request<AgentMcpServerRelationResponse, ErrorResponse>({
+        path: `/agent-mcp-server/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PutAgentMcpServerById
+     * @summary Toggle enabled flag for an agent MCP server assignment
+     * @request PUT:/agent-mcp-server/{id}
+     */
+    putAgentMcpServerById: (
       id: number,
-      data: UpdateAgentRequest,
+      data: {
+        enabled: boolean;
+      },
       params: RequestParams = {},
     ) =>
-      this.request<Agent, ErrorResponse>({
-        path: `/agent/${id}`,
+      this.request<AgentMcpServerRelationResponse, ErrorResponse>({
+        path: `/agent-mcp-server/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -663,64 +1182,76 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name AgentDelete
-     * @summary Delete an agent
-     * @request DELETE:/agent/{id}
+     * @name DeleteAgentMcpServerById
+     * @summary Remove an MCP server from an agent
+     * @request DELETE:/agent-mcp-server/{id}
      */
-    agentDelete: (id: number, params: RequestParams = {}) =>
+    deleteAgentMcpServerById: (id: number, params: RequestParams = {}) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent/${id}`,
+        path: `/agent-mcp-server/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
   };
-  swaggerJson = {
+  agentTask = {
     /**
      * No description
      *
-     * @tags Docs
-     * @name SwaggerJsonList
-     * @summary Get OpenAPI specification
-     * @request GET:/swagger.json
+     * @tags Agent
+     * @name GetAgentTaskById
+     * @summary Get an agent task by ID
+     * @request GET:/agent-task/{id}
      */
-    swaggerJsonList: (params: RequestParams = {}) =>
-      this.request<OpenApiDocumentResponse, any>({
-        path: `/swagger.json`,
+    getAgentTaskById: (id: number, params: RequestParams = {}) =>
+      this.request<AgentTaskResponse, ErrorResponse>({
+        path: `/agent-task/${id}`,
         method: "GET",
         format: "json",
         ...params,
       }),
-  };
-  docs = {
+
     /**
      * No description
      *
-     * @tags Docs
-     * @name DocsList
-     * @summary Get Swagger UI page
-     * @request GET:/docs
+     * @tags Agent
+     * @name PutAgentTaskById
+     * @summary Update an agent task
+     * @request PUT:/agent-task/{id}
      */
-    docsList: (params: RequestParams = {}) =>
-      this.request<string, any>({
-        path: `/docs`,
-        method: "GET",
+    putAgentTaskById: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        content?: string | null;
+        /** @minLength 1 */
+        ac?: string | null;
+        state?: "PENDING" | "ACTIVE" | "FAILED" | "FINISHED" | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentTaskResponse, ErrorResponse>({
+        path: `/agent-task/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
-  };
-  openapiYaml = {
+
     /**
      * No description
      *
-     * @tags Docs
-     * @name OpenapiYamlList
-     * @summary Get OpenAPI YAML document
-     * @request GET:/openapi.yaml
+     * @tags Agent
+     * @name DeleteAgentTaskById
+     * @summary Delete an agent task
+     * @request DELETE:/agent-task/{id}
      */
-    openapiYamlList: (params: RequestParams = {}) =>
-      this.request<string, any>({
-        path: `/openapi.yaml`,
-        method: "GET",
+    deleteAgentTaskById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/agent-task/${id}`,
+        method: "DELETE",
+        format: "json",
         ...params,
       }),
   };

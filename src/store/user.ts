@@ -1,6 +1,13 @@
 import { api, clearApiToken, onUnauthorized, setApiToken } from "@/api";
-import type { AuthResponse, LoginRequest, SafeUser } from "@/api";
+import type { AuthResponse } from "@/api";
 import { defineStore } from "pinia";
+
+type LoginRequest = {
+	email: string;
+	password: string;
+};
+
+type SafeUser = AuthResponse["user"];
 
 const authStorageKey = "agents-studio.auth";
 
@@ -44,7 +51,7 @@ export const useUserStore = defineStore("user", {
 			this.loggingIn = true;
 
 			try {
-				const response = await api.user.loginCreate(payload);
+				const response = await api.user.postUserLogin(payload);
 				this.applySession(response.data);
 				this.initialized = true;
 				return response.data;

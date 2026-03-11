@@ -3,22 +3,24 @@
     <template #autoPadding>
       <div class="v gap-3">
         <div class="v gap-1">
-          <div class="text-sm font-semibold">
-            Name <span class="text-danger">*</span>
-          </div>
+          <div class="text-sm font-semibold">Name</div>
           <Input
             v-model="name"
             v-focus
-            placeholder="Agent name"
+            placeholder="MCP server name"
             @enter="submit"
           />
         </div>
 
         <div class="v gap-1">
           <div class="text-sm font-semibold">
-            Model <span class="text-danger">*</span>
+            URL <span class="text-danger">*</span>
           </div>
-          <Select v-model="modelId" :options="modelOptions" />
+          <Input
+            v-model="url"
+            placeholder="https://example.com/mcp"
+            @enter="submit"
+          />
         </div>
 
         <div class="v gap-1">
@@ -27,12 +29,8 @@
         </div>
 
         <div class="v gap-1">
-          <div class="text-sm font-semibold">Capacity</div>
-          <Input
-            v-model="capacity"
-            placeholder="code,search,summarize"
-            @enter="submit"
-          />
+          <div class="text-sm font-semibold">Params (JSON)</div>
+          <Textarea v-model="paramsText" class="bg-transparent" />
         </div>
 
         <div
@@ -60,85 +58,55 @@
 
 <script setup lang="ts">
 import { api } from "@/api";
-import { useUserStore } from "@/store/user";
-import type { AgentResponse, AIModelResponse } from "@/api";
+import type { MCPServerResponse } from "@/api";
 import type { DialogType } from "@/components/dialog/dialog";
-
-type FormResult = AgentResponse;
 
 const props = withDefaults(
   defineProps<{
-    dialog: DialogType<any, FormResult>;
+    dialog: DialogType<any, MCPServerResponse>;
     id?: number | null;
     title?: string | null;
     width?: string;
-    userId?: number | null;
   }>(),
   {
-    width: "460px",
     id: null,
     title: null,
-    userId: null,
+    width: "560px",
   },
 );
 
-const userStore = useUserStore();
-
 const name = ref("");
-const modelId = ref<number | undefined>(undefined);
 const description = ref("");
-const capacity = ref("");
+const url = ref("");
+const paramsText = ref("{}");
 
-const models = ref<AIModelResponse[]>([]);
 const isSubmitting = ref(false);
 const errorMessage = ref("");
 
 const isEdit = computed(() => typeof props.id === "number" && props.id > 0);
 const finalTitle = computed(
-  () => props.title || (isEdit.value ? "Edit Agent" : "Create Agent"),
+  () => props.title || (isEdit.value ? "Edit MCP Server" : "Create MCP Server"),
 );
-const modelOptions = computed(() =>
-  models.value.map((model) => ({
-    id: model.id,
-    name: model.name,
-  })),
-);
-const canSubmit = computed(
-  () => !!name.value.trim() && typeof modelId.value === "number",
-);
+const canSubmit = computed(() => !!url.value.trim());
 
 onMounted(async () => {
-  await loadModels();
-
   if (isEdit.value && props.id) {
-    await loadAgent(props.id);
+    await loadMcpServer(props.id);
   }
 });
 
-async function loadModels() {
+async function loadMcpServer(id: number) {
   try {
-    const response = await api.model.getModel();
-    models.value = response.data || [];
+    const response = await api.mcpServer.getMcpServerById(id);
+    const mcpServer = response.data;
+    name.value = mcpServer.name || "";
+    description.value = mcpServer.description || "";
+    url.value = mcpServer.url || "";
+    paramsText.value = JSON.stringify(mcpServer.params || {}, null, 2);
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
-      "Failed to load model options.",
-    );
-  }
-}
-
-async function loadAgent(id: number) {
-  try {
-    const response = await api.agent.getAgentById(id);
-    const agent = response.data;
-    name.value = agent.name || "";
-    modelId.value = agent.modelId;
-    description.value = agent.description || "";
-    capacity.value = agent.capacity || "";
-  } catch (error) {
-    errorMessage.value = getErrorMessage(
-      error,
-      "Failed to load agent details.",
+      "Failed to load MCP server detail.",
     );
   }
 }
@@ -146,38 +114,64 @@ async function loadAgent(id: number) {
 async function submit() {
   errorMessage.value = "";
 
-  if (!canSubmit.value) {
-    errorMessage.value = "Name and model are required.";
+  const finalUrl = url.value.trim();
+  if (!finalUrl) {
+    errorMessage.value = "URL is required.";
     return;
   }
 
-  isSubmitting.value = true;
-
   try {
-    const savedAgent = await props.dialog.process(async () => {
+    new URL(finalUrl);
+  } catch {
+    errorMessage.value = "URL must be a valid absolute URL.";
+    return;
+  }
+
+  let parsedParams: Record<string, any> | undefined;
+  const finalParamsText = paramsText.value.trim();
+  if (finalParamsText) {
+    try {
+      const parsed = JSON.parse(finalParamsText);
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        errorMessage.value = "Params must be a JSON object.";
+        return;
+      }
+      parsedParams = parsed;
+    } catch {
+      errorMessage.value = "Params must be valid JSON.";
+      return;
+    }
+  }
+
+  isSubmitting.value = true;
+  try {
+    const savedMcpServer = await props.dialog.process(async () => {
+      const payload = {
+        name: toOptional(name.value),
+        description: toOptional(description.value),
+        url: finalUrl,
+        params: parsedParams,
+      };
+
       if (isEdit.value && props.id) {
-        const response = await api.agent.putAgentById(props.id, {
-          name: name.value.trim(),
-          description: toOptional(description.value),
-          capacity: toOptional(capacity.value),
-          modelId: modelId.value,
-        });
+        const response = await api.mcpServer.putMcpServerById(
+          props.id,
+          payload,
+        );
         return response.data;
       }
 
-      const response = await api.agent.postAgent({
-        name: name.value.trim(),
-        description: toOptional(description.value),
-        capacity: toOptional(capacity.value),
-        modelId: modelId.value!,
-      });
-
+      const response = await api.mcpServer.postMcpServer(payload);
       return response.data;
     });
 
-    props.dialog.finish(savedAgent);
+    props.dialog.finish(savedMcpServer);
   } catch (error) {
-    errorMessage.value = getErrorMessage(error, "Failed to save agent.");
+    errorMessage.value = getErrorMessage(error, "Failed to save MCP server.");
   } finally {
     isSubmitting.value = false;
   }
