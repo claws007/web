@@ -3,7 +3,7 @@ import plugins from "@/plugins";
 import { ConfigProvider } from "ant-design-vue";
 import type { AllowedComponentProps, VNodeProps } from "vue";
 import { useI18n } from "vue-i18n";
-import { AnyDialogType, DialogType, useDialog } from "./dialog";
+import { type AnyDialogType, type DialogType, useDialog } from "./dialog";
 import zhCN from "ant-design-vue/es/locale/zh_CN";
 import enUS from "ant-design-vue/es/locale/en_US";
 import arEG from "ant-design-vue/es/locale/ar_EG";

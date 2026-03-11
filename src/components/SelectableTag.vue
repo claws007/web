@@ -5,7 +5,7 @@
       'group/g shrink-0 cursor-pointer overflow-hidden rounded break-all',
       `bg-light-${background}`,
       selected
-        ? '!bg-[var(--theme)] text-[var(--theme-text-color)]'
+        ? 'bg-(--theme)! text-(--theme-text-color)'
         : `hover:bg-light-${+background + 1}`,
     ]"
     :style="theme.cssVariables"
@@ -41,7 +41,7 @@
               @click.stop
               :class="[
                 'h hover:bg-light-5 items-center justify-center rounded p-0.5 opacity-0 duration-300 group-hover/g:opacity-100',
-                selected ? 'hover:!bg-[var(--theme-dark)]' : '',
+                selected ? 'hover:bg-(--theme-dark)!' : '',
               ]"
             >
               <MoreOutlined></MoreOutlined>
@@ -69,6 +69,7 @@
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
 import { defaultPrimaryHue, themeHSColorL, themeHSColorS } from "@/const";
 import { useTheme } from "@/utils/color";
+import { MoreOutlined } from "@ant-design/icons-vue";
 
 const props = withDefaults(
   defineProps<{

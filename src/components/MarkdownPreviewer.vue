@@ -6,57 +6,56 @@
   ></div>
 </template>
 <script setup lang="ts">
-import Markdown from "markdown-it"
-import highlightjs from "markdown-it-highlightjs"
-import { useSystemStore } from "@/store/system"
-import { electronAPI } from "@/utils/electron"
+import Markdown from "markdown-it";
+import highlightjs from "markdown-it-highlightjs";
+import { useSystemStore } from "@/store/system";
 
 const props = defineProps<{
-  noImage?: boolean
-}>()
+  noImage?: boolean;
+}>();
 
-const md = Markdown().use(highlightjs, {})
+const md = Markdown().use(highlightjs, {});
 const modelValue = defineModel<string>("modelValue", {
   default: "",
-})
+});
 
-const systemStore = useSystemStore()
+const systemStore = useSystemStore();
 const markdownContent = computed(() => {
-  let content = modelValue.value || ""
+  let content = modelValue.value || "";
   if (props.noImage) {
-    content = content.replace(/!\[.*?\]\(.*?\)/g, "")
+    content = content.replace(/!\[.*?\]\(.*?\)/g, "");
   }
-  return md.render(content)
-})
+  return md.render(content);
+});
 
 async function handleClickCapture(event: MouseEvent) {
-  const target = event.target
+  const target = event.target;
   if (target instanceof HTMLImageElement) {
     // 图片事件捕获、打开图片本身
-    event.preventDefault()
-    event.stopPropagation()
-    electronAPI.openImage(target.src)
+    event.preventDefault();
+    event.stopPropagation();
+    // electronAPI.openImage(target.src)
   }
 }
 
-watch(
-  () => systemStore.isDarkMode,
-  (isDark) => {
-    const id = "markdown-theme-link"
-    const linkElement =
-      (document.querySelector(id) as HTMLLinkElement) ??
-      document.createElement("link")
-    linkElement.id = id
-    linkElement.href = isDark
-      ? "/github-markdown-dark.css"
-      : "/github-markdown-light.css"
-  },
-  { immediate: true },
-)
+// watch(
+//   () => systemStore.isDarkMode,
+//   (isDark) => {
+//     const id = "markdown-theme-link";
+//     const linkElement =
+//       (document.querySelector(id) as HTMLLinkElement) ??
+//       document.createElement("link");
+//     linkElement.id = id;
+//     linkElement.href = isDark
+//       ? "/github-markdown-dark.css"
+//       : "/github-markdown-light.css";
+//   },
+//   { immediate: true },
+// );
 </script>
 
 <style lang="css">
-@reference "@/styles/index.css";
+@reference "../styles/index.css";
 
 .markdown-body {
   font-size: inherit !important;

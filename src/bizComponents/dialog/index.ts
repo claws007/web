@@ -1,1 +1,1 @@
-export var placeholderDialog: any = null as any;
+export { default as CreateOrEditAgentDialog } from "./CreateOrEditAgentDialog.vue";

@@ -10,36 +10,35 @@
   </DropZone>
 </template>
 <script setup lang="ts">
-import { EditorView, basicSetup } from "codemirror"
-import { markdown } from "@codemirror/lang-markdown"
-import { fileTypeFromBuffer } from "file-type"
-import { selectImageFiles } from "@/utils/file"
-import { electronAPI } from "@/utils/electron"
+import { EditorView, basicSetup } from "codemirror";
+import { markdown } from "@codemirror/lang-markdown";
+import { fileTypeFromBuffer } from "file-type";
+import { selectImageFiles } from "@/utils/file";
 
-const container = ref<HTMLDivElement>()
-const modelValue = defineModel<string>("modelValue", { default: "" })
+const container = ref<HTMLDivElement>();
+const modelValue = defineModel<string>("modelValue", { default: "" });
 const props = withDefaults(
   defineProps<{
-    autoFocus?: boolean
+    autoFocus?: boolean;
   }>(),
   {},
-)
+);
 
 // tab 缩进（支持选择多行，Shift+Tab 反向减少缩进）
 const tabHandler = EditorView.domEventHandlers({
   keydown(event, view) {
-    if (event.key !== "Tab") return false
-    event.preventDefault()
-    const tab = "  "
-    const sel = view.state.selection.main
-    const { from, to } = sel
+    if (event.key !== "Tab") return false;
+    event.preventDefault();
+    const tab = "  ";
+    const sel = view.state.selection.main;
+    const { from, to } = sel;
     if (from === to) {
-      const line = view.state.doc.lineAt(from)
+      const line = view.state.doc.lineAt(from);
       if (event.shiftKey) {
         const ahead = view.state.doc.sliceString(
           line.from,
           line.from + tab.length,
-        )
+        );
         if (ahead === tab) {
           view.dispatch({
             changes: {
@@ -48,23 +47,23 @@ const tabHandler = EditorView.domEventHandlers({
               insert: "",
             },
             selection: { anchor: from - tab.length },
-          })
-          return true
+          });
+          return true;
         }
         if (ahead.startsWith("\t")) {
           view.dispatch({
             changes: { from: line.from, to: line.from + 1, insert: "" },
             selection: { anchor: Math.max(line.from, from - 1) },
-          })
-          return true
+          });
+          return true;
         }
-        return true
+        return true;
       } else {
-        const line = view.state.doc.lineAt(from)
-        const lineText = line.text
-        const dashIndex = lineText.indexOf("- ")
+        const line = view.state.doc.lineAt(from);
+        const lineText = line.text;
+        const dashIndex = lineText.indexOf("- ");
         if (dashIndex !== -1) {
-          const cursorPosInLine = from - line.from
+          const cursorPosInLine = from - line.from;
           if (
             cursorPosInLine > dashIndex + 1 &&
             cursorPosInLine <= dashIndex + 2
@@ -73,79 +72,79 @@ const tabHandler = EditorView.domEventHandlers({
             view.dispatch({
               changes: { from: line.from, to: line.from, insert: tab },
               selection: { anchor: from + tab.length },
-            })
-            return true
+            });
+            return true;
           }
         } else {
           view.dispatch({
             changes: { from, to, insert: tab },
             selection: { anchor: from + tab.length },
-          })
-          return true
+          });
+          return true;
         }
       }
     }
 
     // 当光标在 - 后方时，按tab给 - 前方添加缩进，而不是后方
-    const startLine = view.state.doc.lineAt(from).number
-    const endLineObj = view.state.doc.lineAt(to)
-    let endLine = endLineObj.number
-    if (to === endLineObj.from && to > from) endLine -= 1
-    const changes: { from: number; to: number; insert: string }[] = []
-    let newFrom = from
-    let newTo = to
+    const startLine = view.state.doc.lineAt(from).number;
+    const endLineObj = view.state.doc.lineAt(to);
+    let endLine = endLineObj.number;
+    if (to === endLineObj.from && to > from) endLine -= 1;
+    const changes: { from: number; to: number; insert: string }[] = [];
+    let newFrom = from;
+    let newTo = to;
     if (event.shiftKey) {
       for (let ln = startLine; ln <= endLine; ln++) {
-        const lineObj = view.state.doc.line(ln)
-        const text = lineObj.text
+        const lineObj = view.state.doc.line(ln);
+        const text = lineObj.text;
         if (text.startsWith(tab)) {
           changes.push({
             from: lineObj.from,
             to: lineObj.from + tab.length,
             insert: "",
-          })
-          if (lineObj.from < from) newFrom -= tab.length
-          newTo -= tab.length
+          });
+          if (lineObj.from < from) newFrom -= tab.length;
+          newTo -= tab.length;
         } else if (text.startsWith("\t")) {
           changes.push({
             from: lineObj.from,
             to: lineObj.from + 1,
             insert: "",
-          })
-          if (lineObj.from < from) newFrom -= 1
-          newTo -= 1
+          });
+          if (lineObj.from < from) newFrom -= 1;
+          newTo -= 1;
         }
       }
     } else {
-      let lineCount = 0
+      let lineCount = 0;
       for (let ln = startLine; ln <= endLine; ln++) {
-        const lineObj = view.state.doc.line(ln)
-        changes.push({ from: lineObj.from, to: lineObj.from, insert: tab })
-        lineCount++
-        if (lineObj.from <= from) newFrom += tab.length
-        newTo += tab.length
+        const lineObj = view.state.doc.line(ln);
+        changes.push({ from: lineObj.from, to: lineObj.from, insert: tab });
+        lineCount++;
+        if (lineObj.from <= from) newFrom += tab.length;
+        newTo += tab.length;
       }
     }
     if (changes.length) {
       view.dispatch({
         changes,
         selection: { anchor: newFrom, head: newTo },
-      })
+      });
     }
-    return true
+    return true;
   },
-})
+});
 
 // handle paste
 const pasteHandler = EditorView.domEventHandlers({
   paste(event, _view) {
     // Check if the clipboard contains files (images)
-    const items = event.clipboardData?.items || []
+    const items = event.clipboardData?.items || [];
     const files = [...items]
       .map((item) => {
         if (item.type.indexOf("image") !== -1) {
-          const file = item.getAsFile()
-          return file
+          const file = item.getAsFile();
+          return file;
           // if (file) {
           //   // Process the image file (e.g., read as base64, upload)
           //   handlePastedImage(file, view);
@@ -155,17 +154,17 @@ const pasteHandler = EditorView.domEventHandlers({
         }
       })
       .filter((f) => !!f)
-      .map((f) => f!)
+      .map((f) => f!);
     if (files.length > 0) {
-      event.preventDefault()
-      insertImages(files)
-      return true
+      event.preventDefault();
+      insertImages(files);
+      return true;
     }
-    return false // Let CodeMirror handle other paste types
+    return false; // Let CodeMirror handle other paste types
   },
-})
+});
 
-let editor: EditorView | undefined
+let editor: EditorView | undefined;
 onMounted(() => {
   editor = new EditorView({
     parent: container.value!,
@@ -178,66 +177,66 @@ onMounted(() => {
       tabHandler,
     ],
     dispatch: (tr) => {
-      editor?.update([tr])
+      editor?.update([tr]);
       if (tr.docChanged) {
-        modelValue.value = editor?.state.doc.toString() || ""
+        modelValue.value = editor?.state.doc.toString() || "";
       }
     },
-  })
+  });
   if (props.autoFocus) {
-    editor.focus()
+    editor.focus();
   }
-})
+});
 
 async function insertImages(imageFiles: File[]) {
-  if (imageFiles.length > 0) {
-    // upload imagefiles
-    const files = await Promise.all(
-      imageFiles.map(async (f) => f.arrayBuffer()),
-    )
-    const imageURLs = await electronAPI.uploadImages(files)
-    // insert markdown image links
-    const insertTexts =
-      imageURLs.map((url) => `![image](${url})`).join("\n") + "\n"
-    const currentPos = editor?.state.selection.main.head || 0
-    const newPos = currentPos + insertTexts.length
-    editor?.dispatch(
-      editor.state.update({
-        changes: {
-          from: currentPos,
-          to: currentPos,
-          insert: insertTexts,
-        },
-        selection: { anchor: newPos },
-      }),
-    )
-  }
+  // if (imageFiles.length > 0) {
+  //   // upload imagefiles
+  //   const files = await Promise.all(
+  //     imageFiles.map(async (f) => f.arrayBuffer()),
+  //   )
+  //   const imageURLs = await electronAPI.uploadImages(files)
+  //   // insert markdown image links
+  //   const insertTexts =
+  //     imageURLs.map((url) => `![image](${url})`).join("\n") + "\n"
+  //   const currentPos = editor?.state.selection.main.head || 0
+  //   const newPos = currentPos + insertTexts.length
+  //   editor?.dispatch(
+  //     editor.state.update({
+  //       changes: {
+  //         from: currentPos,
+  //         to: currentPos,
+  //         insert: insertTexts,
+  //       },
+  //       selection: { anchor: newPos },
+  //     }),
+  //   )
+  // }
 }
 
 async function handleDropFile(files: File[], _filelist: FileList) {
   const imageFiles = (
     await Promise.all(
       files.map(async (f) => {
-        const buffer = await f.arrayBuffer()
-        const type = await fileTypeFromBuffer(buffer)
+        const buffer = await f.arrayBuffer();
+        const type = await fileTypeFromBuffer(buffer);
         return [f, !!type?.mime.startsWith("image/")] satisfies [
           File,
           boolean,
-        ] as [File, boolean]
+        ] as [File, boolean];
       }),
     )
   )
     .filter((d) => !!d[1])
-    .map((d) => d[0])
-  return insertImages(imageFiles)
+    .map((d) => d[0]);
+  return insertImages(imageFiles);
 }
 
 defineExpose({
   uploadImage: async () => {
-    const images = await selectImageFiles()
-    return insertImages(images)
+    const images = await selectImageFiles();
+    return insertImages(images);
   },
-})
+});
 </script>
 
 <style lang="css">

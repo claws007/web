@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { PlusOutlined } from "@ant-design/icons-vue";
+import { api } from "@/api";
+import { dialogs } from "@/components/dialog";
+import { PlusOutlined, SettingOutlined } from "@ant-design/icons-vue";
+
+api.agent.agentList().then((d) => {
+  console.debug(d.data, "dd");
+});
 </script>
 
 <template>
@@ -9,11 +15,21 @@ import { PlusOutlined } from "@ant-design/icons-vue";
     >
       <div class="h justify-between items-center">
         <div>Agents</div>
-        <Button> <PlusOutlined /> New Agent Group </Button>
+        <div class="h items-center gap-2">
+          <Button @click="dialogs.CreateOrEditAgentDialog()">
+            <PlusOutlined /> New Agent Group
+          </Button>
+          <Button>
+            <SettingOutlined />
+          </Button>
+        </div>
       </div>
       <div class="stretch gap-2 v">
-        <div class="p-2 bg-light-4 rounded">sdf</div>
-        <div class="p-2 bg-light-4 rounded">sdf</div>
+        <SelectableTag
+          title="hello"
+          content="test"
+          background="4"
+        ></SelectableTag>
       </div>
     </div>
   </div>
