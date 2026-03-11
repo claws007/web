@@ -1,22 +1,19 @@
 # Create Dialog Component Skill
 
-Generate custom dialog components (ConfirmDialog, InputDialog, SelectDialog, FormDialog) with TypeScript types and automatic exports.
+Generate custom dialog components (ConfirmDialog, InputDialog, SelectDialog) with TypeScript types and automatic exports.
 
 ## 🎯 Quick Start (5 Minutes)
 
 ### 1. Decide: Common or Business?
 
-| Decision | Location | Example |
-|----------|----------|---------|
-| **Reusable across projects** | `src/components/dialog/commonDialog/` | InputDialog, ConfirmDialog |
-| **Project-specific** | `src/bizComponents/dialog/` | SettingsDialog, ProcessDialog |
+- **Reusable across projects**: `src/components/dialog/commonDialog/` with dialogs like `InputDialog` and `ConfirmDialog`.
+- **Project-specific**: `src/bizComponents/dialog/` with dialogs like `SettingsDialog` and `ProcessDialog`.
 
 ### 2. Choose Pattern
 
 - **Simple** (~1 min) → Yes/no confirmation
 - **Input** (~2 min) → Text input with options
 - **Select** (~2 min) → Pick from list
-- **Form** (~5 min) → Multi-field with validation
 
 ### 3. Create File
 
@@ -46,11 +43,9 @@ const result = await dialogs.YourDialog({ /* props */ })
 
 ## 📚 Files
 
-| File | Purpose |
-|------|---------|
-| [SKILL.md](./SKILL.md) | Complete guide: architecture, patterns, best practices, troubleshooting |
-| [templates/](./templates/) | Ready-to-use component templates (4 patterns) |
-| [templates/README.md](./templates/README.md) | Quick template reference |
+- [SKILL.md](./SKILL.md): Complete guide with architecture, patterns, best practices, and troubleshooting.
+- [templates/](./templates/): Ready-to-use component templates for three patterns.
+- [templates/README.md](./templates/README.md): Quick template reference.
 
 ## 🚀 When to Use This Skill
 
@@ -58,7 +53,6 @@ Ask for this skill when you need to:
 
 - "Generate a dialog component for..."
 - "Create a confirmation dialog..."
-- "Build a custom form dialog..."
 - "Add a new InputDialog variant..."
 - "Generate a list selection dialog..."
 - "Export a dialog to the dialogs system..."
@@ -77,12 +71,9 @@ Read [SKILL.md](./SKILL.md) for:
 
 ## 🔧 Templates Overview
 
-| Pattern | File | Returns | Complexity |
-|---------|------|---------|-----------|
-| **Simple** | `1-simple-dialog.vue` | void | ⭐ 1 min |
-| **Input** | `2-input-dialog.vue` | string | ⭐⭐ 2 min |
-| **Select** | `3-select-dialog.vue` | T (generic) | ⭐⭐ 2 min |
-| **Form** | `4-form-dialog.vue` | Object | ⭐⭐⭐ 5 min |
+- **Simple**: `1-simple-dialog.vue`, returns `void`, about 1 minute.
+- **Input**: `2-input-dialog.vue`, returns `string`, about 2 minutes.
+- **Select**: `3-select-dialog.vue`, returns `T`, about 2 minutes.
 
 Visit [templates/README.md](./templates/README.md) for quick customization tips.
 
@@ -94,7 +85,7 @@ Visit [templates/README.md](./templates/README.md) for quick customization tips.
 # 1. Check: Is it reusable? (Common) or project-specific? (Business)
    → Common dialog (reusable)
 
-# 2. Choose pattern: Simple, Input, Select, or Form?
+# 2. Choose pattern: Simple, Input, or Select?
    → Select pattern (pick from list)
 
 # 3. Copy template
@@ -124,7 +115,7 @@ Visit [templates/README.md](./templates/README.md) for quick customization tips.
 
 ✅ **Quick 5-minute workflow** - Copy, customize, export, use  
 ✅ **Type-safe** - Full TypeScript support with dialogue typing  
-✅ **4 ready-made patterns** - Simple, Input, Select, Form  
+✅ **3 ready-made patterns** - Simple, Input, Select  
 ✅ **Auto-exports** - Automatic integration with global `dialogs` object  
 ✅ **Best practices** - Checklist, common mistakes, troubleshooting  
 ✅ **Architecture reference** - Understand your dialog system fully  

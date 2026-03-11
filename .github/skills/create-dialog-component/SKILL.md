@@ -1,7 +1,6 @@
 ---
 name: create-dialog-component
-description: "Generate dialog components (ConfirmDialog, InputDialog, SelectDialog, FormDialog) with automatic exports. Use when: creating a new reusable dialog component, need quick template for confirmation/input/list dialogs, building custom form dialogs, or adding to bizComponents or components folder."
-applies_to: "src/components/dialog/**/*,src/bizComponents/dialog/**/*"
+description: "Generate dialog components (ConfirmDialog, InputDialog, SelectDialog) with automatic exports. Use when: creating a new reusable dialog component, need quick template for confirmation/input/list dialogs, or adding to bizComponents or components folder."
 ---
 
 # Create Dialog Component Skill
@@ -26,12 +25,11 @@ A quick, step-by-step workflow to generate new dialog components with proper Typ
 
 Pick the template that matches your use case:
 
-| Pattern    | Example                  | Returns          | Complexity   |
-| ---------- | ------------------------ | ---------------- | ------------ |
-| **Simple** | ConfirmDialog (yes/no)   | `void` / boolean | ⭐ 1 min     |
-| **Input**  | InputDialog (text field) | `string`         | ⭐⭐ 2 min   |
-| **Select** | SelectDialog (pick item) | `T` (generic)    | ⭐⭐ 2 min   |
-| **Form**   | Custom (multi-field)     | `ObjectType`     | ⭐⭐⭐ 5 min |
+| Pattern    | Example                  | Returns          | Complexity |
+| ---------- | ------------------------ | ---------------- | ---------- |
+| **Simple** | ConfirmDialog (yes/no)   | `void` / boolean | ⭐ 1 min   |
+| **Input**  | InputDialog (text field) | `string`         | ⭐⭐ 2 min |
+| **Select** | SelectDialog (pick item) | `T` (generic)    | ⭐⭐ 2 min |
 
 ### 3️⃣ **Create the Component File**
 
@@ -279,102 +277,6 @@ withDefaults(
 
 ---
 
-### Pattern 4: Form Dialog (Multi-Field)
-
-**Use for:** Complex input with validation, multiple fields, save/cancel  
-**Returns:** `FormData` (custom object)  
-**File:** Custom dialog in `bizComponents/dialog/`
-
-```vue
-<template>
-  <Dialog :dialog :title="'Edit Settings'" width="500px">
-    <template #autoPadding>
-      <Form :form="formInstance">
-        <FormItem label="API Key" required>
-          <Input v-model="formData.apiKey" placeholder="Enter API key" />
-        </FormItem>
-        <FormItem label="Timeout (ms)" required>
-          <Slider
-            v-model="formData.timeout"
-            :min="100"
-            :max="5000"
-            :step="100"
-          />
-        </FormItem>
-        <FormItem label="Enabled" label-align="left">
-          <Switch v-model="formData.enabled" />
-        </FormItem>
-      </Form>
-    </template>
-    <template #footer>
-      <Button @click="dialog.close()">{{ $t("cancel") }}</Button>
-      <Button @click="handleSave" type="primary" :loading="saving">
-        {{ $t("save") }}
-      </Button>
-    </template>
-  </Dialog>
-</template>
-
-<script setup lang="ts">
-import { DialogType } from "@/components/dialog";
-
-interface FormData {
-  apiKey: string;
-  timeout: number;
-  enabled: boolean;
-}
-
-const props = withDefaults(
-  defineProps<{
-    dialog: DialogType<FormData, FormData>;
-    initialData?: Partial<FormData>;
-  }>(),
-  {
-    initialData: () => ({
-      apiKey: "",
-      timeout: 5000,
-      enabled: true,
-    }),
-  },
-);
-
-const formInstance = useForm({
-  apiKey: [{ required: true, message: "API Key required" }],
-  timeout: [{ type: "number", min: 100, max: 5000 }],
-});
-
-const formData = ref<FormData>({
-  apiKey: props.initialData?.apiKey || "",
-  timeout: props.initialData?.timeout || 5000,
-  enabled: props.initialData?.enabled ?? true,
-});
-
-const saving = ref(false);
-
-async function handleSave() {
-  const valid = await formInstance.validateFields();
-  if (valid) {
-    saving.value = true;
-    try {
-      // Optional: API call here
-      props.dialog.finish(formData.value);
-    } finally {
-      saving.value = false;
-    }
-  }
-}
-</script>
-```
-
-**Key components to use:**
-
-- `Form` + `FormItem` for validation
-- `Slider`, `Switch`, `Select`, `DatePicker` for different inputs
-- `loading` state for async operations
-- Validate before calling `dialog.finish()`
-
----
-
 ## 🔗 Export Checklist
 
 After creating your dialog component, **add the export**:
@@ -449,13 +351,6 @@ const selected = await dialogs
     ],
   })
   .finishPromise((option) => option);
-
-// Custom FormDialog usage
-const settings = await dialogs
-  .SettingsDialog({
-    initialData: { apiKey: "", timeout: 5000, enabled: true },
-  })
-  .finishPromise((data) => data);
 ```
 
 ---
@@ -502,18 +397,17 @@ Need to create a dialog?
 │   ├─→ YES: Common Dialog
 │   │   ├─ File: src/components/dialog/commonDialog/MyDialog.vue
 │   │   ├─ Export: src/components/dialog/commonDialog/index.ts
-│   │   └─ Pattern: Simple, Input, Select, or Form
+│   │   └─ Pattern: Simple, Input, or Select
 │   │
 │   └─→ NO: Business Dialog
 │       ├─ File: src/bizComponents/dialog/MyDialog.vue
 │       ├─ Export: src/bizComponents/dialog/index.ts
-│       └─ Pattern: Form or Custom
+│       └─ Pattern: Simple, Input, Select, or Custom
 │
 ├─→ What type of dialog?
 │   ├─ Confirmation → Pattern 1 (Simple)
 │   ├─ Text input → Pattern 2 (Input)
-│   ├─ Pick from list → Pattern 3 (Select)
-│   └─ Multiple fields → Pattern 4 (Form)
+│   └─ Pick from list → Pattern 3 (Select)
 │
 └─→ Copy template → Customize → Add export → Done ✨
 ```
@@ -538,8 +432,8 @@ A: Auto-injected via setup. If error, ensure component is loaded in `helper.ts` 
 
 ## Related Files
 
-- [src/components/dialog/Dialog.vue - Base container](../../src/components/dialog/Dialog.vue)
-- [src/components/dialog/dialog.d.ts - Type definitions](../../src/components/dialog/dialog.d.ts)
-- [src/components/dialog/commonDialog/index.ts - Common exports](../../src/components/dialog/commonDialog/index.ts)
-- [src/bizComponents/dialog/index.ts - Business exports](../../src/bizComponents/dialog/index.ts)
-- [src/components/dialog/helper.ts - Dialog system](../../src/components/dialog/helper.ts)
+- [src/components/dialog/Dialog.vue - Base container](../../../src/components/dialog/Dialog.vue)
+- [src/components/dialog/dialog.d.ts - Type definitions](../../../src/components/dialog/dialog.d.ts)
+- [src/components/dialog/commonDialog/index.ts - Common exports](../../../src/components/dialog/commonDialog/index.ts)
+- [src/bizComponents/dialog/index.ts - Business exports](../../../src/bizComponents/dialog/index.ts)
+- [src/components/dialog/helper.ts - Dialog system](../../../src/components/dialog/helper.ts)

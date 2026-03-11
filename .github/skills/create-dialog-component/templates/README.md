@@ -4,12 +4,11 @@ This folder contains reusable templates for generating dialog components.
 
 ## 📋 Template Files
 
-| File | Pattern | Use Case | Time |
-|------|---------|----------|------|
-| `1-simple-dialog.vue` | Simple | Confirmation, yes/no, message | 1 min |
-| `2-input-dialog.vue` | Input | Text input, password, email | 2 min |
-| `3-select-dialog.vue` | Select | Pick from list, options | 2 min |
-| `4-form-dialog.vue` | Form | Multi-field with validation | 5 min |
+| File                  | Pattern | Use Case                        | Time  |
+| --------------------- | ------- | ------------------------------- | ----- |
+| `1-simple-dialog.vue` | Simple  | Confirmation, yes/no, message   | 1 min |
+| `2-input-dialog.vue`  | Input   | Text input, password, email     | 2 min |
+| `3-select-dialog.vue` | Select  | Pick from list, options         | 2 min |
 
 ## 🚀 Quick Start (4 Steps)
 
@@ -80,22 +79,6 @@ const selected = await dialogs.StatusSelectDialog({
 }).finishPromise((opt) => opt);
 ```
 
-### Form Dialog
-
-✅ Multiple input fields  
-✅ Complex validation  
-✅ Save/cancel workflow  
-✅ Business-specific forms  
-
-**Example:**
-
-```typescript
-const data = await dialogs.SettingsFormDialog({
-  title: "Edit Settings",
-  initialData: { name: "", email: "" },
-}).finishPromise((data) => data);
-```
-
 ## 📝 Customization Tips
 
 ### Change Button Text
@@ -117,22 +100,6 @@ if (!inputValue.trim()) {
   return;
 }
 dialog.finish(inputValue);
-```
-
-### Add Loading State
-
-```typescript
-const loading = ref(false);
-
-async function handleSave() {
-  loading.value = true;
-  try {
-    await api.save(data);
-    dialog.finish(data);
-  } finally {
-    loading.value = false;
-  }
-}
 ```
 
 ### Custom Styling
