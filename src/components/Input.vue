@@ -9,11 +9,11 @@
       })
     "
     @keydown.enter="
-      () => {
+      (e) => {
         if (isComposition) {
           isComposition = false;
         } else {
-          $emit('enter');
+          $emit('enter', (e.target as HTMLInputElement).value);
         }
       }
     "
@@ -70,7 +70,7 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: "enter"): void;
+  (e: "enter", input: string): void;
 }>();
 
 const isComposition = ref(false);

@@ -3,9 +3,9 @@
     :open="visible && !visibleDisableController"
     @update:open="(val) => (visible = val)"
     :placement
-    overlay-class-name="pointer-events-none"
-    :title="content ?? ''"
+    :title="$slots.content ? undefined : (content ?? '')"
   >
+    <!-- overlay-class-name="pointer-events-none" -->
     <!-- :visible="!!content && visibleController"
     @update:visible="(val) => (visibleController = val)" -->
     <slot></slot>
@@ -15,7 +15,7 @@
   </ATooltip>
 </template>
 <script setup lang="ts">
-import { TooltipPlacement } from "@/types";
+import { type TooltipPlacement } from "@/types";
 
 const props = defineProps<{
   content?: string;
@@ -30,6 +30,6 @@ watch(
     if (!val) {
       visible.value = false;
     }
-  }
+  },
 );
 </script>

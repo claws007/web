@@ -4,40 +4,43 @@
       <div class="v gap-3">
         <DefaultTabs v-model="activeTab" :tabs="tabs" />
 
-        <div v-if="activeTab === 'model'" class="v gap-3">
+        <div v-if="activeTab === 'modelConnector'" class="v gap-3">
           <div class="h items-center justify-between gap-2">
-            <div class="text-sm font-semibold">Model Management</div>
+            <div class="text-sm font-semibold">Model Connector Management</div>
             <div class="h gap-2">
-              <Button @click="loadModels">Refresh</Button>
-              <Button type="primary" @click="openCreateModel"
-                >Create Model</Button
+              <Button @click="loadModelConnectors">Refresh</Button>
+              <Button type="primary" @click="openCreateModelConnector"
+                >Create Model Connector</Button
               >
             </div>
           </div>
 
           <div
-            v-if="modelErrorMessage"
+            v-if="modelConnectorErrorMessage"
             class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
           >
-            {{ modelErrorMessage }}
+            {{ modelConnectorErrorMessage }}
           </div>
 
-          <div v-if="modelIsLoading" class="text-light text-sm">
-            Loading models...
+          <div v-if="modelConnectorIsLoading" class="text-light text-sm">
+            Loading model connectors...
           </div>
 
-          <div v-else-if="models.length === 0" class="text-light text-sm">
-            No model found.
+          <div
+            v-else-if="modelConnectors.length === 0"
+            class="text-light text-sm"
+          >
+            No model connector found.
           </div>
 
           <div v-else class="v gap-2">
             <SelectableTag
-              v-for="model in models"
-              :key="model.id"
-              :selected="modelDeletingId === model.id"
-              :title="model.name"
-              :content="`Type: ${model.type}`"
-              :menus="getModelMenus(model)"
+              v-for="modelConnector in modelConnectors"
+              :key="modelConnector.id"
+              :selected="modelConnectorDeletingId === modelConnector.id"
+              :title="modelConnector.name"
+              :content="`Type: ${modelConnector.type}`"
+              :menus="getModelConnectorMenus(modelConnector)"
             />
           </div>
         </div>
@@ -100,11 +103,11 @@
 <script setup lang="ts">
 import { api } from "@/api";
 import { dialogs } from "@/components/dialog";
-import type { AIModelResponse, MCPServerResponse } from "@/api";
+import type { AIModelConnectorResponse, MCPServerResponse } from "@/api";
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
 import type { DialogType } from "@/components/dialog/dialog";
 
-type TabId = "model" | "skill" | "mcp";
+type TabId = "modelConnector" | "skill" | "mcp";
 
 const props = withDefaults(
   defineProps<{
@@ -119,23 +122,23 @@ const props = withDefaults(
 );
 
 const tabs: Array<{ id: TabId; title: string }> = [
-  { id: "model", title: "Model" },
+  { id: "modelConnector", title: "Model Connector" },
   { id: "skill", title: "Skill" },
   { id: "mcp", title: "MCP" },
 ];
 
-const activeTab = ref<TabId>("model");
-const models = ref<AIModelResponse[]>([]);
+const activeTab = ref<TabId>("modelConnector");
+const modelConnectors = ref<AIModelConnectorResponse[]>([]);
 const mcpServers = ref<MCPServerResponse[]>([]);
-const modelIsLoading = ref(false);
+const modelConnectorIsLoading = ref(false);
 const mcpIsLoading = ref(false);
-const modelDeletingId = ref<number | null>(null);
+const modelConnectorDeletingId = ref<number | null>(null);
 const mcpDeletingId = ref<number | null>(null);
-const modelErrorMessage = ref("");
+const modelConnectorErrorMessage = ref("");
 const mcpErrorMessage = ref("");
 
 onMounted(async () => {
-  await loadModels();
+  await loadModelConnectors();
 });
 
 watch(activeTab, async (tab) => {
@@ -144,17 +147,20 @@ watch(activeTab, async (tab) => {
   }
 });
 
-async function loadModels() {
-  modelErrorMessage.value = "";
-  modelIsLoading.value = true;
+async function loadModelConnectors() {
+  modelConnectorErrorMessage.value = "";
+  modelConnectorIsLoading.value = true;
 
   try {
-    const response = await api.model.getModel();
-    models.value = response.data || [];
+    const response = await api.modelConnector.getModelConnector();
+    modelConnectors.value = response.data || [];
   } catch (error) {
-    modelErrorMessage.value = getErrorMessage(error, "Failed to load models.");
+    modelConnectorErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to load model connectors.",
+    );
   } finally {
-    modelIsLoading.value = false;
+    modelConnectorIsLoading.value = false;
   }
 }
 
@@ -175,23 +181,25 @@ async function loadMcpServers() {
   }
 }
 
-async function openCreateModel() {
-  await dialogs.CreateOrEditModelDialog().finishPromise(async () => {
-    await loadModels();
+async function openCreateModelConnector() {
+  await dialogs.CreateOrEditModelConnectorDialog().finishPromise(async () => {
+    await loadModelConnectors();
   });
 }
 
-async function openEditModel(id: number) {
-  await dialogs.CreateOrEditModelDialog({ id }).finishPromise(async () => {
-    await loadModels();
-  });
+async function openEditModelConnector(id: number) {
+  await dialogs
+    .CreateOrEditModelConnectorDialog({ id })
+    .finishPromise(async () => {
+      await loadModelConnectors();
+    });
 }
 
-async function deleteModel(id: number) {
+async function deleteModelConnector(id: number) {
   const shouldDelete = await dialogs
     .ConfirmDialog({
-      title: "Delete Model",
-      content: "Are you sure you want to delete this model?",
+      title: "Delete Model Connector",
+      content: "Are you sure you want to delete this model connector?",
     })
     .finallyPromise((isFinished) => isFinished);
 
@@ -199,16 +207,19 @@ async function deleteModel(id: number) {
     return;
   }
 
-  modelDeletingId.value = id;
-  modelErrorMessage.value = "";
+  modelConnectorDeletingId.value = id;
+  modelConnectorErrorMessage.value = "";
 
   try {
-    await api.model.deleteModelById(id);
-    await loadModels();
+    await api.modelConnector.deleteModelConnectorById(id);
+    await loadModelConnectors();
   } catch (error) {
-    modelErrorMessage.value = getErrorMessage(error, "Failed to delete model.");
+    modelConnectorErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to delete model connector.",
+    );
   } finally {
-    modelDeletingId.value = null;
+    modelConnectorDeletingId.value = null;
   }
 }
 
@@ -252,24 +263,29 @@ async function deleteMcpServer(id: number) {
   }
 }
 
-function getModelMenus(model: AIModelResponse): Menu[] {
+function getModelConnectorMenus(
+  modelConnector: AIModelConnectorResponse,
+): Menu[] {
   return [
     {
       id: "edit",
       name: "Edit",
       click: () => {
-        void openEditModel(model.id);
+        void openEditModelConnector(modelConnector.id);
       },
     },
     {
       id: "delete",
-      name: modelDeletingId.value === model.id ? "Deleting..." : "Delete",
+      name:
+        modelConnectorDeletingId.value === modelConnector.id
+          ? "Deleting..."
+          : "Delete",
       danger: true,
       click: () => {
-        if (modelDeletingId.value === model.id) {
+        if (modelConnectorDeletingId.value === modelConnector.id) {
           return;
         }
-        void deleteModel(model.id);
+        void deleteModelConnector(modelConnector.id);
       },
     },
   ];

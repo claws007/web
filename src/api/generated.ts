@@ -57,7 +57,12 @@ export interface ModelTypesResponse {
   types: string[];
 }
 
-export interface AIModelResponse {
+export interface ModelCatalogResponse {
+  type: string;
+  models: string[];
+}
+
+export interface AIModelConnectorResponse {
   id: number;
   name: string;
   type: string;
@@ -72,10 +77,40 @@ export interface AgentResponse {
   name: string;
   description?: string | null;
   capacity?: string | null;
+  model?: string | null;
   userId: number;
-  modelId: number;
+  modelConnectorId: number;
   user?: Record<string, any>;
-  model?: AIModelResponse;
+  modelConnector?: AIModelConnectorResponse;
+}
+
+export interface ToolSourceInfo {
+  originType: "mcp" | "local";
+  mcpServerId: number;
+  mcpServerName: string;
+  mcpServerType: "HTTP" | "STDIO";
+}
+
+export interface ToolMetadata {
+  source?: ToolSourceInfo;
+  mcpServerId?: number;
+  mcpServerType?: "HTTP" | "STDIO";
+  mcpToolName?: string;
+  [key: string]: any;
+}
+
+export interface ToolFunction {
+  name: string;
+  description: string;
+  parameters: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface ToolListItem {
+  type: "function";
+  function: ToolFunction;
+  metadata?: ToolMetadata;
+  [key: string]: any;
 }
 
 export interface SubAgentResponse {
@@ -90,31 +125,76 @@ export interface AgentTaskResponse {
   id: number;
   agentId: number;
   content: string;
-  ac: string;
+  ac: string | null;
+  toolList?: ToolListItem[] | null;
   state: string;
   queueOrder: number;
   /** @format date-time */
   assignedAt: string;
+  /** @format date-time */
+  startedAt?: string | null;
+  /** @format date-time */
+  finishedAt?: string | null;
+  /** @format date-time */
+  updatedAt?: string;
+  retryCount?: number;
+  /** @format date-time */
+  lastRetryAt?: string | null;
+  /** @format date-time */
+  lastHeartbeatAt?: string | null;
+  executionCursor?: Record<string, any>;
+  /** @format date-time */
+  priorityRunAt?: string | null;
   agent?: AgentResponse;
 }
 
 export interface ChatHistoryResponse {
   id: number;
   role: "SYSTEM" | "USER" | "ASSISTANT";
+  eventType?:
+    | "MESSAGE"
+    | "EXECUTION"
+    | "MCP_CALL"
+    | "MCP_RESULT"
+    | "SKILL_CALL"
+    | "TOOL_CALL";
+  durationMs?: number | null;
+  extraLogs?: Record<string, any>;
   content: string;
   agentTaskId: number;
   /** @format date-time */
   createdAt: string;
 }
 
+export interface AgentRunResponse {
+  success: true;
+  started: boolean;
+  agentId: number;
+}
+
+export interface AgentTaskRunResponse {
+  success: true;
+  taskId: number;
+  agentId: number;
+  state: string;
+}
+
 export interface MCPServerResponse {
   id: number;
   name?: string | null;
   description?: string | null;
+  type: "HTTP" | "STDIO";
   /** @format uri */
-  url: string;
-  params?: Record<string, any>;
+  url?: string | null;
+  command?: string | null;
+  commandArguments?: string | null;
+  params?: MCPServerParams;
 }
+
+export type MCPServerParams = {
+  toolList?: ToolListItem[];
+  [key: string]: any;
+} | null;
 
 export interface AgentMcpServerRelationResponse {
   id: number;
@@ -538,8 +618,10 @@ export class Api<
         name: string;
         description?: string | null;
         capacity?: string | null;
+        /** @minLength 1 */
+        model?: string | null;
         /** @min 0 */
-        modelId: number;
+        modelConnectorId: number;
       },
       params: RequestParams = {},
     ) =>
@@ -583,8 +665,10 @@ export class Api<
         name?: string | null;
         description?: string | null;
         capacity?: string | null;
+        /** @minLength 1 */
+        model?: string | null;
         /** @min 0 */
-        modelId?: number | null;
+        modelConnectorId?: number | null;
       },
       params: RequestParams = {},
     ) =>
@@ -627,7 +711,7 @@ export class Api<
         /** @minLength 1 */
         content: string;
         /** @minLength 1 */
-        ac: string;
+        ac?: string | null;
         state?: "PENDING" | "ACTIVE" | "FAILED" | "FINISHED" | null;
       },
       params: RequestParams = {},
@@ -656,19 +740,35 @@ export class Api<
         format: "json",
         ...params,
       }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PostAgentByIdRun
+     * @summary Run agent task queue
+     * @request POST:/agent/{id}/run
+     */
+    postAgentByIdRun: (id: number, params: RequestParams = {}) =>
+      this.request<AgentRunResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/agent/${id}/run`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
   };
-  model = {
+  modelConnector = {
     /**
      * No description
      *
-     * @tags Model
-     * @name GetModelTypes
-     * @summary Get supported AI model types
-     * @request GET:/model/types
+     * @tags Model Connector
+     * @name GetModelConnectorTypes
+     * @summary Get supported AI model connector types
+     * @request GET:/model-connector/types
      */
-    getModelTypes: (params: RequestParams = {}) =>
+    getModelConnectorTypes: (params: RequestParams = {}) =>
       this.request<ModelTypesResponse, any>({
-        path: `/model/types`,
+        path: `/model-connector/types`,
         method: "GET",
         format: "json",
         ...params,
@@ -677,48 +777,49 @@ export class Api<
     /**
      * No description
      *
-     * @tags Model
-     * @name GetModel
-     * @summary List all AI models
-     * @request GET:/model
+     * @tags Model Connector
+     * @name GetModelConnectorCatalogByType
+     * @summary Get available model names by provider type
+     * @request GET:/model-connector/catalog/{type}
      */
-    getModel: (params: RequestParams = {}) =>
-      this.request<AIModelResponse[], any>({
-        path: `/model`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Model
-     * @name PostModel
-     * @summary Create a new AI model
-     * @request POST:/model
-     */
-    postModel: (
-      data: {
-        /** @minLength 1 */
-        name: string;
-        type:
-          | "OPENAI"
-          | "ANTHROPIC"
-          | "GOOGLE"
-          | "MISTRAL"
-          | "META"
-          | "DEEPSEEK"
-          | "ZHIPU"
-          | "QWEN"
-          | "BAIDU"
-          | "MOONSHOT";
-        params: Record<string, any>;
-      },
+    getModelConnectorCatalogByType: (
+      type: string,
       params: RequestParams = {},
     ) =>
-      this.request<AIModelResponse, ValidationErrorResponse>({
-        path: `/model`,
+      this.request<ModelCatalogResponse, ErrorResponse>({
+        path: `/model-connector/catalog/${type}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name GetModelConnector
+     * @summary List all AI model connectors
+     * @request GET:/model-connector
+     */
+    getModelConnector: (params: RequestParams = {}) =>
+      this.request<AIModelConnectorResponse[], any>({
+        path: `/model-connector`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name PostModelConnector
+     * @summary Create a new AI model connector
+     * @request POST:/model-connector
+     */
+    postModelConnector: (data: any, params: RequestParams = {}) =>
+      this.request<AIModelConnectorResponse, ValidationErrorResponse>({
+        path: `/model-connector`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -729,14 +830,14 @@ export class Api<
     /**
      * No description
      *
-     * @tags Model
-     * @name GetModelById
-     * @summary Get an AI model by ID
-     * @request GET:/model/{id}
+     * @tags Model Connector
+     * @name GetModelConnectorById
+     * @summary Get an AI model connector by ID
+     * @request GET:/model-connector/{id}
      */
-    getModelById: (id: number, params: RequestParams = {}) =>
-      this.request<AIModelResponse, ErrorResponse>({
-        path: `/model/${id}`,
+    getModelConnectorById: (id: number, params: RequestParams = {}) =>
+      this.request<AIModelConnectorResponse, ErrorResponse>({
+        path: `/model-connector/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -745,34 +846,18 @@ export class Api<
     /**
      * No description
      *
-     * @tags Model
-     * @name PutModelById
-     * @summary Update an AI model
-     * @request PUT:/model/{id}
+     * @tags Model Connector
+     * @name PutModelConnectorById
+     * @summary Update an AI model connector
+     * @request PUT:/model-connector/{id}
      */
-    putModelById: (
+    putModelConnectorById: (
       id: number,
-      data: {
-        /** @minLength 1 */
-        name?: string | null;
-        type?:
-          | "OPENAI"
-          | "ANTHROPIC"
-          | "GOOGLE"
-          | "MISTRAL"
-          | "META"
-          | "DEEPSEEK"
-          | "ZHIPU"
-          | "QWEN"
-          | "BAIDU"
-          | "MOONSHOT"
-          | null;
-        params?: Record<string, any>;
-      },
+      data: any,
       params: RequestParams = {},
     ) =>
-      this.request<AIModelResponse, ErrorResponse>({
-        path: `/model/${id}`,
+      this.request<AIModelConnectorResponse, ErrorResponse>({
+        path: `/model-connector/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -783,14 +868,14 @@ export class Api<
     /**
      * No description
      *
-     * @tags Model
-     * @name DeleteModelById
-     * @summary Delete an AI model
-     * @request DELETE:/model/{id}
+     * @tags Model Connector
+     * @name DeleteModelConnectorById
+     * @summary Delete an AI model connector
+     * @request DELETE:/model-connector/{id}
      */
-    deleteModelById: (id: number, params: RequestParams = {}) =>
+    deleteModelConnectorById: (id: number, params: RequestParams = {}) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/model/${id}`,
+        path: `/model-connector/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
@@ -999,9 +1084,15 @@ export class Api<
         /** @minLength 1 */
         name?: string | null;
         description?: string | null;
+        type: "HTTP" | "STDIO";
         /** @format uri */
-        url: string;
-        params?: Record<string, any>;
+        url?: string | null;
+        /** @minLength 1 */
+        command?: string | null;
+        commandArguments?: string | null;
+        params?: {
+          toolList?: any;
+        } | null;
       },
       params: RequestParams = {},
     ) =>
@@ -1044,9 +1135,15 @@ export class Api<
         /** @minLength 1 */
         name?: string | null;
         description?: string | null;
+        type?: "HTTP" | "STDIO" | null;
         /** @format uri */
         url?: string | null;
-        params?: Record<string, any>;
+        /** @minLength 1 */
+        command?: string | null;
+        commandArguments?: string | null;
+        params?: {
+          toolList?: any;
+        } | null;
       },
       params: RequestParams = {},
     ) =>
@@ -1251,6 +1348,44 @@ export class Api<
       this.request<SuccessResponse, ErrorResponse>({
         path: `/agent-task/${id}`,
         method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PostAgentTaskByIdRun
+     * @summary Run an agent task with priority
+     * @request POST:/agent-task/{id}/run
+     */
+    postAgentTaskByIdRun: (id: number, params: RequestParams = {}) =>
+      this.request<
+        AgentTaskRunResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/agent-task/${id}/run`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PostAgentTaskByIdRetry
+     * @summary Retry an agent task (including finished tasks)
+     * @request POST:/agent-task/{id}/retry
+     */
+    postAgentTaskByIdRetry: (id: number, params: RequestParams = {}) =>
+      this.request<
+        AgentTaskRunResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/agent-task/${id}/retry`,
+        method: "POST",
         format: "json",
         ...params,
       }),

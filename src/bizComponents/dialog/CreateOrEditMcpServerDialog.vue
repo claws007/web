@@ -14,11 +14,38 @@
 
         <div class="v gap-1">
           <div class="text-sm font-semibold">
-            URL <span class="text-danger">*</span>
+            Type <span class="text-danger">*</span>
           </div>
+          <Select v-model="type" :options="typeOptions" />
+        </div>
+
+        <template v-if="type === 'HTTP'">
+          <div class="v gap-1">
+            <div class="text-sm font-semibold">URL</div>
+            <Input
+              v-model="url"
+              placeholder="https://example.com/mcp"
+              @enter="submit"
+            />
+          </div>
+          <div class="v gap-1">
+            <div class="text-sm font-semibold">Params (JSON)</div>
+            <Textarea v-model="paramsText" class="bg-transparent" />
+          </div>
+        </template>
+
+        <div v-if="type === 'STDIO'" class="v gap-1">
+          <div class="text-sm font-semibold">
+            Command <span class="text-danger">*</span>
+          </div>
+          <Input v-model="command" placeholder="npx" @enter="submit" />
+        </div>
+
+        <div v-if="type === 'STDIO'" class="v gap-1">
+          <div class="text-sm font-semibold">Command Arguments</div>
           <Input
-            v-model="url"
-            placeholder="https://example.com/mcp"
+            v-model="commandArguments"
+            placeholder="-y @modelcontextprotocol/server-filesystem ./"
             @enter="submit"
           />
         </div>
@@ -26,11 +53,6 @@
         <div class="v gap-1">
           <div class="text-sm font-semibold">Description</div>
           <Textarea v-model="description" class="bg-transparent" />
-        </div>
-
-        <div class="v gap-1">
-          <div class="text-sm font-semibold">Params (JSON)</div>
-          <Textarea v-model="paramsText" class="bg-transparent" />
         </div>
 
         <div
@@ -61,6 +83,12 @@ import { api } from "@/api";
 import type { MCPServerResponse } from "@/api";
 import type { DialogType } from "@/components/dialog/dialog";
 
+type MCPServerType = Parameters<typeof api.mcpServer.postMcpServer>[0]["type"];
+const MCP_SERVER_TYPES = [
+  "HTTP",
+  "STDIO",
+] as const satisfies readonly MCPServerType[];
+
 const props = withDefaults(
   defineProps<{
     dialog: DialogType<any, MCPServerResponse>;
@@ -77,7 +105,10 @@ const props = withDefaults(
 
 const name = ref("");
 const description = ref("");
+const type = ref<MCPServerType>("HTTP");
 const url = ref("");
+const command = ref("");
+const commandArguments = ref("");
 const paramsText = ref("{}");
 
 const isSubmitting = ref(false);
@@ -87,7 +118,15 @@ const isEdit = computed(() => typeof props.id === "number" && props.id > 0);
 const finalTitle = computed(
   () => props.title || (isEdit.value ? "Edit MCP Server" : "Create MCP Server"),
 );
-const canSubmit = computed(() => !!url.value.trim());
+const typeOptions = computed(() =>
+  MCP_SERVER_TYPES.map((item) => ({
+    id: item,
+    name: item,
+  })),
+);
+const canSubmit = computed(() => {
+  return type.value === "STDIO" ? !!command.value.trim() : true;
+});
 
 onMounted(async () => {
   if (isEdit.value && props.id) {
@@ -101,7 +140,10 @@ async function loadMcpServer(id: number) {
     const mcpServer = response.data;
     name.value = mcpServer.name || "";
     description.value = mcpServer.description || "";
+    type.value = mcpServer.type;
     url.value = mcpServer.url || "";
+    command.value = mcpServer.command || "";
+    commandArguments.value = mcpServer.commandArguments || "";
     paramsText.value = JSON.stringify(mcpServer.params || {}, null, 2);
   } catch (error) {
     errorMessage.value = getErrorMessage(
@@ -114,16 +156,22 @@ async function loadMcpServer(id: number) {
 async function submit() {
   errorMessage.value = "";
 
-  const finalUrl = url.value.trim();
-  if (!finalUrl) {
-    errorMessage.value = "URL is required.";
-    return;
+  let finalUrl = "";
+  if (type.value === "HTTP") {
+    finalUrl = url.value.trim();
+    if (finalUrl) {
+      try {
+        new URL(finalUrl);
+      } catch {
+        errorMessage.value = "URL must be a valid absolute URL.";
+        return;
+      }
+    }
   }
 
-  try {
-    new URL(finalUrl);
-  } catch {
-    errorMessage.value = "URL must be a valid absolute URL.";
+  const finalCommand = command.value.trim();
+  if (type.value === "STDIO" && !finalCommand) {
+    errorMessage.value = "Command is required for STDIO type.";
     return;
   }
 
@@ -153,8 +201,14 @@ async function submit() {
       const payload = {
         name: toOptional(name.value),
         description: toOptional(description.value),
-        url: finalUrl,
+        type: type.value,
+        command: type.value === "STDIO" ? finalCommand : undefined,
+        commandArguments:
+          type.value === "STDIO"
+            ? toOptional(commandArguments.value)
+            : undefined,
         params: parsedParams,
+        ...(type.value === "HTTP" && finalUrl ? { url: finalUrl } : {}),
       };
 
       if (isEdit.value && props.id) {

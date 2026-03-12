@@ -1,6 +1,6 @@
 import { createApp } from "vue";
-import "ant-design-vue/dist/reset.css";
 import "./styles/index.css";
+// import "ant-design-vue/dist/reset.css";
 import App from "./App.vue";
 import plugins from "./plugins";
 

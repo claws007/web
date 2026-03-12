@@ -21,7 +21,7 @@ const props = withDefaults(
     invert?: boolean;
     hue?: string;
   }>(),
-  { hue: defaultPrimaryHue }
+  { hue: defaultPrimaryHue },
 );
 
 const theme = useTheme(
@@ -30,6 +30,6 @@ const theme = useTheme(
     a: 1,
     l: themeHSColorL,
     s: themeHSColorS,
-  }))
+  })),
 );
 </script>
