@@ -188,10 +188,10 @@ export interface MCPServerResponse {
   url?: string | null;
   command?: string | null;
   commandArguments?: string | null;
-  params?: MCPServerParams;
+  headers?: MCPServerHeaders;
 }
 
-export type MCPServerParams = {
+export type MCPServerHeaders = {
   toolList?: ToolListItem[];
   [key: string]: any;
 } | null;
@@ -712,7 +712,13 @@ export class Api<
         content: string;
         /** @minLength 1 */
         ac?: string | null;
-        state?: "PENDING" | "ACTIVE" | "FAILED" | "FINISHED" | null;
+        state?:
+          | "PENDING"
+          | "ACTIVE"
+          | "FAILED"
+          | "FINISHED"
+          | "CANCELLED"
+          | null;
       },
       params: RequestParams = {},
     ) =>
@@ -1090,7 +1096,7 @@ export class Api<
         /** @minLength 1 */
         command?: string | null;
         commandArguments?: string | null;
-        params?: {
+        headers?: {
           toolList?: any;
         } | null;
       },
@@ -1141,7 +1147,7 @@ export class Api<
         /** @minLength 1 */
         command?: string | null;
         commandArguments?: string | null;
-        params?: {
+        headers?: {
           toolList?: any;
         } | null;
       },
@@ -1323,7 +1329,13 @@ export class Api<
         content?: string | null;
         /** @minLength 1 */
         ac?: string | null;
-        state?: "PENDING" | "ACTIVE" | "FAILED" | "FINISHED" | null;
+        state?:
+          | "PENDING"
+          | "ACTIVE"
+          | "FAILED"
+          | "FINISHED"
+          | "CANCELLED"
+          | null;
       },
       params: RequestParams = {},
     ) =>
@@ -1385,6 +1397,25 @@ export class Api<
         ValidationErrorResponse | ErrorResponse
       >({
         path: `/agent-task/${id}/retry`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent
+     * @name PostAgentTaskByIdStop
+     * @summary Stop (cancel) an agent task
+     * @request POST:/agent-task/{id}/stop
+     */
+    postAgentTaskByIdStop: (id: number, params: RequestParams = {}) =>
+      this.request<
+        AgentTaskRunResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/agent-task/${id}/stop`,
         method: "POST",
         format: "json",
         ...params,

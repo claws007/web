@@ -1,7 +1,7 @@
 <template>
   <div class="size-full h items-stretch bg-light">
     <div
-      class="w-75 bg-light-2 border-r border-light-4 v [&>div]:px-4 py-4 gap-4"
+      class="w-80 bg-light-2 border-r border-light-4 v overflow-hidden [&>div]:px-4 py-4 gap-4"
     >
       <div class="h justify-between items-center">
         <div>Agents</div>
@@ -26,7 +26,7 @@
       <div v-else-if="agents.length === 0" class="mx-4 text-light text-sm">
         No agent found.
       </div>
-      <div v-else class="stretch gap-2 v">
+      <div v-else class="stretch gap-2 v overflow-y-auto">
         <SelectableTag
           v-for="agent in agents"
           :key="agent.id"
@@ -39,178 +39,160 @@
         ></SelectableTag>
       </div>
     </div>
-    <div class="stretch overflow-y-auto v gap-2 p-4" v-if="finalAgent">
-      <!-- <AgentDetail :agent="finalAgent"></AgentDetail> -->
-      <div class="h justify-end">
-        <Button type="primary" @click="openCreateTask">创建任务</Button>
+    <div
+      v-if="finalAgent"
+      class="w-80 bg-light border-r border-light-4 v overflow-hidden [&>div]:px-4 py-4 gap-4"
+    >
+      <div class="h justify-between items-center">
+        <div>Tasks</div>
+        <div class="h items-center gap-2">
+          <Button type="primary" @click="openCreateTask">创建任务</Button>
+          <Button
+            type="primary"
+            :disabled="tasks.length === 0 || isTaskLoading || clearingAllTasks"
+            :is-loading="clearingAllTasks"
+            @click="clearAllTasks"
+            danger
+          >
+            <DeleteOutlined />
+          </Button>
+        </div>
       </div>
       <div
         v-if="taskErrorMessage"
-        class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+        class="mx-4 rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
       >
         {{ taskErrorMessage }}
       </div>
-      <div v-if="isTaskLoading" class="text-light text-sm">
+      <div v-if="isTaskLoading" class="mx-4 text-light text-sm">
         Loading tasks...
       </div>
-      <div v-else-if="tasks.length === 0" class="text-light text-sm">
+      <div v-else-if="tasks.length === 0" class="mx-4 text-light text-sm">
         No tasks found.
       </div>
-      <div v-else class="v gap-2">
-        <div v-for="task in tasks" :key="task.id" class="v gap-1">
-          <SelectableTag
-            :title="`#${task.id} [${getTaskStateLabel(task.state)}]`"
-            :content="
-              task.ac ? `${task.content}\n[AC] ${task.ac}` : task.content
+      <div v-else class="stretch v gap-2 overflow-y-auto">
+        <SelectableTag
+          v-for="task in tasks"
+          :key="task.id"
+          :title="`${task.content}`"
+          :menus="getTaskMenus(task)"
+          :selected="finalTaskId === task.id"
+          background="2"
+          @click="currentTaskId = task.id"
+        >
+        </SelectableTag>
+      </div>
+    </div>
+    <div
+      class="stretch overflow-y-auto v gap-2 p-4"
+      v-if="finalAgent && finalTask"
+    >
+      <div class="h justify-between items-center">
+        <div class="h items-center gap-2">
+          <div class="text-light font-semibold">Chat History</div>
+          <Tooltip v-if="getToolCount(finalTask) > 0">
+            <!-- <Badge :value="`Tools: ${getToolCount(task)}`" /> -->
+            <div class="text-light text-sm">
+              <ToolOutlined />{{ getToolCount(finalTask) }}
+            </div>
+            <template #content>
+              <div
+                class="max-h-[50vh] overflow-y-auto max-w-100 whitespace-pre-wrap break-all text-xs"
+              >
+                {{ getToolListTooltip(finalTask) }}
+              </div>
+            </template>
+          </Tooltip>
+        </div>
+        <div class="h items-center gap-1" @click.stop>
+          <Button
+            :disabled="
+              !canStartTask(finalTask) || actionTaskId === finalTask.id
             "
-            :menus="getTaskMenus(task)"
-            background="2"
+            :is-loading="isTaskStarting(finalTask.id)"
+            @click="startTask(finalTask)"
           >
-            <template #title-prefix>
-              <div
-                class="cursor-pointer rounded bg-light-4 px-1 py-0.5 text-xs text-light hover:text-primary"
-                @click.stop="toggleTaskChatHistories(task.id)"
-              >
-                {{
-                  isTaskChatHistoriesExpanded(task.id) ? "收起Chat" : "展开Chat"
-                }}
-              </div>
+            <template
+              v-if="
+                ['FAILED', 'FINISHED'].includes(getTaskState(finalTask.state))
+              "
+            >
+              <ReloadOutlined />
             </template>
-            <template #title-suffix>
-              <Tooltip v-if="getToolCount(task) > 0">
-                <Badge :value="`Tools: ${getToolCount(task)}`" />
-                <template #content>
-                  <div
-                    class="max-h-[50vh] overflow-y-auto max-w-100 whitespace-pre-wrap break-all text-xs"
-                  >
-                    {{ getToolListTooltip(task) }}
-                  </div>
-                </template>
-              </Tooltip>
+            <template v-else>
+              <PlayCircleOutlined />
             </template>
-            <template #dropdown-prefix>
-              <div class="h items-center gap-1" @click.stop>
-                <Button
-                  :disabled="!canStartTask(task) || actionTaskId === task.id"
-                  :is-loading="isTaskStarting(task.id)"
-                  @click="startTask(task)"
-                >
-                  <template
-                    v-if="
-                      ['FAILED', 'FINISHED'].includes(getTaskState(task.state))
-                    "
-                  >
-                    <ReloadOutlined />
-                  </template>
-                  <template v-else>
-                    <PlayCircleOutlined />
-                  </template>
-                </Button>
-                <Button
-                  v-if="getTaskState(task.state) === 'ACTIVE'"
-                  danger
-                  :disabled="!canStopTask(task) || actionTaskId === task.id"
-                  :is-loading="isTaskStopping(task.id)"
-                  @click="stopTask(task)"
-                >
-                  停止
-                </Button>
-              </div>
-            </template>
-          </SelectableTag>
-
-          <div
-            v-if="isTaskChatHistoriesExpanded(task.id)"
-            class="ml-2 rounded bg-light-1 p-2"
+          </Button>
+          <Button
+            v-if="getTaskState(finalTask.state) === 'ACTIVE'"
+            danger
+            :disabled="!canStopTask(finalTask) || actionTaskId === finalTask.id"
+            :is-loading="isTaskStopping(finalTask.id)"
+            @click="stopTask(finalTask)"
           >
-            <div class="v gap-1">
-              <div class="text-light text-xs font-semibold">Chat History</div>
-
-              <div
-                v-if="isTaskChatHistoryLoading(task.id)"
-                class="text-light text-xs"
-              >
-                Loading chat history...
-              </div>
-              <div
-                v-else-if="getTaskChatHistoryError(task.id)"
-                class="text-danger text-xs"
-              >
-                {{ getTaskChatHistoryError(task.id) }}
-              </div>
-              <div
-                v-else-if="getTaskChatHistories(task.id).length === 0"
-                class="text-light text-xs"
-              >
-                No chat history.
-              </div>
-              <div v-else class="v gap-1 overflow-y-auto">
+            停止
+          </Button>
+        </div>
+      </div>
+      <div
+        v-if="isTaskChatHistoryLoading(finalTask.id)"
+        class="text-light text-xs"
+      >
+        Loading chat history...
+      </div>
+      <div
+        v-else-if="getTaskChatHistoryError(finalTask.id)"
+        class="text-danger text-xs"
+      >
+        {{ getTaskChatHistoryError(finalTask.id) }}
+      </div>
+      <div
+        v-else-if="getTaskChatHistories(finalTask.id).length === 0"
+        class="text-light text-xs"
+      >
+        No chat history.
+      </div>
+      <div v-else class="stretch v gap-1 overflow-y-auto">
+        <div
+          v-for="history in getTaskChatHistories(finalTask.id)"
+          :key="history.id"
+          class="v rounded bg-light group"
+        >
+          <div :class="['text-sm h items-end gap-2']">
+            <template v-if="history.content">
+              <MarkdownPreviewer
+                class="stretch bg-light-2! p-2 rounded leading-relaxed"
+                :model-value="history.content"
+                v-if="history.eventType === 'MESSAGE'"
+              ></MarkdownPreviewer>
+              <span v-else class="stretch text-xs text-light-2 truncate">
+                {{ history.content }}
+              </span>
+            </template>
+            <div v-else class="text-light-2 text-xs stretch">
+              tool called decided
+            </div>
+            <Tooltip v-if="hasChatHistoryDetails(history)">
+              <InfoOutlined
+                class="cursor-pointer text-light hover:text-primary group-hover:opacity-100 opacity-0"
+              />
+              <template #content>
                 <div
-                  v-for="history in getTaskChatHistories(task.id)"
-                  :key="history.id"
-                  class="v rounded bg-light group"
+                  class="v gap-1 max-w-100 max-h-[50vh] text-xs overflow-y-auto"
                 >
-                  <!-- <div
-                    class="h items-center justify-between gap-2 group-hover:opacity-100 opacity-0"
+                  <div
+                    v-for="(item, index) in getChatHistoryDetailItems(history)"
+                    :key="`${history.id}-${item.label}-${index}`"
+                    class="v gap-0.5"
                   >
-                    <div class="h items-center gap-2 text-xs text-light-3">
-                      {{ history.role }}
-                      {{ history.eventType }}
+                    <div class="font-semibold">{{ item.label }}</div>
+                    <div class="whitespace-pre-wrap break-all">
+                      {{ item.value }}
                     </div>
-                    <div class="h items-center gap-2 text-xs">
-                      <div class="text-light">
-                        {{ formatDateTime(history.createdAt) }}
-                      </div>
-                    </div>
-                  </div> -->
-                  <div :class="['text-sm h items-end gap-2']">
-                    <template v-if="history.content">
-                      <MarkdownPreviewer
-                        class="stretch bg-light-2! p-2 rounded"
-                        :model-value="history.content"
-                        v-if="history.eventType === 'MESSAGE'"
-                      ></MarkdownPreviewer>
-                      <span
-                        v-else
-                        class="stretch text-xs text-light-2 truncate"
-                      >
-                        {{ history.content }}
-                      </span>
-                    </template>
-                    <div v-else class="text-light-2 text-xs stretch">
-                      <!-- message 为空，但模型返回了function called -->
-                      tool called decided
-                    </div>
-                    <!-- <span class="text-xs text-light-2">
-                      {{ formatDateTime(history.createdAt) }}
-                    </span> -->
-                    <Tooltip v-if="hasChatHistoryDetails(history)">
-                      <InfoOutlined
-                        class="cursor-pointer text-light hover:text-primary group-hover:opacity-100 opacity-0"
-                      />
-                      <template #content>
-                        <div
-                          class="v gap-1 max-w-100 max-h-[50vh] text-xs overflow-y-auto"
-                        >
-                          <div
-                            v-for="(item, index) in getChatHistoryDetailItems(
-                              history,
-                            )"
-                            :key="`${history.id}-${item.label}-${index}`"
-                            class="v gap-0.5"
-                          >
-                            <div class="font-semibold">{{ item.label }}</div>
-                            <div class="whitespace-pre-wrap break-all">
-                              {{ item.value }}
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                    </Tooltip>
                   </div>
                 </div>
-              </div>
-            </div>
+              </template>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -229,17 +211,20 @@ import type {
 } from "@/api";
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
 import {
+  DeleteOutlined,
   InfoOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SettingOutlined,
+  ToolOutlined,
 } from "@ant-design/icons-vue";
 
 const agents = ref<AgentResponse[]>([]);
 const tasks = ref<AgentTaskResponse[]>([]);
 const isLoading = ref(false);
 const isTaskLoading = ref(false);
+const clearingAllTasks = ref(false);
 const deletingId = ref<number | null>(null);
 const deletingTaskId = ref<number | null>(null);
 const actionTaskId = ref<number | null>(null);
@@ -247,7 +232,6 @@ const actionType = ref<"start" | "replay" | "stop" | null>(null);
 const taskChatHistories = ref<Record<number, ChatHistoryResponse[]>>({});
 const taskChatHistoryLoading = ref<Record<number, boolean>>({});
 const taskChatHistoryErrors = ref<Record<number, string>>({});
-const taskChatHistoriesExpanded = ref<Record<number, boolean>>({});
 const errorMessage = ref("");
 const taskErrorMessage = ref("");
 
@@ -330,6 +314,45 @@ async function deleteTask(id: number) {
   }
 }
 
+async function clearAllTasks() {
+  if (!finalAgent.value || tasks.value.length === 0) {
+    return;
+  }
+
+  const shouldClear = await dialogs
+    .ConfirmDialog({
+      title: "Clear All Tasks",
+      content: `Are you sure you want to delete all tasks for ${finalAgent.value.name}?`,
+    })
+    .finallyPromise((isFinished) => isFinished);
+
+  if (!shouldClear) {
+    return;
+  }
+
+  clearingAllTasks.value = true;
+  taskErrorMessage.value = "";
+  try {
+    const taskIds = tasks.value.map((task) => task.id);
+    const results = await Promise.allSettled(
+      taskIds.map((taskId) => api.agentTask.deleteAgentTaskById(taskId)),
+    );
+    const failedCount = results.filter(
+      (result) => result.status === "rejected",
+    ).length;
+
+    await loadTasks(finalAgent.value.id);
+
+    if (failedCount > 0) {
+      taskErrorMessage.value = `Failed to delete ${failedCount} task(s).`;
+    }
+  } catch (error) {
+    taskErrorMessage.value = getErrorMessage(error, "Failed to clear tasks.");
+  } finally {
+    clearingAllTasks.value = false;
+  }
+}
+
 async function loadTasks(agentId: number) {
   taskErrorMessage.value = "";
   isTaskLoading.value = true;
@@ -338,22 +361,19 @@ async function loadTasks(agentId: number) {
     const sortedTasks = (response.data || []).slice().sort((a, b) => {
       return getTaskSortTimestamp(b) - getTaskSortTimestamp(a) || b.id - a.id;
     });
+    const previousTaskId = currentTaskId.value;
     tasks.value = sortedTasks;
-    taskChatHistoriesExpanded.value = Object.fromEntries(
-      tasks.value.map((task, index) => {
-        const previousExpanded = taskChatHistoriesExpanded.value[task.id];
-        const nextExpanded =
-          previousExpanded ?? getDefaultTaskChatHistoriesExpanded(task, index);
-        return [task.id, nextExpanded];
-      }),
-    ) as Record<number, boolean>;
+    currentTaskId.value =
+      previousTaskId && tasks.value.some((task) => task.id === previousTaskId)
+        ? previousTaskId
+        : tasks.value[0]?.id;
     await loadTaskChatHistories(tasks.value.map((task) => task.id));
   } catch (error) {
     tasks.value = [];
+    currentTaskId.value = undefined;
     taskChatHistories.value = {};
     taskChatHistoryLoading.value = {};
     taskChatHistoryErrors.value = {};
-    taskChatHistoriesExpanded.value = {};
     taskErrorMessage.value = getErrorMessage(error, "Failed to load tasks.");
   } finally {
     isTaskLoading.value = false;
@@ -437,17 +457,6 @@ function getTaskChatHistoryError(taskId: number) {
   return taskChatHistoryErrors.value[taskId] || "";
 }
 
-function isTaskChatHistoriesExpanded(taskId: number) {
-  return taskChatHistoriesExpanded.value[taskId] ?? false;
-}
-
-function toggleTaskChatHistories(taskId: number) {
-  taskChatHistoriesExpanded.value = {
-    ...taskChatHistoriesExpanded.value,
-    [taskId]: !isTaskChatHistoriesExpanded(taskId),
-  };
-}
-
 function hasValue(value: unknown) {
   if (value === null || value === undefined) {
     return false;
@@ -497,14 +506,6 @@ function hasChatHistoryDetails(history: ChatHistoryResponse) {
   return getChatHistoryDetailItems(history).length > 0;
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
-}
-
 function getTaskSortTimestamp(task: AgentTaskResponse) {
   const createdAtValue = (
     task as AgentTaskResponse & { createdAt?: string | null }
@@ -515,17 +516,6 @@ function getTaskSortTimestamp(task: AgentTaskResponse) {
   }
   const parsed = new Date(timestamp).getTime();
   return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function getDefaultTaskChatHistoriesExpanded(
-  task: AgentTaskResponse,
-  index: number,
-) {
-  if (index === 0) {
-    return true;
-  }
-
-  return getTaskState(task.state) === "ACTIVE";
 }
 
 function getTaskState(state: string): TaskState {
@@ -790,6 +780,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 const currentAgentId = ref<number>();
+const currentTaskId = ref<number>();
 const finalAgentId = computed(() => {
   if (currentAgentId.value) {
     return currentAgentId.value;
@@ -802,13 +793,26 @@ const finalAgent = computed(() => {
   return agents.value.find((agent) => agent.id === finalAgentId.value);
 });
 
+const finalTaskId = computed(() => {
+  if (currentTaskId.value) {
+    return currentTaskId.value;
+  }
+  return tasks.value[0]?.id;
+});
+
+const finalTask = computed(() => {
+  return tasks.value.find((task) => task.id === finalTaskId.value);
+});
+
 watch(
   () => finalAgentId.value,
   async (agentId) => {
     if (!agentId) {
       tasks.value = [];
+      currentTaskId.value = undefined;
       return;
     }
+    currentTaskId.value = undefined;
     await loadTasks(agentId);
   },
   { immediate: true },

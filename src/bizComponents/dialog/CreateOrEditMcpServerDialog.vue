@@ -29,8 +29,8 @@
             />
           </div>
           <div class="v gap-1">
-            <div class="text-sm font-semibold">Params (JSON)</div>
-            <Textarea v-model="paramsText" class="bg-transparent" />
+            <div class="text-sm font-semibold">Headers (JSON)</div>
+            <Textarea v-model="headersText" class="bg-transparent" />
           </div>
         </template>
 
@@ -89,6 +89,14 @@ const MCP_SERVER_TYPES = [
   "STDIO",
 ] as const satisfies readonly MCPServerType[];
 
+const DEFAULT_HTTP_HEADERS_TEMPLATE = JSON.stringify(
+  {
+    Authorization: "Bearer YOUR_TOKEN",
+  },
+  null,
+  2,
+);
+
 const props = withDefaults(
   defineProps<{
     dialog: DialogType<any, MCPServerResponse>;
@@ -109,7 +117,7 @@ const type = ref<MCPServerType>("HTTP");
 const url = ref("");
 const command = ref("");
 const commandArguments = ref("");
-const paramsText = ref("{}");
+const headersText = ref(DEFAULT_HTTP_HEADERS_TEMPLATE);
 
 const isSubmitting = ref(false);
 const errorMessage = ref("");
@@ -144,7 +152,7 @@ async function loadMcpServer(id: number) {
     url.value = mcpServer.url || "";
     command.value = mcpServer.command || "";
     commandArguments.value = mcpServer.commandArguments || "";
-    paramsText.value = JSON.stringify(mcpServer.params || {}, null, 2);
+    headersText.value = JSON.stringify(mcpServer.headers || {}, null, 2);
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
@@ -175,22 +183,22 @@ async function submit() {
     return;
   }
 
-  let parsedParams: Record<string, any> | undefined;
-  const finalParamsText = paramsText.value.trim();
-  if (finalParamsText) {
+  let parsedHeaders: Record<string, any> | undefined;
+  const finalHeadersText = headersText.value.trim();
+  if (finalHeadersText) {
     try {
-      const parsed = JSON.parse(finalParamsText);
+      const parsed = JSON.parse(finalHeadersText);
       if (
         typeof parsed !== "object" ||
         parsed === null ||
         Array.isArray(parsed)
       ) {
-        errorMessage.value = "Params must be a JSON object.";
+        errorMessage.value = "Headers must be a JSON object.";
         return;
       }
-      parsedParams = parsed;
+      parsedHeaders = parsed;
     } catch {
-      errorMessage.value = "Params must be valid JSON.";
+      errorMessage.value = "Headers must be valid JSON.";
       return;
     }
   }
@@ -207,7 +215,7 @@ async function submit() {
           type.value === "STDIO"
             ? toOptional(commandArguments.value)
             : undefined,
-        params: parsedParams,
+        headers: type.value === "HTTP" ? parsedHeaders : undefined,
         ...(type.value === "HTTP" && finalUrl ? { url: finalUrl } : {}),
       };
 

@@ -5,7 +5,10 @@ import { ConfigProvider } from "ant-design-vue";
 <template>
   <ConfigProvider
     :theme="{
-      token: {},
+      token: {
+        // colorPrimary: `hsl(${defaultPrimaryHue} ${themeHSColorSString} ${themeHSColorLString})`,
+        colorError: `#B52023`,
+      },
     }"
   >
     <RouterView />

@@ -1,8 +1,8 @@
 type ThemeConfigType = {
-  s: number
-  l: number
-  a: number
-}
+  s: number;
+  l: number;
+  a: number;
+};
 
 export function calculateTheme(
   hue:
@@ -10,19 +10,34 @@ export function calculateTheme(
     | MaybeRef<string | number | undefined>,
   config: ComputedRef<ThemeConfigType> | MaybeRef<ThemeConfigType>,
 ) {
-  const theme = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l}%, ${unref(config).a})`
-  const themeDark = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l - 20}%, ${unref(config).a})`
-  const themeLight = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l + 10}%, ${unref(config).a})`
-  const themeLight2 = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l + 20}%, ${unref(config).a})`
-  const themeLight3 = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l + 30}%, ${unref(config).a})`
-  const themeLight4 = `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l + 35}%, ${unref(config).a})`
-  // const isLightHue = +unref(hue)! >= 40 && +unref(hue)! <= 185
-  const isLightHue = true
-  const themeTextColor = isLightHue
-    ? `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l - 60}%, ${unref(config).a})`
-    : "#fff"
+  const theme = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l
+  }%, ${unref(config).a})`;
+  const themeDark = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l - 20
+  }%, ${unref(config).a})`;
+  const themeLight = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l + 10
+  }%, ${unref(config).a})`;
+  const themeLight2 = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l + 20
+  }%, ${unref(config).a})`;
+  const themeLight3 = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l + 30
+  }%, ${unref(config).a})`;
+  const themeLight4 = `hsla(${unref(hue)}, ${unref(config).s}%, ${
+    unref(config).l + 35
+  }%, ${unref(config).a})`;
+  const isLightHue = +unref(hue)! >= 40 && +unref(hue)! <= 185;
+  // const isLightHue = true
+  const isLight = isLightHue || unref(config).l > 50;
+  const themeTextColor = isLight
+    ? `hsla(${unref(hue)}, ${unref(config).s}%, ${unref(config).l - 60}%, ${
+      unref(config).a
+    })`
+    : "#fff";
   // const themeTextBackground = isLightHue ? themeLight3 : theme
-  const themeTextBackground = theme
+  const themeTextBackground = theme;
   return {
     theme,
     themeDark,
@@ -46,7 +61,7 @@ export function calculateTheme(
       "--theme-text-background": themeTextBackground,
       "--theme-text-color": themeTextColor,
     },
-  }
+  };
 }
 
 export function useTheme(
@@ -55,5 +70,5 @@ export function useTheme(
     | MaybeRef<string | number | undefined>,
   config: ComputedRef<ThemeConfigType> | MaybeRef<ThemeConfigType>,
 ) {
-  return computed(() => calculateTheme(hue, config))
+  return computed(() => calculateTheme(hue, config));
 }
