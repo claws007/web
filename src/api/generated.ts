@@ -113,6 +113,71 @@ export interface ToolListItem {
   [key: string]: any;
 }
 
+export interface AgentTaskArtifact {
+  type: string;
+  uri?: string | null;
+  path?: string | null;
+  description?: string | null;
+}
+
+export interface AgentTaskSubmissionResult {
+  isCompleted: boolean;
+  output: string;
+  summary?: string | null;
+  artifacts?: AgentTaskArtifact[];
+  notes?: string | null;
+  failureReason?: string | null;
+}
+
+export interface AgentTaskValidationResult {
+  status: "NOT_RUN" | "PASSED" | "FAILED" | "SKIPPED";
+  command?: string | null;
+  exitCode?: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  durationMs?: number | null;
+  /** @format date-time */
+  ranAt?: string | null;
+  skipped: boolean;
+  skipReason?:
+    | "NO_AC"
+    | "AGENT_DECLARED_FAILURE"
+    | "TASK_CANCELLED"
+    | "SYSTEM_ERROR"
+    | null;
+}
+
+export interface AgentTaskFailureResult {
+  code?:
+    | "AGENT_DECLARED_FAILURE"
+    | "SUBMIT_REQUIRED"
+    | "VALIDATION_COMMAND_FAILED"
+    | "VALIDATION_COMMAND_TIMEOUT"
+    | "VALIDATION_COMMAND_ERROR"
+    | "MODEL_LOOP_MAX_ITERATIONS"
+    | "TASK_CANCELLED"
+    | "SYSTEM_ERROR"
+    | null;
+  message?: string | null;
+  /** @format date-time */
+  at?: string | null;
+}
+
+export interface AgentTaskResult {
+  status:
+    | "PENDING_SUBMISSION"
+    | "SUBMITTED_SUCCESS"
+    | "SUBMITTED_FAILED"
+    | "VALIDATION_PASSED"
+    | "VALIDATION_FAILED"
+    | "SYSTEM_FAILED";
+  /** @format date-time */
+  submittedAt: string | null;
+  submission: AgentTaskSubmissionResult | null;
+  validation: AgentTaskValidationResult;
+  failure: AgentTaskFailureResult | null;
+}
+
 export interface SubAgentResponse {
   id: number;
   agentId: number;
@@ -126,6 +191,7 @@ export interface AgentTaskResponse {
   agentId: number;
   content: string;
   ac: string | null;
+  result?: AgentTaskResult | null;
   toolList?: ToolListItem[] | null;
   state: string;
   queueOrder: number;
@@ -205,6 +271,19 @@ export interface AgentMcpServerRelationResponse {
   assignedAt: string;
   agent?: AgentResponse;
   mcpServer?: MCPServerResponse;
+}
+
+export interface AgentFilePermissionResponse {
+  id: number;
+  userId: number;
+  agentId: number;
+  path: string;
+  normalizedPath: string;
+  readable: boolean;
+  writable: boolean;
+  /** @format date-time */
+  createdAt: string;
+  agent?: Record<string, any>;
 }
 
 export type GenericObjectResponse = Record<string, any>;
@@ -1299,9 +1378,34 @@ export class Api<
   };
   agentTask = {
     /**
+     * @description Streams ChatHistory updates as Server-Sent Events (SSE) for the target agent task. State events: - `event: task_state` is emitted when task state changes (or first observed state). - Payload shape: `{ taskId, state, previousState }`. Resume semantics: - Each event includes an SSE `id` equal to `ChatHistory.id`. - Browsers using `EventSource` automatically reconnect and send `Last-Event-ID`. - The server also accepts `after` as a fallback cursor for non-browser clients. - When the task reaches FINISHED, FAILED, or CANCELLED, the stream emits `event: done` and closes. Authentication: - Pass the JWT via `?token=<jwt>` because native `EventSource` cannot attach Authorization headers.
+     *
+     * @tags Agent Task
+     * @name GetAgentTaskByIdStream
+     * @summary Stream live chat history updates for an agent task
+     * @request GET:/agent-task/{id}/stream
+     */
+    getAgentTaskByIdStream: (
+      id: number,
+      query: {
+        /** JWT access token for EventSource-based authentication. */
+        token: string;
+        /** Fallback resume cursor. Streams records with ChatHistory.id greater than this value. */
+        after?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<string, ErrorResponse>({
+        path: `/agent-task/${id}/stream`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name GetAgentTaskById
      * @summary Get an agent task by ID
      * @request GET:/agent-task/{id}
@@ -1317,7 +1421,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name PutAgentTaskById
      * @summary Update an agent task
      * @request PUT:/agent-task/{id}
@@ -1351,7 +1455,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name DeleteAgentTaskById
      * @summary Delete an agent task
      * @request DELETE:/agent-task/{id}
@@ -1367,7 +1471,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name PostAgentTaskByIdRun
      * @summary Run an agent task with priority
      * @request POST:/agent-task/{id}/run
@@ -1386,7 +1490,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name PostAgentTaskByIdRetry
      * @summary Retry an agent task (including finished tasks)
      * @request POST:/agent-task/{id}/retry
@@ -1405,7 +1509,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent Task
      * @name PostAgentTaskByIdStop
      * @summary Stop (cancel) an agent task
      * @request POST:/agent-task/{id}/stop
@@ -1417,6 +1521,129 @@ export class Api<
       >({
         path: `/agent-task/${id}/stop`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+  };
+  agentFilePermission = {
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name GetAgentFilePermission
+     * @summary List all agent file permissions
+     * @request GET:/agent-file-permission
+     */
+    getAgentFilePermission: (params: RequestParams = {}) =>
+      this.request<AgentFilePermissionResponse[], any>({
+        path: `/agent-file-permission`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name PostAgentFilePermission
+     * @summary Create an agent file permission
+     * @request POST:/agent-file-permission
+     */
+    postAgentFilePermission: (
+      data: {
+        /** @min 0 */
+        agentId: number;
+        /** @minLength 1 */
+        path: string;
+        readable?: boolean | null;
+        writable?: boolean | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentFilePermissionResponse, ValidationErrorResponse>({
+        path: `/agent-file-permission`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name GetAgentFilePermissionAgentByAgentId
+     * @summary List file permissions assigned to an agent
+     * @request GET:/agent-file-permission/agent/{agentId}
+     */
+    getAgentFilePermissionAgentByAgentId: (
+      agentId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentFilePermissionResponse[], ErrorResponse>({
+        path: `/agent-file-permission/agent/${agentId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name GetAgentFilePermissionById
+     * @summary Get an agent file permission by ID
+     * @request GET:/agent-file-permission/{id}
+     */
+    getAgentFilePermissionById: (id: number, params: RequestParams = {}) =>
+      this.request<AgentFilePermissionResponse, ErrorResponse>({
+        path: `/agent-file-permission/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name PutAgentFilePermissionById
+     * @summary Update an agent file permission
+     * @request PUT:/agent-file-permission/{id}
+     */
+    putAgentFilePermissionById: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        path?: string | null;
+        readable?: boolean | null;
+        writable?: boolean | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentFilePermissionResponse, ErrorResponse>({
+        path: `/agent-file-permission/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent File Permission
+     * @name DeleteAgentFilePermissionById
+     * @summary Delete an agent file permission
+     * @request DELETE:/agent-file-permission/{id}
+     */
+    deleteAgentFilePermissionById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/agent-file-permission/${id}`,
+        method: "DELETE",
         format: "json",
         ...params,
       }),

@@ -105,6 +105,23 @@
           </Tooltip>
         </div>
         <div class="h items-center gap-1" @click.stop>
+          <Tooltip
+            v-if="
+              ['FAILED', 'FINISHED'].includes(getTaskState(finalTask.state)) &&
+              hasTaskResult(finalTask)
+            "
+          >
+            <span class="cursor-pointer text-light text-xs hover:text-primary">
+              {{ finalTask.state }}
+            </span>
+            <template #content>
+              <div
+                class="max-h-[50vh] overflow-y-auto max-w-100 whitespace-pre-wrap break-all text-xs"
+              >
+                {{ getTaskResultTooltip(finalTask) }}
+              </div>
+            </template>
+          </Tooltip>
           <Button
             :disabled="
               !canStartTask(finalTask) || actionTaskId === finalTask.id
@@ -232,10 +249,20 @@ const actionType = ref<"start" | "replay" | "stop" | null>(null);
 const taskChatHistories = ref<Record<number, ChatHistoryResponse[]>>({});
 const taskChatHistoryLoading = ref<Record<number, boolean>>({});
 const taskChatHistoryErrors = ref<Record<number, string>>({});
+const taskChatHistoryStreamTaskId = ref<number | null>(null);
+const taskChatHistoryStreamController = ref<AbortController | null>(null);
+const taskChatHistoryStreamReconnectTimer = ref<number | null>(null);
+const taskChatHistoryStreamLastEventIds = ref<Record<number, string>>({});
 const errorMessage = ref("");
 const taskErrorMessage = ref("");
 
-const TASK_STATES = ["PENDING", "ACTIVE", "FAILED", "FINISHED"] as const;
+const TASK_STATES = [
+  "PENDING",
+  "ACTIVE",
+  "FAILED",
+  "FINISHED",
+  "CANCELLED",
+] as const;
 type TaskState = (typeof TASK_STATES)[number];
 
 onMounted(async () => {
@@ -272,10 +299,20 @@ async function openCreateTask() {
     return;
   }
 
+  const previousTaskIds = new Set(tasks.value.map((task) => task.id));
+
   await dialogs
     .CreateOrEditAgentTaskDialog({ agentId: finalAgent.value.id })
     .finishPromise(async () => {
       await loadTasks(finalAgent.value!.id);
+
+      const createdTask = tasks.value.find(
+        (task) => !previousTaskIds.has(task.id),
+      );
+      if (createdTask) {
+        currentTaskId.value = createdTask.id;
+      }
+
       return true;
     });
 }
@@ -445,6 +482,337 @@ async function loadTaskChatHistory(taskId: number) {
   }
 }
 
+function upsertTask(task: Partial<AgentTaskResponse> & { id: number }) {
+  const index = tasks.value.findIndex((item) => item.id === task.id);
+  if (index < 0) {
+    return;
+  }
+
+  const nextTasks = tasks.value.slice();
+  const mergedTask: AgentTaskResponse = {
+    ...nextTasks[index],
+    ...task,
+  } as AgentTaskResponse;
+  nextTasks[index] = mergedTask;
+  tasks.value = nextTasks;
+}
+
+function mergeTaskChatHistories(
+  taskId: number,
+  histories: ChatHistoryResponse[],
+) {
+  if (!histories.length) {
+    return;
+  }
+
+  const mergedMap = new Map<number, ChatHistoryResponse>();
+  (taskChatHistories.value[taskId] || []).forEach((item) => {
+    mergedMap.set(item.id, item);
+  });
+  histories.forEach((item) => {
+    mergedMap.set(item.id, item);
+  });
+
+  const merged = Array.from(mergedMap.values()).sort((a, b) => {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  taskChatHistories.value = {
+    ...taskChatHistories.value,
+    [taskId]: merged,
+  };
+}
+
+function parseSseEvent(rawEvent: string) {
+  const result = {
+    id: "",
+    event: "message",
+    data: "",
+  };
+
+  const lines = rawEvent.split(/\r?\n/);
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (!line || line.startsWith(":")) {
+      continue;
+    }
+    const colonIndex = line.indexOf(":");
+    const field = colonIndex >= 0 ? line.slice(0, colonIndex) : line;
+    const rawValue = colonIndex >= 0 ? line.slice(colonIndex + 1) : "";
+    const value = rawValue.startsWith(" ") ? rawValue.slice(1) : rawValue;
+
+    if (field === "id") {
+      result.id = value;
+    } else if (field === "event") {
+      result.event = value || "message";
+    } else if (field === "data") {
+      dataLines.push(value);
+    }
+  }
+
+  result.data = dataLines.join("\n");
+  return result;
+}
+
+function extractTaskFromSsePayload(
+  eventName: string,
+  payload: unknown,
+  fallbackTaskId: number,
+): (Partial<AgentTaskResponse> & { id: number }) | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+
+  if (eventName === "task_state") {
+    const taskId = source.taskId;
+    const state = source.state;
+    if (
+      typeof taskId === "number" &&
+      taskId === fallbackTaskId &&
+      typeof state === "string"
+    ) {
+      return {
+        id: taskId,
+        state,
+      };
+    }
+  }
+
+  const taskCandidate =
+    source.task && typeof source.task === "object"
+      ? (source.task as Record<string, unknown>)
+      : source;
+
+  if (
+    typeof taskCandidate.id === "number" &&
+    taskCandidate.id === fallbackTaskId &&
+    typeof taskCandidate.state === "string"
+  ) {
+    return taskCandidate as unknown as Partial<AgentTaskResponse> & {
+      id: number;
+    };
+  }
+
+  return null;
+}
+
+function extractChatHistoriesFromSsePayload(
+  payload: unknown,
+  fallbackTaskId: number,
+): ChatHistoryResponse[] {
+  if (!payload) {
+    return [];
+  }
+
+  const candidates: unknown[] = [];
+
+  if (Array.isArray(payload)) {
+    candidates.push(...payload);
+  } else if (typeof payload === "object") {
+    const source = payload as Record<string, unknown>;
+    if (Array.isArray(source.chatHistories)) {
+      candidates.push(...source.chatHistories);
+    }
+    if (source.chatHistory) {
+      candidates.push(source.chatHistory);
+    }
+    if (Array.isArray(source.histories)) {
+      candidates.push(...source.histories);
+    }
+    if (source.history) {
+      candidates.push(source.history);
+    }
+    if (
+      typeof source.id === "number" &&
+      typeof source.agentTaskId === "number" &&
+      typeof source.createdAt === "string"
+    ) {
+      candidates.push(source);
+    }
+  }
+
+  return candidates.filter((item): item is ChatHistoryResponse => {
+    return !!(
+      item &&
+      typeof item === "object" &&
+      typeof (item as ChatHistoryResponse).id === "number" &&
+      typeof (item as ChatHistoryResponse).agentTaskId === "number" &&
+      typeof (item as ChatHistoryResponse).createdAt === "string" &&
+      ((item as ChatHistoryResponse).agentTaskId === fallbackTaskId ||
+        !(item as ChatHistoryResponse).agentTaskId)
+    );
+  });
+}
+
+function clearTaskChatHistoryStreamReconnectTimer() {
+  if (taskChatHistoryStreamReconnectTimer.value !== null) {
+    window.clearTimeout(taskChatHistoryStreamReconnectTimer.value);
+    taskChatHistoryStreamReconnectTimer.value = null;
+  }
+}
+
+function stopTaskChatHistoryStream() {
+  clearTaskChatHistoryStreamReconnectTimer();
+  if (taskChatHistoryStreamController.value) {
+    taskChatHistoryStreamController.value.abort();
+    taskChatHistoryStreamController.value = null;
+  }
+  taskChatHistoryStreamTaskId.value = null;
+}
+
+function scheduleTaskChatHistoryStreamReconnect(
+  taskId: number,
+  delayMs = 1200,
+) {
+  clearTaskChatHistoryStreamReconnectTimer();
+  taskChatHistoryStreamReconnectTimer.value = window.setTimeout(() => {
+    void connectTaskChatHistoryStream(taskId);
+  }, delayMs);
+}
+
+async function connectTaskChatHistoryStream(taskId: number) {
+  if (taskChatHistoryStreamTaskId.value !== taskId) {
+    return;
+  }
+
+  const controller = new AbortController();
+  taskChatHistoryStreamController.value = controller;
+
+  if (!taskChatHistoryStreamLastEventIds.value[taskId]) {
+    const currentHistories = taskChatHistories.value[taskId] || [];
+    const lastHistory = currentHistories[currentHistories.length - 1];
+    if (lastHistory) {
+      taskChatHistoryStreamLastEventIds.value = {
+        ...taskChatHistoryStreamLastEventIds.value,
+        [taskId]: String(lastHistory.id),
+      };
+    }
+  }
+
+  const headers: Record<string, string> = {
+    Accept: "text/event-stream",
+    "Cache-Control": "no-cache",
+  };
+  const lastEventId = taskChatHistoryStreamLastEventIds.value[taskId];
+  if (lastEventId) {
+    headers["Last-Event-ID"] = lastEventId;
+  }
+
+  try {
+    const response = await api.request<unknown, unknown>({
+      path: `/agent-task/${taskId}/stream`,
+      method: "GET",
+      headers,
+      signal: controller.signal,
+      secure: true,
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`SSE connection failed with status ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let shouldReconnect = true;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      let splitIndex = buffer.indexOf("\n\n");
+      while (splitIndex >= 0) {
+        const rawEvent = buffer.slice(0, splitIndex).replace(/\r/g, "");
+        buffer = buffer.slice(splitIndex + 2);
+
+        const event = parseSseEvent(rawEvent);
+        if (event.id) {
+          taskChatHistoryStreamLastEventIds.value = {
+            ...taskChatHistoryStreamLastEventIds.value,
+            [taskId]: event.id,
+          };
+        }
+
+        if (event.event === "done" || event.data === "[DONE]") {
+          shouldReconnect = false;
+          break;
+        }
+
+        if (event.data) {
+          let payload: unknown = event.data;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            payload = event.data;
+          }
+
+          const incomingHistories = extractChatHistoriesFromSsePayload(
+            payload,
+            taskId,
+          );
+          if (incomingHistories.length > 0) {
+            mergeTaskChatHistories(taskId, incomingHistories);
+          }
+
+          const incomingTask = extractTaskFromSsePayload(
+            event.event,
+            payload,
+            taskId,
+          );
+          if (incomingTask) {
+            upsertTask(incomingTask);
+          }
+        }
+
+        splitIndex = buffer.indexOf("\n\n");
+      }
+    }
+
+    if (!shouldReconnect && taskChatHistoryStreamTaskId.value === taskId) {
+      stopTaskChatHistoryStream();
+      return;
+    }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    taskChatHistoryErrors.value = {
+      ...taskChatHistoryErrors.value,
+      [taskId]: getErrorMessage(error, "Chat history stream disconnected."),
+    };
+  } finally {
+    if (taskChatHistoryStreamController.value === controller) {
+      taskChatHistoryStreamController.value = null;
+    }
+
+    const currentTask = tasks.value.find((task) => task.id === taskId);
+    if (
+      taskChatHistoryStreamTaskId.value === taskId &&
+      currentTask &&
+      ["PENDING", "ACTIVE"].includes(getTaskState(currentTask.state))
+    ) {
+      scheduleTaskChatHistoryStreamReconnect(taskId);
+    }
+  }
+}
+
+function startTaskChatHistoryStream(taskId: number) {
+  if (taskChatHistoryStreamTaskId.value === taskId) {
+    return;
+  }
+  stopTaskChatHistoryStream();
+  taskChatHistoryStreamTaskId.value = taskId;
+  void connectTaskChatHistoryStream(taskId);
+}
+
 function getTaskChatHistories(taskId: number) {
   return taskChatHistories.value[taskId] || [];
 }
@@ -506,6 +874,17 @@ function hasChatHistoryDetails(history: ChatHistoryResponse) {
   return getChatHistoryDetailItems(history).length > 0;
 }
 
+function hasTaskResult(task: AgentTaskResponse & { result?: unknown }) {
+  return hasValue(task.result);
+}
+
+function getTaskResultTooltip(task: AgentTaskResponse & { result?: unknown }) {
+  if (!hasTaskResult(task)) {
+    return "No result";
+  }
+  return stringifyMetaValue(task.result);
+}
+
 function getTaskSortTimestamp(task: AgentTaskResponse) {
   const createdAtValue = (
     task as AgentTaskResponse & { createdAt?: string | null }
@@ -523,18 +902,6 @@ function getTaskState(state: string): TaskState {
     return state as TaskState;
   }
   return "PENDING";
-}
-
-function getTaskStateLabel(state: string) {
-  const normalized = getTaskState(state);
-  return (
-    {
-      PENDING: "PENDING",
-      ACTIVE: "ACTIVE",
-      FAILED: "FAILED",
-      FINISHED: "FINISHED",
-    } as const
-  )[normalized];
 }
 
 function getToolCount(task: AgentTaskResponse) {
@@ -566,7 +933,7 @@ function getToolListTooltip(
       mcpGroups.get(serverKey)!.push(toolName);
     } else {
       // Local tools
-      localTools.push(toolName);
+      localTools.push("\t" + toolName);
     }
   });
 
@@ -817,4 +1184,32 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () => ({
+    taskId: finalTask.value?.id,
+    taskState: finalTask.value?.state,
+  }),
+  ({ taskId, taskState }) => {
+    if (!taskId || !taskState) {
+      stopTaskChatHistoryStream();
+      return;
+    }
+
+    const state = getTaskState(taskState);
+    if (state === "PENDING" || state === "ACTIVE") {
+      startTaskChatHistoryStream(taskId);
+      return;
+    }
+
+    if (taskChatHistoryStreamTaskId.value === taskId) {
+      stopTaskChatHistoryStream();
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  stopTaskChatHistoryStream();
+});
 </script>
