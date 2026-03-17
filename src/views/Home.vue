@@ -957,7 +957,12 @@ function getToolListTooltip(
 
 function canStartTask(task: AgentTaskResponse) {
   const state = getTaskState(task.state);
-  return state === "PENDING" || state === "FAILED" || state === "FINISHED";
+  return (
+    state === "PENDING" ||
+    state === "FAILED" ||
+    state === "FINISHED" ||
+    state === "CANCELLED"
+  );
 }
 
 function canStopTask(task: AgentTaskResponse) {

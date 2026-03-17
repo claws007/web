@@ -45,6 +45,11 @@
           />
         </div>
 
+        <div class="v gap-1">
+          <div class="text-sm font-semibold">Sandbox Type</div>
+          <Select v-model="sandboxType" :options="sandboxTypeOptions" />
+        </div>
+
         <div
           v-if="errorMessage"
           class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
@@ -54,52 +59,134 @@
       </div>
 
       <div v-else-if="activeTab === 'mcp'" class="v gap-2 pt-3">
-        <div v-if="!isEdit" class="text-light text-sm">
-          Please save the agent first to configure MCP servers.
+        <div v-if="mcpIsLoading" class="text-light text-sm">Loading...</div>
+        <div v-else-if="allMcpServers.length === 0" class="text-light text-sm">
+          No MCP servers available.
         </div>
-        <template v-else>
-          <div v-if="mcpIsLoading" class="text-light text-sm">Loading...</div>
-          <div
-            v-else-if="allMcpServers.length === 0"
-            class="text-light text-sm"
-          >
-            No MCP servers available.
-          </div>
-          <div
-            v-for="server in allMcpServers"
-            v-else
-            :key="server.id"
-            class="h items-center justify-between gap-3 rounded border border-border px-3 py-2"
-          >
-            <div class="v gap-0.5 min-w-0">
-              <div class="text-sm font-semibold">{{ server.name }}</div>
-              <div
-                v-if="server.description"
-                class="text-light truncate text-xs"
-              >
-                {{ server.description }}
-              </div>
-              <div class="text-light text-xs">{{ server.type }}</div>
+        <div
+          v-for="server in allMcpServers"
+          v-else
+          :key="server.id"
+          class="h items-center justify-between gap-3 rounded border border-border px-3 py-2"
+        >
+          <div class="v min-w-0 gap-0.5">
+            <div class="text-sm font-semibold">{{ server.name }}</div>
+            <div v-if="server.description" class="text-light truncate text-xs">
+              {{ server.description }}
             </div>
-            <Switch
-              :model-value="isMcpEnabled(server.id)"
-              @update:model-value="toggleMcp(server.id, $event ?? false)"
-            />
+            <div class="text-light text-xs">{{ server.type }}</div>
           </div>
+          <Switch
+            :model-value="isMcpEnabled(server.id)"
+            @update:model-value="toggleMcp(server.id, $event ?? false)"
+          />
+        </div>
+        <div
+          v-if="mcpErrorMessage"
+          class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+        >
+          {{ mcpErrorMessage }}
+        </div>
+      </div>
+
+      <div v-else-if="activeTab === 'filePermission'" class="v gap-3 pt-3">
+        <div class="h items-center justify-between gap-2">
+          <div class="text-sm font-semibold">File Permissions</div>
+          <Button type="primary" @click="addFilePermission">
+            <PlusOutlined /> Add Permission
+          </Button>
+        </div>
+
+        <div v-if="filePermissionIsLoading" class="text-light text-sm">
+          Loading file permissions...
+        </div>
+
+        <div
+          v-else-if="filePermissionDrafts.length === 0"
+          class="rounded border border-dashed border-light-4 bg-light-2 px-3 py-4 text-light text-sm"
+        >
+          No file permissions configured.
+        </div>
+
+        <div v-else class="v gap-3">
           <div
-            v-if="mcpErrorMessage"
-            class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+            v-for="(permission, index) in filePermissionDrafts"
+            :key="permission.localId"
+            class="v gap-3 rounded border border-border px-3 py-3"
           >
-            {{ mcpErrorMessage }}
+            <div class="h items-center justify-between gap-2">
+              <div class="text-sm font-semibold">
+                Permission {{ index + 1 }}
+              </div>
+              <Button
+                type="text"
+                danger
+                @click="removeFilePermission(permission.localId)"
+              >
+                Delete
+              </Button>
+            </div>
+
+            <div class="v gap-1">
+              <div class="text-sm font-semibold">
+                Path <span class="text-danger">*</span>
+              </div>
+              <Input
+                v-model="permission.path"
+                placeholder="C:/workspace/project or ./relative/path"
+              />
+            </div>
+
+            <div class="v gap-1">
+              <div class="text-sm font-semibold">
+                Mount Path <span class="text-danger">*</span>
+              </div>
+              <Input
+                v-model="permission.mountPath"
+                placeholder="Mount path exposed to the agent"
+              />
+            </div>
+
+            <div class="h flex-wrap items-center gap-6">
+              <div class="h items-center gap-2">
+                <div class="text-sm font-semibold">Enabled</div>
+                <Switch v-model="permission.enabled" />
+              </div>
+              <div class="h items-center gap-2">
+                <div class="text-sm font-semibold">Writable</div>
+                <Switch v-model="permission.writable" />
+              </div>
+            </div>
+
+            <div class="text-light text-xs">
+              {{
+                permission.writable
+                  ? "Access: Read + Write"
+                  : "Access: Read Only"
+              }}
+            </div>
+
+            <div
+              v-if="permission.normalizedPath"
+              class="text-light break-all text-xs"
+            >
+              Normalized: {{ permission.normalizedPath }}
+            </div>
           </div>
-        </template>
+        </div>
+
+        <div
+          v-if="filePermissionErrorMessage"
+          class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+        >
+          {{ filePermissionErrorMessage }}
+        </div>
       </div>
     </template>
 
     <template #footer>
       <Button @click="dialog.close()">{{ $t("cancel") }}</Button>
       <Button
-        v-if="activeTab === 'general'"
         type="primary"
         :is-loading="isSubmitting"
         :disabled="!canSubmit"
@@ -114,6 +201,7 @@
 <script setup lang="ts">
 import { api } from "@/api";
 import type {
+  AgentFilePermissionResponse,
   AgentResponse,
   AgentMcpServerRelationResponse,
   AIModelConnectorResponse,
@@ -122,6 +210,16 @@ import type {
 import type { DialogType } from "@/components/dialog/dialog";
 
 type FormResult = AgentResponse;
+type TabId = "general" | "mcp" | "filePermission";
+type FilePermissionDraft = {
+  localId: string;
+  id?: number;
+  path: string;
+  normalizedPath?: string;
+  mountPath: string;
+  enabled: boolean;
+  writable: boolean;
+};
 
 const props = withDefaults(
   defineProps<{
@@ -132,17 +230,18 @@ const props = withDefaults(
     userId?: number | null;
   }>(),
   {
-    width: "460px",
+    width: "640px",
     id: null,
     title: null,
     userId: null,
   },
 );
 
-const activeTab = ref("general");
-const tabs = [
+const activeTab = ref<TabId>("general");
+const tabs: Array<{ id: TabId; title: string }> = [
   { id: "general", title: "常规" },
   { id: "mcp", title: "MCP" },
+  { id: "filePermission", title: "File Permission" },
 ];
 
 const name = ref("");
@@ -150,6 +249,7 @@ const modelConnectorId = ref<number | undefined>(undefined);
 const model = ref<string | undefined>(undefined);
 const description = ref("");
 const capacity = ref("");
+const sandboxType = ref<"NONE" | "DOCKER" | undefined>(undefined);
 
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
 const modelCatalogOptions = ref<Array<{ id: string; name: string }>>([]);
@@ -160,18 +260,19 @@ const errorMessage = ref("");
 // MCP
 const allMcpServers = ref<MCPServerResponse[]>([]);
 const agentMcpAssignments = ref<AgentMcpServerRelationResponse[]>([]);
+const draftMcpServerIds = ref<number[]>([]);
 const mcpIsLoading = ref(false);
 const mcpErrorMessage = ref("");
 
-const mcpAssignmentMap = computed(() => {
-  const map = new Map<number, AgentMcpServerRelationResponse>();
-  agentMcpAssignments.value.forEach((a) => map.set(a.mcpServerId, a));
-  return map;
-});
+// File permissions
+const agentFilePermissions = ref<AgentFilePermissionResponse[]>([]);
+const filePermissionDrafts = ref<FilePermissionDraft[]>([]);
+const filePermissionIsLoading = ref(false);
+const filePermissionErrorMessage = ref("");
+let nextFilePermissionDraftId = 0;
 
 function isMcpEnabled(mcpServerId: number) {
-  const assignment = mcpAssignmentMap.value.get(mcpServerId);
-  return assignment ? assignment.enabled : false;
+  return draftMcpServerIds.value.includes(mcpServerId);
 }
 
 const isEdit = computed(() => typeof props.id === "number" && props.id > 0);
@@ -184,6 +285,10 @@ const modelOptions = computed(() =>
     name: modelConnector.name,
   })),
 );
+const sandboxTypeOptions = computed(() => [
+  { id: "NONE", name: "None" },
+  { id: "DOCKER", name: "Docker" },
+]);
 const canSubmit = computed(
   () => !!name.value.trim() && typeof modelConnectorId.value === "number",
 );
@@ -194,7 +299,10 @@ onMounted(async () => {
 
   if (isEdit.value && props.id) {
     await loadAgent(props.id);
-    await loadAgentMcpAssignments(props.id);
+    await Promise.all([
+      loadAgentMcpAssignments(props.id),
+      loadAgentFilePermissions(props.id),
+    ]);
   }
 });
 
@@ -253,11 +361,15 @@ async function loadAllMcpServers() {
 }
 
 async function loadAgentMcpAssignments(agentId: number) {
+  mcpErrorMessage.value = "";
   mcpIsLoading.value = true;
   try {
     const response =
       await api.agentMcpServer.getAgentMcpServerAgentByAgentId(agentId);
     agentMcpAssignments.value = response.data || [];
+    draftMcpServerIds.value = agentMcpAssignments.value
+      .filter((assignment) => assignment.enabled)
+      .map((assignment) => assignment.mcpServerId);
   } catch (error) {
     mcpErrorMessage.value = getErrorMessage(
       error,
@@ -268,42 +380,71 @@ async function loadAgentMcpAssignments(agentId: number) {
   }
 }
 
-async function toggleMcp(mcpServerId: number, enabled: boolean) {
+function toggleMcp(mcpServerId: number, enabled: boolean) {
   mcpErrorMessage.value = "";
-  const assignment = mcpAssignmentMap.value.get(mcpServerId);
-  try {
-    if (enabled) {
-      if (!assignment) {
-        const res = await api.agentMcpServer.postAgentMcpServer({
-          agentId: props.id!,
-          mcpServerId,
-          enabled: true,
-        });
-        agentMcpAssignments.value.push(res.data);
-      } else {
-        const res = await api.agentMcpServer.putAgentMcpServerById(
-          assignment.id,
-          { enabled: true },
-        );
-        const idx = agentMcpAssignments.value.findIndex(
-          (a) => a.id === assignment.id,
-        );
-        if (idx !== -1) agentMcpAssignments.value[idx] = res.data;
-      }
-    } else {
-      if (assignment) {
-        await api.agentMcpServer.deleteAgentMcpServerById(assignment.id);
-        agentMcpAssignments.value = agentMcpAssignments.value.filter(
-          (a) => a.id !== assignment.id,
-        );
-      }
+
+  if (enabled) {
+    if (!draftMcpServerIds.value.includes(mcpServerId)) {
+      draftMcpServerIds.value = [...draftMcpServerIds.value, mcpServerId];
     }
-  } catch (error) {
-    mcpErrorMessage.value = getErrorMessage(
-      error,
-      "Failed to update MCP assignment.",
-    );
+    return;
   }
+
+  draftMcpServerIds.value = draftMcpServerIds.value.filter(
+    (id) => id !== mcpServerId,
+  );
+}
+
+async function loadAgentFilePermissions(agentId: number) {
+  filePermissionErrorMessage.value = "";
+  filePermissionIsLoading.value = true;
+  try {
+    const response =
+      await api.agentFilePermission.getAgentFilePermissionAgentByAgentId(
+        agentId,
+      );
+    agentFilePermissions.value = response.data || [];
+    filePermissionDrafts.value = agentFilePermissions.value.map(
+      createFilePermissionDraft,
+    );
+  } catch (error) {
+    filePermissionErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to load file permissions.",
+    );
+  } finally {
+    filePermissionIsLoading.value = false;
+  }
+}
+
+function createFilePermissionDraft(
+  permission?: Partial<AgentFilePermissionResponse>,
+): FilePermissionDraft {
+  nextFilePermissionDraftId += 1;
+  return {
+    localId: `file-permission-${nextFilePermissionDraftId}`,
+    id: permission?.id,
+    path: permission?.path || "",
+    normalizedPath: permission?.normalizedPath,
+    mountPath: permission?.mountPath || "",
+    enabled: permission?.enabled ?? true,
+    writable: permission?.writable ?? false,
+  };
+}
+
+function addFilePermission() {
+  filePermissionErrorMessage.value = "";
+  filePermissionDrafts.value = [
+    ...filePermissionDrafts.value,
+    createFilePermissionDraft(),
+  ];
+}
+
+function removeFilePermission(localId: string) {
+  filePermissionErrorMessage.value = "";
+  filePermissionDrafts.value = filePermissionDrafts.value.filter(
+    (permission) => permission.localId !== localId,
+  );
 }
 
 async function loadAgent(id: number) {
@@ -315,6 +456,7 @@ async function loadAgent(id: number) {
     model.value = agent.model || undefined;
     description.value = agent.description || "";
     capacity.value = agent.capacity || "";
+    sandboxType.value = (agent as any).sandboxType || undefined;
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
@@ -356,9 +498,22 @@ async function loadModelCatalogByType(type: string) {
 
 async function submit() {
   errorMessage.value = "";
+  mcpErrorMessage.value = "";
+  filePermissionErrorMessage.value = "";
 
   if (!canSubmit.value) {
     errorMessage.value = "Name and model connector are required.";
+    activeTab.value = "general";
+    return;
+  }
+
+  const invalidFilePermission = filePermissionDrafts.value.find(
+    (permission) => !permission.path.trim() || !permission.mountPath.trim(),
+  );
+  if (invalidFilePermission) {
+    filePermissionErrorMessage.value =
+      "File permission path and mount path are required.";
+    activeTab.value = "filePermission";
     return;
   }
 
@@ -366,26 +521,58 @@ async function submit() {
 
   try {
     const savedAgent = await props.dialog.process(async () => {
+      let saved: AgentResponse;
+
       if (isEdit.value && props.id) {
         const response = await api.agent.putAgentById(props.id, {
           name: name.value.trim(),
           model: toOptional(model.value || ""),
           description: toOptional(description.value),
           capacity: toOptional(capacity.value),
+          sandboxType: sandboxType.value || undefined,
           modelConnectorId: modelConnectorId.value,
         });
-        return response.data;
+        saved = response.data;
+      } else {
+        const response = await api.agent.postAgent({
+          name: name.value.trim(),
+          model: toOptional(model.value || ""),
+          description: toOptional(description.value),
+          capacity: toOptional(capacity.value),
+          sandboxType: sandboxType.value || undefined,
+          modelConnectorId: modelConnectorId.value!,
+        });
+
+        saved = response.data;
       }
 
-      const response = await api.agent.postAgent({
-        name: name.value.trim(),
-        model: toOptional(model.value || ""),
-        description: toOptional(description.value),
-        capacity: toOptional(capacity.value),
-        modelConnectorId: modelConnectorId.value!,
-      });
+      try {
+        await syncAgentMcpAssignments(saved.id);
+      } catch (error) {
+        activeTab.value = "mcp";
+        mcpErrorMessage.value = getErrorMessage(
+          error,
+          "Failed to save MCP assignments.",
+        );
+        throw new Error(
+          getErrorMessage(error, "Failed to save MCP assignments."),
+        );
+      }
 
-      return response.data;
+      try {
+        await syncAgentFilePermissions(saved.id);
+      } catch (error) {
+        activeTab.value = "filePermission";
+        filePermissionErrorMessage.value = getErrorMessage(
+          error,
+          "Failed to save file permissions.",
+        );
+        throw new Error(
+          getErrorMessage(error, "Failed to save file permissions."),
+        );
+      }
+
+      return saved;
     });
 
     props.dialog.finish(savedAgent);
@@ -399,6 +586,133 @@ async function submit() {
 function toOptional(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+async function syncAgentMcpAssignments(agentId: number) {
+  const originalAssignments = new Map(
+    agentMcpAssignments.value.map((assignment) => [
+      assignment.mcpServerId,
+      assignment,
+    ]),
+  );
+  const nextEnabledServerIds = new Set(draftMcpServerIds.value);
+  const targetServerIds = new Set<number>([
+    ...originalAssignments.keys(),
+    ...nextEnabledServerIds,
+  ]);
+
+  for (const mcpServerId of targetServerIds) {
+    const assignment = originalAssignments.get(mcpServerId);
+    const enabled = nextEnabledServerIds.has(mcpServerId);
+
+    if (enabled) {
+      if (!assignment) {
+        await api.agentMcpServer.postAgentMcpServer({
+          agentId,
+          mcpServerId,
+          enabled: true,
+        });
+      } else if (!assignment.enabled) {
+        await api.agentMcpServer.putAgentMcpServerById(assignment.id, {
+          enabled: true,
+        });
+      }
+      continue;
+    }
+
+    if (assignment) {
+      await api.agentMcpServer.deleteAgentMcpServerById(assignment.id);
+    }
+  }
+
+  if (!isEdit.value && !targetServerIds.size) {
+    agentMcpAssignments.value = [];
+    return;
+  }
+
+  const response =
+    await api.agentMcpServer.getAgentMcpServerAgentByAgentId(agentId);
+  agentMcpAssignments.value = response.data || [];
+  draftMcpServerIds.value = agentMcpAssignments.value
+    .filter((assignment) => assignment.enabled)
+    .map((assignment) => assignment.mcpServerId);
+}
+
+function normalizeFilePermissionDraft(permission: FilePermissionDraft) {
+  return {
+    id: permission.id,
+    path: permission.path.trim(),
+    mountPath: toOptional(permission.mountPath),
+    enabled: permission.enabled,
+    writable: permission.writable,
+  };
+}
+
+function isSameFilePermission(
+  current: AgentFilePermissionResponse,
+  draft: ReturnType<typeof normalizeFilePermissionDraft>,
+) {
+  return (
+    current.path === draft.path &&
+    (current.mountPath || undefined) === draft.mountPath &&
+    current.enabled === draft.enabled &&
+    current.writable === draft.writable
+  );
+}
+
+async function syncAgentFilePermissions(agentId: number) {
+  const normalizedDrafts = filePermissionDrafts.value.map(
+    normalizeFilePermissionDraft,
+  );
+  const originalPermissions = new Map(
+    agentFilePermissions.value.map((permission) => [permission.id, permission]),
+  );
+  const retainedIds = new Set(
+    normalizedDrafts
+      .map((permission) => permission.id)
+      .filter((id): id is number => typeof id === "number"),
+  );
+
+  for (const permission of agentFilePermissions.value) {
+    if (!retainedIds.has(permission.id)) {
+      await api.agentFilePermission.deleteAgentFilePermissionById(
+        permission.id,
+      );
+    }
+  }
+
+  for (const permission of normalizedDrafts) {
+    if (typeof permission.id === "number") {
+      const current = originalPermissions.get(permission.id);
+      if (current && !isSameFilePermission(current, permission)) {
+        await api.agentFilePermission.putAgentFilePermissionById(
+          permission.id,
+          {
+            path: permission.path,
+            mountPath: permission.mountPath,
+            enabled: permission.enabled,
+            writable: permission.writable,
+          },
+        );
+      }
+      continue;
+    }
+
+    await api.agentFilePermission.postAgentFilePermission({
+      agentId,
+      path: permission.path,
+      mountPath: permission.mountPath,
+      enabled: permission.enabled,
+      writable: permission.writable,
+    });
+  }
+
+  const response =
+    await api.agentFilePermission.getAgentFilePermissionAgentByAgentId(agentId);
+  agentFilePermissions.value = response.data || [];
+  filePermissionDrafts.value = agentFilePermissions.value.map(
+    createFilePermissionDraft,
+  );
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

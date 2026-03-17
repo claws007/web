@@ -279,7 +279,9 @@ export interface AgentFilePermissionResponse {
   agentId: number;
   path: string;
   normalizedPath: string;
-  readable: boolean;
+  mountPath: string;
+  normalizedMountPath: string;
+  enabled: boolean;
   writable: boolean;
   /** @format date-time */
   createdAt: string;
@@ -699,6 +701,7 @@ export class Api<
         capacity?: string | null;
         /** @minLength 1 */
         model?: string | null;
+        sandboxType?: "NONE" | "DOCKER" | null;
         /** @min 0 */
         modelConnectorId: number;
       },
@@ -746,6 +749,7 @@ export class Api<
         capacity?: string | null;
         /** @minLength 1 */
         model?: string | null;
+        sandboxType?: "NONE" | "DOCKER" | null;
         /** @min 0 */
         modelConnectorId?: number | null;
       },
@@ -1556,7 +1560,9 @@ export class Api<
         agentId: number;
         /** @minLength 1 */
         path: string;
-        readable?: boolean | null;
+        /** @minLength 1 */
+        mountPath: string;
+        enabled?: boolean | null;
         writable?: boolean | null;
       },
       params: RequestParams = {},
@@ -1618,7 +1624,9 @@ export class Api<
       data: {
         /** @minLength 1 */
         path?: string | null;
-        readable?: boolean | null;
+        /** @minLength 1 */
+        mountPath?: string | null;
+        enabled?: boolean | null;
         writable?: boolean | null;
       },
       params: RequestParams = {},
