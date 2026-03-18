@@ -32,11 +32,6 @@
         </div>
 
         <div class="v gap-1">
-          <div class="text-sm font-semibold">Description</div>
-          <Textarea v-model="description" class="bg-transparent" />
-        </div>
-
-        <div class="v gap-1">
           <div class="text-sm font-semibold">Capacity</div>
           <Input
             v-model="capacity"
@@ -46,8 +41,23 @@
         </div>
 
         <div class="v gap-1">
-          <div class="text-sm font-semibold">Sandbox Type</div>
+          <div class="text-sm font-semibold">
+            Sandbox Type <span class="text-danger">*</span>
+          </div>
           <Select v-model="sandboxType" :options="sandboxTypeOptions" />
+        </div>
+
+        <div v-if="sandboxType === 'DOCKER'" class="v gap-1">
+          <div class="text-sm font-semibold">Container Image</div>
+          <Input
+            v-model="containerImage"
+            placeholder="docker.io/library/ubuntu:latest"
+          />
+        </div>
+
+        <div class="v gap-1">
+          <div class="text-sm font-semibold">Description</div>
+          <Textarea v-model="description" class="bg-transparent" />
         </div>
 
         <div
@@ -250,6 +260,7 @@ const model = ref<string | undefined>(undefined);
 const description = ref("");
 const capacity = ref("");
 const sandboxType = ref<"NONE" | "DOCKER" | undefined>(undefined);
+const containerImage = ref("");
 
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
 const modelCatalogOptions = ref<Array<{ id: string; name: string }>>([]);
@@ -290,7 +301,10 @@ const sandboxTypeOptions = computed(() => [
   { id: "DOCKER", name: "Docker" },
 ]);
 const canSubmit = computed(
-  () => !!name.value.trim() && typeof modelConnectorId.value === "number",
+  () =>
+    !!name.value.trim() &&
+    typeof modelConnectorId.value === "number" &&
+    typeof sandboxType.value === "string",
 );
 
 onMounted(async () => {
@@ -457,6 +471,7 @@ async function loadAgent(id: number) {
     description.value = agent.description || "";
     capacity.value = agent.capacity || "";
     sandboxType.value = (agent as any).sandboxType || undefined;
+    containerImage.value = agent.containerImage || "";
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
@@ -502,7 +517,8 @@ async function submit() {
   filePermissionErrorMessage.value = "";
 
   if (!canSubmit.value) {
-    errorMessage.value = "Name and model connector are required.";
+    errorMessage.value =
+      "Name, model connector, and sandbox type are required.";
     activeTab.value = "general";
     return;
   }
@@ -530,6 +546,7 @@ async function submit() {
           description: toOptional(description.value),
           capacity: toOptional(capacity.value),
           sandboxType: sandboxType.value || undefined,
+          containerImage: toOptional(containerImage.value),
           modelConnectorId: modelConnectorId.value,
         });
         saved = response.data;
@@ -540,6 +557,7 @@ async function submit() {
           description: toOptional(description.value),
           capacity: toOptional(capacity.value),
           sandboxType: sandboxType.value || undefined,
+          containerImage: toOptional(containerImage.value),
           modelConnectorId: modelConnectorId.value!,
         });
 
@@ -642,7 +660,7 @@ function normalizeFilePermissionDraft(permission: FilePermissionDraft) {
   return {
     id: permission.id,
     path: permission.path.trim(),
-    mountPath: toOptional(permission.mountPath),
+    mountPath: permission.mountPath.trim(),
     enabled: permission.enabled,
     writable: permission.writable,
   };

@@ -46,17 +46,21 @@
       <div class="h justify-between items-center">
         <div>Tasks</div>
         <div class="h items-center gap-2">
-          <Button type="primary" @click="openCreateTask">创建任务</Button>
           <Button
-            type="primary"
             :disabled="tasks.length === 0 || isTaskLoading || clearingAllTasks"
             :is-loading="clearingAllTasks"
             @click="clearAllTasks"
-            danger
           >
             <DeleteOutlined />
           </Button>
         </div>
+      </div>
+      <div v-if="finalAgent" class="px-4">
+        <Input
+          v-model="newTaskContent"
+          placeholder="Enter task content and press Enter to create"
+          @enter="createTaskFromInput"
+        />
       </div>
       <div
         v-if="taskErrorMessage"
@@ -149,6 +153,14 @@
           >
             停止
           </Button>
+          <Button
+            v-if="getTaskState(finalTask.state) !== 'ACTIVE'"
+            :disabled="actionTaskId === finalTask.id"
+            :is-loading="isTaskResuming(finalTask.id)"
+            @click="resumeTaskWithoutMessage(finalTask)"
+          >
+            Resume
+          </Button>
         </div>
       </div>
       <div
@@ -176,15 +188,36 @@
           class="v rounded bg-light group"
         >
           <div :class="['text-sm h items-end gap-2']">
-            <template v-if="history.content">
+            <template v-if="history.content.trim()">
               <MarkdownPreviewer
                 class="stretch bg-light-2! p-2 rounded leading-relaxed"
                 :model-value="history.content"
                 v-if="history.eventType === 'MESSAGE'"
               ></MarkdownPreviewer>
-              <span v-else class="stretch text-xs text-light-2 truncate">
-                {{ history.content }}
-              </span>
+              <template v-else>
+                <div
+                  v-if="
+                    history.eventType === 'TOOL_CALL' &&
+                    history.eventTypeName === 'execute_command'
+                  "
+                  class="v gap-1 rounded bg-light-2 p-1 px-2 text-xs"
+                >
+                  <div>
+                    $
+                    {{
+                      (history.extraLogs as any)?.mcp?.call?.arguments?.command
+                    }}
+                  </div>
+                  <pre class="text-light whitespace-pre-wrap break-all">{{
+                    decodeURIComponent(
+                      (history.extraLogs as any)?.mcp?.result?.rawOutput,
+                    )
+                  }}</pre>
+                </div>
+                <span v-else class="stretch text-xs text-light-2 truncate">
+                  {{ history.content }}
+                </span>
+              </template>
             </template>
             <div v-else class="text-light-2 text-xs stretch">
               tool called decided
@@ -212,6 +245,14 @@
             </Tooltip>
           </div>
         </div>
+      </div>
+      <div class="mt-2">
+        <Input
+          v-model="taskResumeMessage"
+          placeholder="Type message and press Enter to continue this task"
+          :disabled="actionTaskId === finalTask.id"
+          @enter="resumeTaskWithMessage(finalTask)"
+        />
       </div>
     </div>
   </div>
@@ -245,7 +286,7 @@ const clearingAllTasks = ref(false);
 const deletingId = ref<number | null>(null);
 const deletingTaskId = ref<number | null>(null);
 const actionTaskId = ref<number | null>(null);
-const actionType = ref<"start" | "replay" | "stop" | null>(null);
+const actionType = ref<"start" | "replay" | "stop" | "resume" | null>(null);
 const taskChatHistories = ref<Record<number, ChatHistoryResponse[]>>({});
 const taskChatHistoryLoading = ref<Record<number, boolean>>({});
 const taskChatHistoryErrors = ref<Record<number, string>>({});
@@ -255,6 +296,8 @@ const taskChatHistoryStreamReconnectTimer = ref<number | null>(null);
 const taskChatHistoryStreamLastEventIds = ref<Record<number, string>>({});
 const errorMessage = ref("");
 const taskErrorMessage = ref("");
+const newTaskContent = ref("");
+const taskResumeMessage = ref("");
 
 const TASK_STATES = [
   "PENDING",
@@ -315,6 +358,33 @@ async function openCreateTask() {
 
       return true;
     });
+}
+
+async function createTaskFromInput() {
+  if (!finalAgent.value || !newTaskContent.value.trim()) {
+    return;
+  }
+
+  const previousTaskIds = new Set(tasks.value.map((task) => task.id));
+  taskErrorMessage.value = "";
+
+  try {
+    await api.agent.postAgentByIdTasks(finalAgent.value.id, {
+      content: newTaskContent.value.trim(),
+    });
+
+    newTaskContent.value = "";
+    await loadTasks(finalAgent.value.id);
+
+    const createdTask = tasks.value.find(
+      (task) => !previousTaskIds.has(task.id),
+    );
+    if (createdTask) {
+      currentTaskId.value = createdTask.id;
+    }
+  } catch (error) {
+    taskErrorMessage.value = getErrorMessage(error, "Failed to create task.");
+  }
 }
 
 async function openEditTask(id: number) {
@@ -858,7 +928,9 @@ function stringifyMetaValue(value: unknown) {
 function getChatHistoryDetailItems(history: ChatHistoryResponse) {
   const rawItems: Array<{ label: string; value: unknown }> = [
     { label: "Event Type", value: history.eventType },
+    { label: "Event Type Name", value: history.eventTypeName },
     { label: "Duration(ms)", value: history.durationMs },
+    { label: "Content", value: history.content },
     { label: "Extra Logs", value: history.extraLogs },
   ];
 
@@ -980,6 +1052,10 @@ function isTaskStopping(taskId: number) {
   return actionTaskId.value === taskId && actionType.value === "stop";
 }
 
+function isTaskResuming(taskId: number) {
+  return actionTaskId.value === taskId && actionType.value === "resume";
+}
+
 async function startTask(task: AgentTaskResponse) {
   await dialogs
     .ConfirmDialog({
@@ -1007,6 +1083,16 @@ async function stopTask(task: AgentTaskResponse) {
   }
 
   await stopTaskRun(task.id);
+}
+
+async function resumeTaskWithoutMessage(task: AgentTaskResponse) {
+  await retryContinueTask(task.id);
+}
+
+async function resumeTaskWithMessage(task: AgentTaskResponse) {
+  const message = taskResumeMessage.value.trim();
+  await retryContinueTask(task.id, message || undefined);
+  taskResumeMessage.value = "";
 }
 
 async function runTask(taskId: number, action: "start" | "replay") {
@@ -1055,6 +1141,28 @@ async function stopTaskRun(taskId: number) {
     await loadTasks(finalAgent.value.id);
   } catch (error) {
     taskErrorMessage.value = getErrorMessage(error, "Failed to stop task.");
+  } finally {
+    actionTaskId.value = null;
+    actionType.value = null;
+  }
+}
+
+async function retryContinueTask(taskId: number, message?: string) {
+  if (!finalAgent.value) {
+    return;
+  }
+
+  actionTaskId.value = taskId;
+  actionType.value = "resume";
+  taskErrorMessage.value = "";
+
+  try {
+    await api.agentTask.postAgentTaskByIdRetryContinue(taskId, {
+      message: message || undefined,
+    });
+    await loadTasks(finalAgent.value.id);
+  } catch (error) {
+    taskErrorMessage.value = getErrorMessage(error, "Failed to continue task.");
   } finally {
     actionTaskId.value = null;
     actionType.value = null;

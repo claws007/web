@@ -78,6 +78,8 @@ export interface AgentResponse {
   description?: string | null;
   capacity?: string | null;
   model?: string | null;
+  sandboxType?: "NONE" | "DOCKER";
+  containerImage?: string | null;
   userId: number;
   modelConnectorId: number;
   user?: Record<string, any>;
@@ -224,6 +226,7 @@ export interface ChatHistoryResponse {
     | "MCP_RESULT"
     | "SKILL_CALL"
     | "TOOL_CALL";
+  eventTypeName?: string | null;
   durationMs?: number | null;
   extraLogs?: Record<string, any>;
   content: string;
@@ -686,7 +689,7 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Creates a new agent. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
      *
      * @tags Agent
      * @name PostAgent
@@ -702,6 +705,8 @@ export class Api<
         /** @minLength 1 */
         model?: string | null;
         sandboxType?: "NONE" | "DOCKER" | null;
+        /** @minLength 1 */
+        containerImage?: string | null;
         /** @min 0 */
         modelConnectorId: number;
       },
@@ -733,7 +738,7 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Updates an existing agent. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
      *
      * @tags Agent
      * @name PutAgentById
@@ -750,6 +755,8 @@ export class Api<
         /** @minLength 1 */
         model?: string | null;
         sandboxType?: "NONE" | "DOCKER" | null;
+        /** @minLength 1 */
+        containerImage?: string | null;
         /** @min 0 */
         modelConnectorId?: number | null;
       },
@@ -831,7 +838,7 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Starts queued tasks for the agent. When `sandboxType=DOCKER`, task commands run inside a container created from `containerImage`. If no `containerImage` is configured, `alpine:latest` is used by default.
      *
      * @tags Agent
      * @name PostAgentByIdRun
@@ -1506,6 +1513,34 @@ export class Api<
       >({
         path: `/agent-task/${id}/retry`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Task
+     * @name PostAgentTaskByIdRetryContinue
+     * @summary Continue an agent task without clearing chat history (optional new user message)
+     * @request POST:/agent-task/{id}/retry-continue
+     */
+    postAgentTaskByIdRetryContinue: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        message?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        AgentTaskRunResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/agent-task/${id}/retry-continue`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
