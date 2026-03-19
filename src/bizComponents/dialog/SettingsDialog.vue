@@ -45,6 +45,53 @@
           </div>
         </div>
 
+        <div v-else-if="activeTab === 'skill'" class="v gap-3">
+          <div class="h items-center justify-between gap-2">
+            <div class="text-sm font-semibold">Skill Management</div>
+            <div class="h gap-2">
+              <Button @click="loadSkills">Refresh</Button>
+              <Button type="primary" @click="openCreateSkill"
+                >Create Skill</Button
+              >
+            </div>
+          </div>
+
+          <div
+            v-if="skillErrorMessage"
+            class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+          >
+            {{ skillErrorMessage }}
+          </div>
+
+          <div v-if="skillIsLoading" class="text-light text-sm">
+            Loading skills...
+          </div>
+
+          <div v-else-if="skills.length === 0" class="text-light text-sm">
+            No skill found.
+          </div>
+
+          <div v-else class="v gap-2">
+            <SelectableTag
+              v-for="skill in skills"
+              :key="skill.id"
+              :selected="skillDeletingId === skill.id"
+              :title="skill.name"
+              :content="skill.description || `Skill #${skill.id}`"
+              :menus="getSkillMenus(skill)"
+            >
+              <template #dropdown-prefix>
+                <Button
+                  size="small"
+                  @click.stop="openSkillTaskListManager(skill)"
+                >
+                  TaskList
+                </Button>
+              </template>
+            </SelectableTag>
+          </div>
+        </div>
+
         <div v-else-if="activeTab === 'mcp'" class="v gap-3">
           <div class="h items-center justify-between gap-2">
             <div class="text-sm font-semibold">MCP Server Management</div>
@@ -82,13 +129,6 @@
             />
           </div>
         </div>
-
-        <div
-          v-else
-          class="rounded border border-dashed border-light-4 bg-light-2 p-4 text-light text-sm"
-        >
-          Skill settings are not implemented yet.
-        </div>
       </div>
     </template>
 
@@ -103,7 +143,11 @@
 <script setup lang="ts">
 import { api } from "@/api";
 import { dialogs } from "@/components/dialog";
-import type { AIModelConnectorResponse, MCPServerResponse } from "@/api";
+import type {
+  AIModelConnectorResponse,
+  MCPServerResponse,
+  SkillResponse,
+} from "@/api";
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
 import type { DialogType } from "@/components/dialog/dialog";
 
@@ -129,12 +173,16 @@ const tabs: Array<{ id: TabId; title: string }> = [
 
 const activeTab = ref<TabId>("modelConnector");
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
+const skills = ref<SkillResponse[]>([]);
 const mcpServers = ref<MCPServerResponse[]>([]);
 const modelConnectorIsLoading = ref(false);
+const skillIsLoading = ref(false);
 const mcpIsLoading = ref(false);
 const modelConnectorDeletingId = ref<number | null>(null);
+const skillDeletingId = ref<number | null>(null);
 const mcpDeletingId = ref<number | null>(null);
 const modelConnectorErrorMessage = ref("");
+const skillErrorMessage = ref("");
 const mcpErrorMessage = ref("");
 
 onMounted(async () => {
@@ -142,6 +190,10 @@ onMounted(async () => {
 });
 
 watch(activeTab, async (tab) => {
+  if (tab === "skill" && !skills.value.length) {
+    await loadSkills();
+  }
+
   if (tab === "mcp" && !mcpServers.value.length) {
     await loadMcpServers();
   }
@@ -178,6 +230,20 @@ async function loadMcpServers() {
     );
   } finally {
     mcpIsLoading.value = false;
+  }
+}
+
+async function loadSkills() {
+  skillErrorMessage.value = "";
+  skillIsLoading.value = true;
+
+  try {
+    const response = await api.skill.getSkill();
+    skills.value = response.data || [];
+  } catch (error) {
+    skillErrorMessage.value = getErrorMessage(error, "Failed to load skills.");
+  } finally {
+    skillIsLoading.value = false;
   }
 }
 
@@ -263,6 +329,50 @@ async function deleteMcpServer(id: number) {
   }
 }
 
+async function openCreateSkill() {
+  await dialogs.CreateOrEditSkillDialog().finishPromise(async () => {
+    await loadSkills();
+  });
+}
+
+async function openEditSkill(id: number) {
+  await dialogs.CreateOrEditSkillDialog({ id }).finishPromise(async () => {
+    await loadSkills();
+  });
+}
+
+async function openSkillTaskListManager(skill: SkillResponse) {
+  await dialogs.FileListManagerDialog({
+    fileListId: skill.fileListId,
+    baseOnPath: `/skills/${skill.id}`,
+  });
+}
+
+async function deleteSkill(id: number) {
+  const shouldDelete = await dialogs
+    .ConfirmDialog({
+      title: "Delete Skill",
+      content: "Are you sure you want to delete this skill?",
+    })
+    .finallyPromise((isFinished) => isFinished);
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  skillDeletingId.value = id;
+  skillErrorMessage.value = "";
+
+  try {
+    await api.skill.deleteSkillById(id);
+    await loadSkills();
+  } catch (error) {
+    skillErrorMessage.value = getErrorMessage(error, "Failed to delete skill.");
+  } finally {
+    skillDeletingId.value = null;
+  }
+}
+
 function getModelConnectorMenus(
   modelConnector: AIModelConnectorResponse,
 ): Menu[] {
@@ -309,6 +419,29 @@ function getMcpServerMenus(mcpServer: MCPServerResponse): Menu[] {
           return;
         }
         void deleteMcpServer(mcpServer.id);
+      },
+    },
+  ];
+}
+
+function getSkillMenus(skill: SkillResponse): Menu[] {
+  return [
+    {
+      id: "edit",
+      name: "Edit",
+      click: () => {
+        void openEditSkill(skill.id);
+      },
+    },
+    {
+      id: "delete",
+      name: skillDeletingId.value === skill.id ? "Deleting..." : "Delete",
+      danger: true,
+      click: () => {
+        if (skillDeletingId.value === skill.id) {
+          return;
+        }
+        void deleteSkill(skill.id);
       },
     },
   ];

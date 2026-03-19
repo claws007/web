@@ -99,6 +99,36 @@
         </div>
       </div>
 
+      <div v-else-if="activeTab === 'skill'" class="v gap-2 pt-3">
+        <div v-if="skillIsLoading" class="text-light text-sm">Loading...</div>
+        <div v-else-if="allSkills.length === 0" class="text-light text-sm">
+          No skills available.
+        </div>
+        <div
+          v-for="skill in allSkills"
+          v-else
+          :key="skill.id"
+          class="h items-center justify-between gap-3 rounded border border-border px-3 py-2"
+        >
+          <div class="v min-w-0 gap-0.5">
+            <div class="text-sm font-semibold">{{ skill.name }}</div>
+            <div v-if="skill.description" class="text-light truncate text-xs">
+              {{ skill.description }}
+            </div>
+          </div>
+          <Switch
+            :model-value="isSkillEnabled(skill.id)"
+            @update:model-value="toggleSkill(skill.id, $event ?? false)"
+          />
+        </div>
+        <div
+          v-if="skillErrorMessage"
+          class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+        >
+          {{ skillErrorMessage }}
+        </div>
+      </div>
+
       <div v-else-if="activeTab === 'filePermission'" class="v gap-3 pt-3">
         <div class="h items-center justify-between gap-2">
           <div class="text-sm font-semibold">File Permissions</div>
@@ -212,15 +242,18 @@
 import { api } from "@/api";
 import type {
   AgentFilePermissionResponse,
+  AgentSkillRelationResponse,
   AgentResponse,
   AgentMcpServerRelationResponse,
   AIModelConnectorResponse,
   MCPServerResponse,
+  SkillResponse,
 } from "@/api";
 import type { DialogType } from "@/components/dialog/dialog";
+import { PlusOutlined } from "@ant-design/icons-vue";
 
 type FormResult = AgentResponse;
-type TabId = "general" | "mcp" | "filePermission";
+type TabId = "general" | "mcp" | "skill" | "filePermission";
 type FilePermissionDraft = {
   localId: string;
   id?: number;
@@ -251,6 +284,7 @@ const activeTab = ref<TabId>("general");
 const tabs: Array<{ id: TabId; title: string }> = [
   { id: "general", title: "常规" },
   { id: "mcp", title: "MCP" },
+  { id: "skill", title: "Skill" },
   { id: "filePermission", title: "File Permission" },
 ];
 
@@ -275,6 +309,13 @@ const draftMcpServerIds = ref<number[]>([]);
 const mcpIsLoading = ref(false);
 const mcpErrorMessage = ref("");
 
+// Skills
+const allSkills = ref<SkillResponse[]>([]);
+const agentSkillAssignments = ref<AgentSkillRelationResponse[]>([]);
+const draftSkillIds = ref<number[]>([]);
+const skillIsLoading = ref(false);
+const skillErrorMessage = ref("");
+
 // File permissions
 const agentFilePermissions = ref<AgentFilePermissionResponse[]>([]);
 const filePermissionDrafts = ref<FilePermissionDraft[]>([]);
@@ -284,6 +325,10 @@ let nextFilePermissionDraftId = 0;
 
 function isMcpEnabled(mcpServerId: number) {
   return draftMcpServerIds.value.includes(mcpServerId);
+}
+
+function isSkillEnabled(skillId: number) {
+  return draftSkillIds.value.includes(skillId);
 }
 
 const isEdit = computed(() => typeof props.id === "number" && props.id > 0);
@@ -310,11 +355,13 @@ const canSubmit = computed(
 onMounted(async () => {
   await loadModelConnectors();
   await loadAllMcpServers();
+  await loadAllSkills();
 
   if (isEdit.value && props.id) {
     await loadAgent(props.id);
     await Promise.all([
       loadAgentMcpAssignments(props.id),
+      loadAgentSkillAssignments(props.id),
       loadAgentFilePermissions(props.id),
     ]);
   }
@@ -374,6 +421,15 @@ async function loadAllMcpServers() {
   }
 }
 
+async function loadAllSkills() {
+  try {
+    const response = await api.skill.getSkill();
+    allSkills.value = response.data || [];
+  } catch (error) {
+    skillErrorMessage.value = getErrorMessage(error, "Failed to load skills.");
+  }
+}
+
 async function loadAgentMcpAssignments(agentId: number) {
   mcpErrorMessage.value = "";
   mcpIsLoading.value = true;
@@ -394,6 +450,26 @@ async function loadAgentMcpAssignments(agentId: number) {
   }
 }
 
+async function loadAgentSkillAssignments(agentId: number) {
+  skillErrorMessage.value = "";
+  skillIsLoading.value = true;
+  try {
+    const response =
+      await api.agentSkillRelation.getAgentSkillRelationAgentByAgentId(agentId);
+    agentSkillAssignments.value = response.data || [];
+    draftSkillIds.value = agentSkillAssignments.value
+      .filter((assignment) => assignment.enabled)
+      .map((assignment) => assignment.skillId);
+  } catch (error) {
+    skillErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to load agent skill assignments.",
+    );
+  } finally {
+    skillIsLoading.value = false;
+  }
+}
+
 function toggleMcp(mcpServerId: number, enabled: boolean) {
   mcpErrorMessage.value = "";
 
@@ -407,6 +483,19 @@ function toggleMcp(mcpServerId: number, enabled: boolean) {
   draftMcpServerIds.value = draftMcpServerIds.value.filter(
     (id) => id !== mcpServerId,
   );
+}
+
+function toggleSkill(skillId: number, enabled: boolean) {
+  skillErrorMessage.value = "";
+
+  if (enabled) {
+    if (!draftSkillIds.value.includes(skillId)) {
+      draftSkillIds.value = [...draftSkillIds.value, skillId];
+    }
+    return;
+  }
+
+  draftSkillIds.value = draftSkillIds.value.filter((id) => id !== skillId);
 }
 
 async function loadAgentFilePermissions(agentId: number) {
@@ -514,6 +603,7 @@ async function loadModelCatalogByType(type: string) {
 async function submit() {
   errorMessage.value = "";
   mcpErrorMessage.value = "";
+  skillErrorMessage.value = "";
   filePermissionErrorMessage.value = "";
 
   if (!canSubmit.value) {
@@ -574,6 +664,19 @@ async function submit() {
         );
         throw new Error(
           getErrorMessage(error, "Failed to save MCP assignments."),
+        );
+      }
+
+      try {
+        await syncAgentSkillAssignments(saved.id);
+      } catch (error) {
+        activeTab.value = "skill";
+        skillErrorMessage.value = getErrorMessage(
+          error,
+          "Failed to save skill assignments.",
+        );
+        throw new Error(
+          getErrorMessage(error, "Failed to save skill assignments."),
         );
       }
 
@@ -654,6 +757,56 @@ async function syncAgentMcpAssignments(agentId: number) {
   draftMcpServerIds.value = agentMcpAssignments.value
     .filter((assignment) => assignment.enabled)
     .map((assignment) => assignment.mcpServerId);
+}
+
+async function syncAgentSkillAssignments(agentId: number) {
+  const originalAssignments = new Map(
+    agentSkillAssignments.value.map((assignment) => [
+      assignment.skillId,
+      assignment,
+    ]),
+  );
+  const nextEnabledSkillIds = new Set(draftSkillIds.value);
+  const targetSkillIds = new Set<number>([
+    ...originalAssignments.keys(),
+    ...nextEnabledSkillIds,
+  ]);
+
+  for (const skillId of targetSkillIds) {
+    const assignment = originalAssignments.get(skillId);
+    const enabled = nextEnabledSkillIds.has(skillId);
+
+    if (enabled) {
+      if (!assignment) {
+        await api.agentSkillRelation.postAgentSkillRelation({
+          agentId,
+          skillId,
+          enabled: true,
+        });
+      } else if (!assignment.enabled) {
+        await api.agentSkillRelation.putAgentSkillRelationById(assignment.id, {
+          enabled: true,
+        });
+      }
+      continue;
+    }
+
+    if (assignment) {
+      await api.agentSkillRelation.deleteAgentSkillRelationById(assignment.id);
+    }
+  }
+
+  if (!isEdit.value && !targetSkillIds.size) {
+    agentSkillAssignments.value = [];
+    return;
+  }
+
+  const response =
+    await api.agentSkillRelation.getAgentSkillRelationAgentByAgentId(agentId);
+  agentSkillAssignments.value = response.data || [];
+  draftSkillIds.value = agentSkillAssignments.value
+    .filter((assignment) => assignment.enabled)
+    .map((assignment) => assignment.skillId);
 }
 
 function normalizeFilePermissionDraft(permission: FilePermissionDraft) {

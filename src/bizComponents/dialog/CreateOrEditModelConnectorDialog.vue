@@ -23,9 +23,13 @@
 
         <div class="v gap-1">
           <div class="text-sm font-semibold">
-            Params (JSON) <span class="text-danger">*</span>
+            API Key <span class="text-danger">*</span>
           </div>
-          <Textarea v-model="paramsText" class="bg-transparent" />
+          <Input
+            v-model="apiKey"
+            placeholder="Enter provider API key"
+            @enter="submit"
+          />
         </div>
 
         <div
@@ -57,18 +61,6 @@ import type { AIModelConnectorResponse } from "@/api";
 import type { DialogType } from "@/components/dialog/dialog";
 
 type ModelConnectorType = string;
-const MODEL_CONNECTOR_TYPES = [
-  "OPENAI",
-  "ANTHROPIC",
-  "GOOGLE",
-  "MISTRAL",
-  "META",
-  "DEEPSEEK",
-  "ZHIPU",
-  "QWEN",
-  "BAIDU",
-  "MOONSHOT",
-] as const satisfies readonly ModelConnectorType[];
 
 const props = withDefaults(
   defineProps<{
@@ -86,7 +78,8 @@ const props = withDefaults(
 
 const name = ref("");
 const type = ref<ModelConnectorType | undefined>(undefined);
-const paramsText = ref("{}");
+const apiKey = ref("");
+const modelConnectorTypes = ref<ModelConnectorType[]>([]);
 
 const isSubmitting = ref(false);
 const errorMessage = ref("");
@@ -97,31 +90,54 @@ const finalTitle = computed(
     props.title ||
     (isEdit.value ? "Edit Model Connector" : "Create Model Connector"),
 );
-const typeOptions = computed(() =>
-  MODEL_CONNECTOR_TYPES.map((item) => ({
+const typeOptions = computed(() => {
+  const types = modelConnectorTypes.value.slice();
+  if (type.value && !types.includes(type.value)) {
+    types.push(type.value);
+  }
+
+  return types.map((item) => ({
     id: item,
     name: item,
-  })),
-);
+  }));
+});
 const canSubmit = computed(
-  () => !!name.value.trim() && !!type.value && !!paramsText.value.trim(),
+  () => !!name.value.trim() && !!type.value && !!apiKey.value.trim(),
 );
 
 onMounted(async () => {
+  await loadModelConnectorTypes();
   if (isEdit.value && props.id) {
     await loadModelConnector(props.id);
   }
 });
+
+async function loadModelConnectorTypes() {
+  try {
+    const response = await api.modelConnector.getModelConnectorTypes();
+    modelConnectorTypes.value = (response.data?.types || []).filter(
+      (item): item is string => typeof item === "string" && !!item.trim(),
+    );
+  } catch (error) {
+    errorMessage.value = getErrorMessage(
+      error,
+      "Failed to load model connector types.",
+    );
+  }
+}
 
 async function loadModelConnector(id: number) {
   try {
     const response = await api.modelConnector.getModelConnectorById(id);
     const modelConnector = response.data;
     name.value = modelConnector.name || "";
-    type.value = isModelConnectorType(modelConnector.type)
-      ? modelConnector.type
-      : undefined;
-    paramsText.value = JSON.stringify(modelConnector.params || {}, null, 2);
+    type.value = modelConnector.type || undefined;
+    const params =
+      typeof modelConnector.params === "object" &&
+      modelConnector.params !== null
+        ? (modelConnector.params as Record<string, unknown>)
+        : {};
+    apiKey.value = typeof params.apiKey === "string" ? params.apiKey : "";
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
@@ -130,36 +146,18 @@ async function loadModelConnector(id: number) {
   }
 }
 
-function isModelConnectorType(value: string): value is ModelConnectorType {
-  return (MODEL_CONNECTOR_TYPES as readonly string[]).includes(value);
-}
-
 async function submit() {
   errorMessage.value = "";
 
   if (!canSubmit.value || !type.value) {
-    errorMessage.value = "Name, type and params are required.";
+    errorMessage.value = "Name, type and API key are required.";
     return;
   }
 
   const finalType = type.value;
-
-  let parsedParams: object;
-  try {
-    const parsed = JSON.parse(paramsText.value);
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      Array.isArray(parsed)
-    ) {
-      errorMessage.value = "Params must be a JSON object.";
-      return;
-    }
-    parsedParams = parsed;
-  } catch {
-    errorMessage.value = "Params must be valid JSON.";
-    return;
-  }
+  const parsedParams = {
+    apiKey: apiKey.value.trim(),
+  };
 
   isSubmitting.value = true;
   try {

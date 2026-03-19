@@ -14,7 +14,9 @@ const props = defineProps<{
   noImage?: boolean;
 }>();
 
-const md = Markdown().use(highlightjs, {});
+const md = Markdown({
+  html: true,
+}).use(highlightjs, {});
 const modelValue = defineModel<string>("modelValue", {
   default: "",
 });
@@ -71,6 +73,10 @@ async function handleClickCapture(event: MouseEvent) {
   ul,
   ol {
     padding-left: 16px;
+  }
+
+  think {
+    @apply text-xs text-light;
   }
 }
 </style>

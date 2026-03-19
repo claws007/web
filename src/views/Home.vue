@@ -82,7 +82,7 @@
           :menus="getTaskMenus(task)"
           :selected="finalTaskId === task.id"
           background="2"
-          @click="currentTaskId = task.id"
+          @click="selectTask(task.id)"
         >
         </SelectableTag>
       </div>
@@ -109,12 +109,7 @@
           </Tooltip>
         </div>
         <div class="h items-center gap-1" @click.stop>
-          <Tooltip
-            v-if="
-              ['FAILED', 'FINISHED'].includes(getTaskState(finalTask.state)) &&
-              hasTaskResult(finalTask)
-            "
-          >
+          <Tooltip>
             <span class="cursor-pointer text-light text-xs hover:text-primary">
               {{ finalTask.state }}
             </span>
@@ -209,9 +204,7 @@
                     }}
                   </div>
                   <pre class="text-light whitespace-pre-wrap break-all">{{
-                    decodeURIComponent(
-                      (history.extraLogs as any)?.mcp?.result?.rawOutput,
-                    )
+                    (history.extraLogs as any)?.mcp?.result?.rawOutput
                   }}</pre>
                 </div>
                 <span v-else class="stretch text-xs text-light-2 truncate">
@@ -290,6 +283,7 @@ const actionType = ref<"start" | "replay" | "stop" | "resume" | null>(null);
 const taskChatHistories = ref<Record<number, ChatHistoryResponse[]>>({});
 const taskChatHistoryLoading = ref<Record<number, boolean>>({});
 const taskChatHistoryErrors = ref<Record<number, string>>({});
+const taskChatHistoryLoaded = ref<Record<number, boolean>>({});
 const taskChatHistoryStreamTaskId = ref<number | null>(null);
 const taskChatHistoryStreamController = ref<AbortController | null>(null);
 const taskChatHistoryStreamReconnectTimer = ref<number | null>(null);
@@ -473,26 +467,28 @@ async function loadTasks(agentId: number) {
     currentTaskId.value =
       previousTaskId && tasks.value.some((task) => task.id === previousTaskId)
         ? previousTaskId
-        : tasks.value[0]?.id;
-    await loadTaskChatHistories(tasks.value.map((task) => task.id));
+        : undefined;
+    pruneTaskChatHistoryState(tasks.value.map((task) => task.id));
   } catch (error) {
     tasks.value = [];
     currentTaskId.value = undefined;
     taskChatHistories.value = {};
     taskChatHistoryLoading.value = {};
     taskChatHistoryErrors.value = {};
+    taskChatHistoryLoaded.value = {};
     taskErrorMessage.value = getErrorMessage(error, "Failed to load tasks.");
   } finally {
     isTaskLoading.value = false;
   }
 }
 
-async function loadTaskChatHistories(taskIds: number[]) {
+function pruneTaskChatHistoryState(taskIds: number[]) {
   const uniqTaskIds = Array.from(new Set(taskIds));
 
   const keep = new Set(uniqTaskIds);
   const nextChatHistories: Record<number, ChatHistoryResponse[]> = {};
   const nextChatHistoryErrors: Record<number, string> = {};
+  const nextChatHistoryLoaded: Record<number, boolean> = {};
 
   for (const taskId of uniqTaskIds) {
     if (taskChatHistories.value[taskId]) {
@@ -501,20 +497,26 @@ async function loadTaskChatHistories(taskIds: number[]) {
     if (taskChatHistoryErrors.value[taskId]) {
       nextChatHistoryErrors[taskId] = taskChatHistoryErrors.value[taskId];
     }
+    if (taskChatHistoryLoaded.value[taskId]) {
+      nextChatHistoryLoaded[taskId] = taskChatHistoryLoaded.value[taskId];
+    }
   }
 
   taskChatHistories.value = nextChatHistories;
   taskChatHistoryErrors.value = nextChatHistoryErrors;
+  taskChatHistoryLoaded.value = nextChatHistoryLoaded;
   taskChatHistoryLoading.value = Object.fromEntries(
     Object.entries(taskChatHistoryLoading.value).filter(([taskId]) =>
       keep.has(Number(taskId)),
     ),
   ) as Record<number, boolean>;
-
-  await Promise.all(uniqTaskIds.map((taskId) => loadTaskChatHistory(taskId)));
 }
 
 async function loadTaskChatHistory(taskId: number) {
+  if (taskChatHistoryLoading.value[taskId]) {
+    return;
+  }
+
   taskChatHistoryLoading.value = {
     ...taskChatHistoryLoading.value,
     [taskId]: true,
@@ -535,6 +537,10 @@ async function loadTaskChatHistory(taskId: number) {
       ...taskChatHistories.value,
       [taskId]: histories,
     };
+    taskChatHistoryLoaded.value = {
+      ...taskChatHistoryLoaded.value,
+      [taskId]: true,
+    };
   } catch (error) {
     taskChatHistories.value = {
       ...taskChatHistories.value,
@@ -544,12 +550,31 @@ async function loadTaskChatHistory(taskId: number) {
       ...taskChatHistoryErrors.value,
       [taskId]: getErrorMessage(error, "Failed to load chat history."),
     };
+    taskChatHistoryLoaded.value = {
+      ...taskChatHistoryLoaded.value,
+      [taskId]: false,
+    };
   } finally {
     taskChatHistoryLoading.value = {
       ...taskChatHistoryLoading.value,
       [taskId]: false,
     };
   }
+}
+
+async function ensureTaskChatHistoryLoaded(taskId: number) {
+  if (
+    taskChatHistoryLoaded.value[taskId] ||
+    taskChatHistoryLoading.value[taskId]
+  ) {
+    return;
+  }
+
+  await loadTaskChatHistory(taskId);
+}
+
+function selectTask(taskId: number) {
+  currentTaskId.value = taskId;
 }
 
 function upsertTask(task: Partial<AgentTaskResponse> & { id: number }) {
@@ -884,7 +909,8 @@ function startTaskChatHistoryStream(taskId: number) {
 }
 
 function getTaskChatHistories(taskId: number) {
-  return taskChatHistories.value[taskId] || [];
+  const histories = taskChatHistories.value[taskId] || [];
+  return [...histories].reverse();
 }
 
 function isTaskChatHistoryLoading(taskId: number) {
@@ -1103,6 +1129,8 @@ async function runTask(taskId: number, action: "start" | "replay") {
   actionTaskId.value = taskId;
   actionType.value = action;
   taskErrorMessage.value = "";
+  // 清空该任务的所有 chat histories
+  taskChatHistories.value[taskId] = [];
   try {
     if (action === "replay") {
       await api.agentTask.postAgentTaskByIdRetry(taskId);
@@ -1274,10 +1302,7 @@ const finalAgent = computed(() => {
 });
 
 const finalTaskId = computed(() => {
-  if (currentTaskId.value) {
-    return currentTaskId.value;
-  }
-  return tasks.value[0]?.id;
+  return currentTaskId.value;
 });
 
 const finalTask = computed(() => {
@@ -1296,6 +1321,17 @@ watch(
     await loadTasks(agentId);
   },
   { immediate: true },
+);
+
+watch(
+  () => currentTaskId.value,
+  (taskId) => {
+    if (!taskId) {
+      return;
+    }
+
+    void ensureTaskChatHistoryLoaded(taskId);
+  },
 );
 
 watch(

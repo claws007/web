@@ -8,6 +8,8 @@
   ></CaretRightOutlined>
 </template>
 <script setup lang="ts">
+import { CaretRightOutlined } from "@ant-design/icons-vue";
+
 defineProps<{
   isExpand: boolean;
   noChildren?: boolean;

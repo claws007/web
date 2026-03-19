@@ -276,6 +276,17 @@ export interface AgentMcpServerRelationResponse {
   mcpServer?: MCPServerResponse;
 }
 
+export interface AgentSkillRelationResponse {
+  id: number;
+  agentId: number;
+  skillId: number;
+  enabled: boolean;
+  /** @format date-time */
+  assignedAt: string;
+  agent?: AgentResponse;
+  skill?: SkillResponse;
+}
+
 export interface AgentFilePermissionResponse {
   id: number;
   userId: number;
@@ -289,6 +300,72 @@ export interface AgentFilePermissionResponse {
   /** @format date-time */
   createdAt: string;
   agent?: Record<string, any>;
+}
+
+export interface FileResponse {
+  id: number;
+  bucketName: string;
+  objectName: string;
+  filePath?: string | null;
+  userId: number;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+}
+
+export interface FileListFileResponse {
+  id: number;
+  fileListId: number;
+  fileId: number;
+  /** @format date-time */
+  createdAt: string;
+  file: FileResponse;
+}
+
+export interface FileListResponse {
+  id: number;
+  userId: number;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+  files: {
+    id: number;
+    fileListId: number;
+    fileId: number;
+    /** @format date-time */
+    createdAt: string;
+    file: FileResponse;
+  }[];
+}
+
+export interface SkillResponse {
+  id: number;
+  userId: number;
+  name: string;
+  fileListId: number;
+  description?: string | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+  fileList?: {
+    id?: number;
+    userId?: number;
+    /** @format date-time */
+    createdAt?: string;
+    /** @format date-time */
+    updatedAt?: string;
+    files?: {
+      id?: number;
+      fileListId?: number;
+      fileId?: number;
+      /** @format date-time */
+      createdAt?: string;
+      file?: FileResponse;
+    }[];
+  } | null;
 }
 
 export type GenericObjectResponse = Record<string, any>;
@@ -1272,7 +1349,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name GetAgentMcpServer
      * @summary List all agent MCP server assignments
      * @request GET:/agent-mcp-server
@@ -1288,7 +1365,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name PostAgentMcpServer
      * @summary Assign an MCP server to an agent
      * @request POST:/agent-mcp-server
@@ -1315,7 +1392,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name GetAgentMcpServerAgentByAgentId
      * @summary List MCP servers assigned to an agent
      * @request GET:/agent-mcp-server/agent/{agentId}
@@ -1334,7 +1411,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name GetAgentMcpServerById
      * @summary Get an agent MCP server assignment by ID
      * @request GET:/agent-mcp-server/{id}
@@ -1350,7 +1427,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name PutAgentMcpServerById
      * @summary Toggle enabled flag for an agent MCP server assignment
      * @request PUT:/agent-mcp-server/{id}
@@ -1374,7 +1451,7 @@ export class Api<
     /**
      * No description
      *
-     * @tags Agent
+     * @tags Agent MCP Server
      * @name DeleteAgentMcpServerById
      * @summary Remove an MCP server from an agent
      * @request DELETE:/agent-mcp-server/{id}
@@ -1686,6 +1763,497 @@ export class Api<
     deleteAgentFilePermissionById: (id: number, params: RequestParams = {}) =>
       this.request<SuccessResponse, ErrorResponse>({
         path: `/agent-file-permission/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+  };
+  file = {
+    /**
+     * No description
+     *
+     * @tags File
+     * @name GetFile
+     * @summary List file metadata for current user
+     * @request GET:/file
+     */
+    getFile: (params: RequestParams = {}) =>
+      this.request<FileResponse[], any>({
+        path: `/file`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File
+     * @name GetFileById
+     * @summary Get file metadata by ID
+     * @request GET:/file/{id}
+     */
+    getFileById: (id: number, params: RequestParams = {}) =>
+      this.request<FileResponse, ErrorResponse>({
+        path: `/file/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File
+     * @name DeleteFileById
+     * @summary Delete file metadata and object
+     * @request DELETE:/file/{id}
+     */
+    deleteFileById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/file/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Uploads file content to MinIO and stores metadata in the File table. Supported content types: - application/json: send { fileName, contentBase64, contentType?, filePath? } - multipart/form-data: send file field named file and optional filePath Storage strategy: - bucket name: user-{userId} - object key: flat UUID
+     *
+     * @tags File
+     * @name PostFileUpload
+     * @summary Upload a file to MinIO and create file metadata
+     * @request POST:/file/upload
+     */
+    postFileUpload: (
+      data: {
+        /** @minLength 1 */
+        fileName: string;
+        contentBase64: string;
+        contentType?: string | null;
+        /** @minLength 1 */
+        filePath?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileResponse, ValidationErrorResponse>({
+        path: `/file/upload`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Downloads object bytes from MinIO by File metadata id. Returns binary stream with Content-Type and Content-Disposition headers.
+     *
+     * @tags File
+     * @name GetFileByIdDownload
+     * @summary Download file object content by metadata ID
+     * @request GET:/file/{id}/download
+     */
+    getFileByIdDownload: (id: number, params: RequestParams = {}) =>
+      this.request<File, ErrorResponse>({
+        path: `/file/${id}/download`,
+        method: "GET",
+        ...params,
+      }),
+  };
+  fileList = {
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name GetFileList
+     * @summary List all file lists
+     * @request GET:/file-list
+     */
+    getFileList: (params: RequestParams = {}) =>
+      this.request<FileListResponse[], any>({
+        path: `/file-list`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name PostFileList
+     * @summary Create a new file list
+     * @request POST:/file-list
+     */
+    postFileList: (
+      data: {
+        fileIds?: any;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileListResponse, ValidationErrorResponse>({
+        path: `/file-list`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name GetFileListById
+     * @summary Get a file list by ID
+     * @request GET:/file-list/{id}
+     */
+    getFileListById: (id: number, params: RequestParams = {}) =>
+      this.request<FileListResponse, ErrorResponse>({
+        path: `/file-list/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name PutFileListById
+     * @summary Update a file list
+     * @request PUT:/file-list/{id}
+     */
+    putFileListById: (
+      id: number,
+      data: {
+        fileIds?: any;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileListResponse, ErrorResponse>({
+        path: `/file-list/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name DeleteFileListById
+     * @summary Delete a file list
+     * @request DELETE:/file-list/{id}
+     */
+    deleteFileListById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/file-list/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name GetFileListByListIdFiles
+     * @summary List files in a file list
+     * @request GET:/file-list/{listId}/files
+     */
+    getFileListByListIdFiles: (listId: number, params: RequestParams = {}) =>
+      this.request<FileListFileResponse[], ErrorResponse>({
+        path: `/file-list/${listId}/files`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name PostFileListByListIdFiles
+     * @summary Add a file to a file list
+     * @request POST:/file-list/{listId}/files
+     */
+    postFileListByListIdFiles: (
+      listId: number,
+      data: {
+        /** @min 0 */
+        fileId: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        FileListFileResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/file-list/${listId}/files`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name GetFileListByListIdFilesByEntryId
+     * @summary Get a file list entry by ID
+     * @request GET:/file-list/{listId}/files/{entryId}
+     */
+    getFileListByListIdFilesByEntryId: (
+      listId: number,
+      entryId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileListFileResponse, ErrorResponse>({
+        path: `/file-list/${listId}/files/${entryId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags File List
+     * @name DeleteFileListByListIdFilesByEntryId
+     * @summary Remove a file from a file list
+     * @request DELETE:/file-list/{listId}/files/{entryId}
+     */
+    deleteFileListByListIdFilesByEntryId: (
+      listId: number,
+      entryId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/file-list/${listId}/files/${entryId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+  };
+  skill = {
+    /**
+     * No description
+     *
+     * @tags Skill
+     * @name GetSkill
+     * @summary List all skills
+     * @request GET:/skill
+     */
+    getSkill: (params: RequestParams = {}) =>
+      this.request<SkillResponse[], any>({
+        path: `/skill`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Skill
+     * @name PostSkill
+     * @summary Create a new skill
+     * @request POST:/skill
+     */
+    postSkill: (
+      data: {
+        /** @minLength 1 */
+        name: string;
+        description?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SkillResponse, ValidationErrorResponse>({
+        path: `/skill`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Skill
+     * @name GetSkillById
+     * @summary Get a skill by ID
+     * @request GET:/skill/{id}
+     */
+    getSkillById: (id: number, params: RequestParams = {}) =>
+      this.request<SkillResponse, ErrorResponse>({
+        path: `/skill/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Skill
+     * @name PutSkillById
+     * @summary Update a skill
+     * @request PUT:/skill/{id}
+     */
+    putSkillById: (
+      id: number,
+      data: {
+        /** @minLength 1 */
+        name?: string | null;
+        description?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SkillResponse, ErrorResponse>({
+        path: `/skill/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Skill
+     * @name DeleteSkillById
+     * @summary Delete a skill
+     * @request DELETE:/skill/{id}
+     */
+    deleteSkillById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/skill/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+  };
+  agentSkillRelation = {
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name GetAgentSkillRelation
+     * @summary List all agent skill assignments
+     * @request GET:/agent-skill-relation
+     */
+    getAgentSkillRelation: (params: RequestParams = {}) =>
+      this.request<AgentSkillRelationResponse[], any>({
+        path: `/agent-skill-relation`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name PostAgentSkillRelation
+     * @summary Assign a skill to an agent
+     * @request POST:/agent-skill-relation
+     */
+    postAgentSkillRelation: (
+      data: {
+        /** @min 0 */
+        agentId: number;
+        /** @min 0 */
+        skillId: number;
+        enabled?: boolean | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentSkillRelationResponse, ValidationErrorResponse>({
+        path: `/agent-skill-relation`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name GetAgentSkillRelationAgentByAgentId
+     * @summary List skills assigned to an agent
+     * @request GET:/agent-skill-relation/agent/{agentId}
+     */
+    getAgentSkillRelationAgentByAgentId: (
+      agentId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentSkillRelationResponse[], ErrorResponse>({
+        path: `/agent-skill-relation/agent/${agentId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name GetAgentSkillRelationById
+     * @summary Get an agent skill assignment by ID
+     * @request GET:/agent-skill-relation/{id}
+     */
+    getAgentSkillRelationById: (id: number, params: RequestParams = {}) =>
+      this.request<AgentSkillRelationResponse, ErrorResponse>({
+        path: `/agent-skill-relation/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name PutAgentSkillRelationById
+     * @summary Toggle enabled flag for an agent skill assignment
+     * @request PUT:/agent-skill-relation/{id}
+     */
+    putAgentSkillRelationById: (
+      id: number,
+      data: {
+        enabled: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentSkillRelationResponse, ErrorResponse>({
+        path: `/agent-skill-relation/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Skill Relation
+     * @name DeleteAgentSkillRelationById
+     * @summary Remove a skill from an agent
+     * @request DELETE:/agent-skill-relation/{id}
+     */
+    deleteAgentSkillRelationById: (id: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/agent-skill-relation/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
