@@ -75,7 +75,10 @@
       <div v-else-if="isLoading" class="mx-4 text-light text-sm">
         Loading agents...
       </div>
-      <div v-else-if="agentTreeRows.length === 0" class="mx-4 text-light text-sm">
+      <div
+        v-else-if="agentTreeRows.length === 0"
+        class="mx-4 text-light text-sm"
+      >
         No agent found.
       </div>
       <div v-else class="stretch gap-2 v overflow-y-auto">
@@ -86,7 +89,9 @@
         >
           <SelectableTag
             :title="row.node.agent.name"
-            :content="row.node.agent.description ?? `[Cap] ${row.node.agent.capacity}`"
+            :content="
+              row.node.agent.description ?? `[Cap] ${row.node.agent.capacity}`
+            "
             :menus="getAgentMenus(row.node.agent)"
             :selected="finalAgentId === row.node.agent.id"
             background="3"
@@ -1551,10 +1556,7 @@ async function removeSubAgent(agent: AgentResponse) {
     await api.subAgent.deleteSubAgentById(relation.id);
     await loadAgents();
   } catch (error) {
-    errorMessage.value = getErrorMessage(
-      error,
-      "Failed to remove sub-agent.",
-    );
+    errorMessage.value = getErrorMessage(error, "Failed to remove sub-agent.");
   } finally {
     subAgentMutatingRelationId.value = null;
   }
