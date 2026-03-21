@@ -18,8 +18,9 @@
 </template>
 
 <script lang="ts" setup>
-import { dayjs, Dayjs } from "@/utils/time";
-import { DialogType } from "../dialog";
+import { dayjs } from "@/utils/time";
+import type { Dayjs } from "@/utils/time";
+import type { DialogType } from "../dialog";
 import { useI18n } from "vue-i18n";
 const props = defineProps<{
   dialog: DialogType<any, Dayjs | null>;

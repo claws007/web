@@ -19,13 +19,13 @@
 </template>
 
 <script setup lang="ts">
-import { useSystemStore } from "@/store/system"
-import { ConfigProvider, theme } from "ant-design-vue"
-import { Locale } from "ant-design-vue/es/locale"
+import { useSystemStore } from "@/store/system";
+import { ConfigProvider, theme } from "ant-design-vue";
+import type { Locale } from "ant-design-vue/es/locale";
 
 defineProps<{
-  locale?: Locale
-}>()
+  locale?: Locale;
+}>();
 
 // const fontFamily =
 //   '"LXGW WenKai", -apple-system, "Microsoft YaHei", BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important'
@@ -35,7 +35,7 @@ defineProps<{
 // const fontFamily =
 //   '"SF Pro SC","SF Pro Text","SF Pro Icons","PingFang SC","Helvetica Neue","Helvetica","Arial",sans-serif !important';
 const fontFamily =
-  '"Huninn", "Microsoft Yahei", "fantasy", "monospace", "cursive", "serif", "sans-serif" !important'
+  '"Huninn", "Microsoft Yahei", "fantasy", "monospace", "cursive", "serif", "sans-serif" !important';
 
-const systemStore = useSystemStore()
+const systemStore = useSystemStore();
 </script>

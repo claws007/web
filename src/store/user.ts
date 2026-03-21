@@ -1,6 +1,8 @@
 import { api, clearApiToken, onUnauthorized, setApiToken } from "@/api";
 import type { AuthResponse } from "@/api";
+import { clearStoredActiveCompanyId } from "@/company/context";
 import { defineStore } from "pinia";
+import { useCompanyStore } from "./company";
 
 type LoginRequest = {
 	email: string;
@@ -84,10 +86,14 @@ export const useUserStore = defineStore("user", {
 			removeStoredSession();
 		},
 		logout() {
+			const companyStore = useCompanyStore();
+			companyStore.reset();
+
 			this.token = null;
 			this.user = null;
 			this.initialized = true;
 			clearApiToken();
+			clearStoredActiveCompanyId();
 			removeStoredSession();
 		},
 		bindUnauthorizedHandler() {

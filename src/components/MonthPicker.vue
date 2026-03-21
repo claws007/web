@@ -37,10 +37,11 @@
   </div>
 </template>
 <script setup lang="ts">
-import { dayjs, Dayjs } from "@/utils/time"
-import { MonthPicker } from "ant-design-vue"
+import { dayjs } from "@/utils/time";
+import type { Dayjs } from "@/utils/time";
+import { MonthPicker } from "ant-design-vue";
 
 const month = defineModel<Dayjs>("modelValue", {
   default: dayjs(),
-})
+});
 </script>

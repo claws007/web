@@ -32,6 +32,16 @@
           />
         </div>
 
+        <div class="v gap-1">
+          <div class="text-sm font-semibold">Concurrency</div>
+          <Input
+            v-model.number="concurrency"
+            type="number"
+            placeholder="Enter concurrency value"
+            @enter="submit"
+          />
+        </div>
+
         <div
           v-if="errorMessage"
           class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
@@ -79,6 +89,7 @@ const props = withDefaults(
 const name = ref("");
 const type = ref<ModelConnectorType | undefined>(undefined);
 const apiKey = ref("");
+const concurrency = ref<number | undefined>(undefined);
 const modelConnectorTypes = ref<ModelConnectorType[]>([]);
 
 const isSubmitting = ref(false);
@@ -138,6 +149,10 @@ async function loadModelConnector(id: number) {
         ? (modelConnector.params as Record<string, unknown>)
         : {};
     apiKey.value = typeof params.apiKey === "string" ? params.apiKey : "";
+    concurrency.value =
+      typeof modelConnector.concurrency === "number"
+        ? modelConnector.concurrency
+        : undefined;
   } catch (error) {
     errorMessage.value = getErrorMessage(
       error,
@@ -169,6 +184,9 @@ async function submit() {
             name: name.value.trim(),
             type: finalType,
             params: parsedParams,
+            ...(concurrency.value !== undefined && concurrency.value > 0
+              ? { concurrency: concurrency.value }
+              : {}),
           },
         );
         return response.data;
@@ -178,6 +196,9 @@ async function submit() {
         name: name.value.trim(),
         type: finalType,
         params: parsedParams,
+        ...(concurrency.value !== undefined && concurrency.value > 0
+          ? { concurrency: concurrency.value }
+          : {}),
       });
       return response.data;
     });

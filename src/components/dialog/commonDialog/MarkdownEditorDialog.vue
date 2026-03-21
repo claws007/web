@@ -38,24 +38,24 @@
 </template>
 
 <script lang="ts" setup>
-import { FileImageOutlined, InfoCircleOutlined } from "@ant-design/icons-vue"
-import { DialogType } from "../dialog"
-import MarkdownEditor from "@/components/MarkdownEditor.vue"
+import { FileImageOutlined, InfoCircleOutlined } from "@ant-design/icons-vue";
+import type { DialogType } from "../dialog";
+import MarkdownEditor from "@/components/MarkdownEditor.vue";
 
 const props = defineProps<{
-  dialog: DialogType<any, string>
-  title?: string | null
-  content?: string
-  value?: string | null
-  placeholder?: string
-}>()
+  dialog: DialogType<any, string>;
+  title?: string | null;
+  content?: string;
+  value?: string | null;
+  placeholder?: string;
+}>();
 
-const textareaValue = ref(props.value || "")
+const textareaValue = ref(props.value || "");
 
-const markdownEditorRef = ref<InstanceType<typeof MarkdownEditor>>()
+const markdownEditorRef = ref<InstanceType<typeof MarkdownEditor>>();
 function handleUploadImage() {
-  markdownEditorRef.value?.uploadImage()
+  markdownEditorRef.value?.uploadImage();
 }
 
-const disableEscapeKey = ref(false)
+const disableEscapeKey = ref(false);
 </script>

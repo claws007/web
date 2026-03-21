@@ -437,9 +437,9 @@ async function loadAgentMcpAssignments(agentId: number) {
     const response =
       await api.agentMcpServer.getAgentMcpServerAgentByAgentId(agentId);
     agentMcpAssignments.value = response.data || [];
-    draftMcpServerIds.value = agentMcpAssignments.value
-      .filter((assignment) => assignment.enabled)
-      .map((assignment) => assignment.mcpServerId);
+    draftMcpServerIds.value = agentMcpAssignments.value.map(
+      (assignment) => assignment.mcpServerId,
+    );
   } catch (error) {
     mcpErrorMessage.value = getErrorMessage(
       error,
@@ -457,9 +457,9 @@ async function loadAgentSkillAssignments(agentId: number) {
     const response =
       await api.agentSkillRelation.getAgentSkillRelationAgentByAgentId(agentId);
     agentSkillAssignments.value = response.data || [];
-    draftSkillIds.value = agentSkillAssignments.value
-      .filter((assignment) => assignment.enabled)
-      .map((assignment) => assignment.skillId);
+    draftSkillIds.value = agentSkillAssignments.value.map(
+      (assignment) => assignment.skillId,
+    );
   } catch (error) {
     skillErrorMessage.value = getErrorMessage(
       error,
@@ -633,8 +633,8 @@ async function submit() {
         const response = await api.agent.putAgentById(props.id, {
           name: name.value.trim(),
           model: toOptional(model.value || ""),
-          description: toOptional(description.value),
-          capacity: toOptional(capacity.value),
+          description: toOptional(description.value) || null,
+          capacity: toNullable(capacity.value),
           sandboxType: sandboxType.value || undefined,
           containerImage: toOptional(containerImage.value),
           modelConnectorId: modelConnectorId.value,
@@ -644,8 +644,8 @@ async function submit() {
         const response = await api.agent.postAgent({
           name: name.value.trim(),
           model: toOptional(model.value || ""),
-          description: toOptional(description.value),
-          capacity: toOptional(capacity.value),
+          description: toOptional(description.value) || null,
+          capacity: toNullable(capacity.value),
           sandboxType: sandboxType.value || undefined,
           containerImage: toOptional(containerImage.value),
           modelConnectorId: modelConnectorId.value!,
@@ -709,6 +709,11 @@ function toOptional(value: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function toNullable(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 async function syncAgentMcpAssignments(agentId: number) {
   const originalAssignments = new Map(
     agentMcpAssignments.value.map((assignment) => [
@@ -731,11 +736,6 @@ async function syncAgentMcpAssignments(agentId: number) {
         await api.agentMcpServer.postAgentMcpServer({
           agentId,
           mcpServerId,
-          enabled: true,
-        });
-      } else if (!assignment.enabled) {
-        await api.agentMcpServer.putAgentMcpServerById(assignment.id, {
-          enabled: true,
         });
       }
       continue;
@@ -754,9 +754,9 @@ async function syncAgentMcpAssignments(agentId: number) {
   const response =
     await api.agentMcpServer.getAgentMcpServerAgentByAgentId(agentId);
   agentMcpAssignments.value = response.data || [];
-  draftMcpServerIds.value = agentMcpAssignments.value
-    .filter((assignment) => assignment.enabled)
-    .map((assignment) => assignment.mcpServerId);
+  draftMcpServerIds.value = agentMcpAssignments.value.map(
+    (assignment) => assignment.mcpServerId,
+  );
 }
 
 async function syncAgentSkillAssignments(agentId: number) {
@@ -781,11 +781,6 @@ async function syncAgentSkillAssignments(agentId: number) {
         await api.agentSkillRelation.postAgentSkillRelation({
           agentId,
           skillId,
-          enabled: true,
-        });
-      } else if (!assignment.enabled) {
-        await api.agentSkillRelation.putAgentSkillRelationById(assignment.id, {
-          enabled: true,
         });
       }
       continue;
@@ -804,9 +799,9 @@ async function syncAgentSkillAssignments(agentId: number) {
   const response =
     await api.agentSkillRelation.getAgentSkillRelationAgentByAgentId(agentId);
   agentSkillAssignments.value = response.data || [];
-  draftSkillIds.value = agentSkillAssignments.value
-    .filter((assignment) => assignment.enabled)
-    .map((assignment) => assignment.skillId);
+  draftSkillIds.value = agentSkillAssignments.value.map(
+    (assignment) => assignment.skillId,
+  );
 }
 
 function normalizeFilePermissionDraft(permission: FilePermissionDraft) {

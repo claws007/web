@@ -54,35 +54,37 @@
   </div>
 </template>
 <script setup lang="ts" generic="N extends number">
+import { useLocalStorage } from "@vueuse/core";
+
 const props = withDefaults(
   defineProps<{
     // debug?: boolean
-    n: N
-    storageKey?: string
-    v?: boolean
-    stretch?: RangeNKey
+    n: N;
+    storageKey?: string;
+    v?: boolean;
+    stretch?: RangeNKey;
     initialOffsets?: {
-      [k in RangeNKey]?: number
-    }
+      [k in RangeNKey]?: number;
+    };
     disables?: {
-      [k in RangeNKey]?: boolean
-    }
-    threshold?: number
+      [k in RangeNKey]?: boolean;
+    };
+    threshold?: number;
   }>(),
   {
     threshold: 64,
   },
-)
+);
 const finalArray = computed(() => {
   return [...new Array(props.n).keys()].filter(
     (d) => !props.disables?.[d as RangeNKey],
-  )
-})
+  );
+});
 const finalStretch = computed(() =>
   !props.disables?.[props.stretch!] && props.stretch
     ? props.stretch
     : finalArray.value?.[finalArray.value.length - 1],
-)
+);
 
 const ranges = {
   1: [0],
@@ -90,41 +92,41 @@ const ranges = {
   3: [0, 1, 2],
   4: [0, 1, 2, 3],
   5: [0, 1, 2, 3, 4],
-} as const
-type Ranges = typeof ranges
-type RangeN = Ranges[N extends keyof Ranges ? N : never]
-type RangeNKey = RangeN[number]
+} as const;
+type Ranges = typeof ranges;
+type RangeN = Ranges[N extends keyof Ranges ? N : never];
+type RangeNKey = RangeN[number];
 
-const containerRef = useTemplateRef("container")
+const containerRef = useTemplateRef("container");
 
-type OffsetsType = { [k in RangeNKey]?: number }
+type OffsetsType = { [k in RangeNKey]?: number };
 const offsets = props.storageKey
   ? useLocalStorage<OffsetsType>(`resize-div-offsets-${props.storageKey}`, {})
-  : ref<OffsetsType>({})
+  : ref<OffsetsType>({});
 
 const getBaseOffsets = (index: number) => {
-  const finalOffsets = Object.assign({}, props.initialOffsets, offsets.value)
+  const finalOffsets = Object.assign({}, props.initialOffsets, offsets.value);
   const ws = Object.keys(finalOffsets).map((k) => {
-    return (finalOffsets || {})[k as keyof typeof finalOffsets]
-  })
+    return (finalOffsets || {})[k as keyof typeof finalOffsets];
+  });
   if (ws[index] != null) {
-    return ws[index]
+    return ws[index];
   }
-  const n = props.n - ws.filter((w) => !!w).length
+  const n = props.n - ws.filter((w) => !!w).length;
   const specifiedWidth = ws.reduce((t, d) => {
-    return t + (d || 0)
-  }, 0)
-  return (calculateReferenceSize() - specifiedWidth) / (n || 1)
-}
+    return t + (d || 0);
+  }, 0);
+  return (calculateReferenceSize() - specifiedWidth) / (n || 1);
+};
 const baseOffsets = computed(() => {
   return finalArray.value.map((i) => {
-    return getBaseOffsets(i)
-  })
-})
+    return getBaseOffsets(i);
+  });
+});
 const finalOffsets = computed(() => {
-  const stretchOne = finalStretch.value
-  const p = isHorizontal.value ? "width" : "height"
-  const _finalOffsets = Object.assign({}, props.initialOffsets, offsets.value)
+  const stretchOne = finalStretch.value;
+  const p = isHorizontal.value ? "width" : "height";
+  const _finalOffsets = Object.assign({}, props.initialOffsets, offsets.value);
   return finalArray.value.reduce(
     (t, i) => {
       if (i === stretchOne) {
@@ -132,30 +134,30 @@ const finalOffsets = computed(() => {
           flex: 1,
           minWidth: 0,
           minHeight: 0,
-        }
-        return t
+        };
+        return t;
       }
       function applyLimit(value: number) {
-        console.debug(i, movingIndex.value)
+        console.debug(i, movingIndex.value);
         if (
           movingIndex.value != null &&
           [movingIndex.value, movingIndex.value + 1].includes(i)
         ) {
-          const min = props.threshold || 0
+          const min = props.threshold || 0;
           const max =
             getBaseOffsets(movingIndex.value) +
             getBaseOffsets(movingIndex.value + 1) -
-            props.threshold
-          if (value < min) return min
-          if (value > max) return max
-          return value
+            props.threshold;
+          if (value < min) return min;
+          if (value > max) return max;
+          return value;
         } else {
-          return value
+          return value;
         }
       }
-      let movingOffset = 0
+      let movingOffset = 0;
       if (i === props.n - 1 && movingIndex.value === props.n - 2) {
-        movingOffset = -offset.value
+        movingOffset = -offset.value;
       } else {
         movingOffset =
           movingIndex.value === stretchOne
@@ -164,7 +166,7 @@ const finalOffsets = computed(() => {
               ? offset.value
               : movingIndex.value === i - 1 && _finalOffsets[i]
                 ? -offset.value
-                : 0
+                : 0;
       }
       t[i] =
         offsets.value[i] != null
@@ -184,30 +186,30 @@ const finalOffsets = computed(() => {
                 }
               : {
                   [p]: applyLimit(baseOffsets.value[i] + movingOffset) + "px",
-                })
-      return t
+                });
+      return t;
     },
     {} as Record<number, Record<string, string | number | undefined>>,
-  )
-})
+  );
+});
 
 defineSlots<{
-  [K in Ranges[N extends keyof Ranges ? N : never][number]]: any
-}>()
+  [K in Ranges[N extends keyof Ranges ? N : never][number]]: any;
+}>();
 
-const isHorizontal = computed(() => props.v !== true)
+const isHorizontal = computed(() => props.v !== true);
 function calculateReferenceSize() {
   return (
     (isHorizontal.value
       ? containerRef.value?.clientWidth
       : containerRef.value?.clientHeight) || 0
-  )
+  );
 }
 
-const isDragging = ref(false)
-let _isDown = false
-let offset = ref(0)
-let movingIndex = ref<number>()
+const isDragging = ref(false);
+let _isDown = false;
+let offset = ref(0);
+let movingIndex = ref<number>();
 // onBeforeUnmount(() => stop())
 
 function handleMouseDown(index: number) {
@@ -216,17 +218,17 @@ function handleMouseDown(index: number) {
   //     isDragging.value = true
   //   })
   // })
-  isDragging.value = true
-  _isDown = true
-  movingIndex.value = index
+  isDragging.value = true;
+  _isDown = true;
+  movingIndex.value = index;
   // store the initial offset
   for (const i in finalArray.value) {
-    offsets.value[i] = getBaseOffsets(parseInt(i))
+    offsets.value[i] = getBaseOffsets(parseInt(i));
   }
 }
 function handleMouseMove(e: MouseEvent) {
   if (_isDown) {
-    offset.value += isHorizontal.value ? e.movementX : e.movementY
+    offset.value += isHorizontal.value ? e.movementX : e.movementY;
   }
 }
 
@@ -240,28 +242,28 @@ function handleMouseUp() {
           string,
           string | undefined
         >
-      )[isHorizontal.value ? "width" : "height"]
+      )[isHorizontal.value ? "width" : "height"];
       const value = (finalOffsets.value[movingIndex.value as RangeNKey] as any)[
         isHorizontal.value ? "width" : "height"
-      ] as string | undefined
+      ] as string | undefined;
       offsets.value[movingIndex.value + 1] = value_1
         ? parseFloat(value_1)
-        : undefined
+        : undefined;
       offsets.value[movingIndex.value as RangeNKey] = value
         ? parseFloat(value)
-        : undefined
-      console.debug(value, value_1)
+        : undefined;
+      console.debug(value, value_1);
     }
-    isDragging.value = false
-    _isDown = false
-    offset.value = 0
-    movingIndex.value = undefined
+    isDragging.value = false;
+    _isDown = false;
+    offset.value = 0;
+    movingIndex.value = undefined;
   }
 }
-document.addEventListener("mousemove", handleMouseMove)
-document.addEventListener("mouseup", handleMouseUp)
+document.addEventListener("mousemove", handleMouseMove);
+document.addEventListener("mouseup", handleMouseUp);
 onBeforeUnmount(() => {
-  document.removeEventListener("mousemove", handleMouseMove)
-  document.removeEventListener("mouseup", handleMouseUp)
-})
+  document.removeEventListener("mousemove", handleMouseMove);
+  document.removeEventListener("mouseup", handleMouseUp);
+});
 </script>

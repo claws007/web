@@ -3,7 +3,7 @@
     :css="false"
     @enter="
       (el, done) => {
-        const htmlEl = el as GlobalTypes['HTMLElement'];
+        const htmlEl = el as HTMLElement;
         gsap
           .fromTo(
             htmlEl,
@@ -16,7 +16,7 @@
               height: htmlEl.scrollHeight,
               duration,
               ease: 'power3.out',
-            }
+            },
           )
           .then(() => {
             htmlEl.style.height = 'auto';
@@ -26,7 +26,7 @@
     "
     @leave="
       (el, done) => {
-        const htmlEl = el as GlobalTypes['HTMLElement'];
+        const htmlEl = el as HTMLElement;
         gsap
           .fromTo(
             htmlEl,
@@ -36,7 +36,7 @@
               opacity: 0,
               duration,
               ease: 'power3.out',
-            }
+            },
           )
           .then(() => done());
       }
@@ -46,7 +46,6 @@
   </transition>
 </template>
 <script setup lang="ts">
-import { GlobalTypes } from "@/utils/window";
 import gsap from "gsap";
 withDefaults(
   defineProps<{
@@ -54,6 +53,6 @@ withDefaults(
   }>(),
   {
     duration: 0.4,
-  }
+  },
 );
 </script>

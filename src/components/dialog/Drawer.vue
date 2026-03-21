@@ -37,23 +37,23 @@
   </ADrawer>
 </template>
 <script lang="ts" setup>
-import { type placementType } from "ant-design-vue/es/drawer"
-import { AnyDialogType } from "./dialog"
-import { drawerPaddingLevel } from "@/const"
+import { type placementType } from "ant-design-vue/es/drawer";
+import type { AnyDialogType } from "./dialog";
+import { drawerPaddingLevel } from "@/const";
 
 withDefaults(
   defineProps<{
-    dialog: AnyDialogType
-    title?: string | null
-    width?: string
-    disableMaskClosable?: boolean
-    placement?: placementType
+    dialog: AnyDialogType;
+    title?: string | null;
+    width?: string;
+    disableMaskClosable?: boolean;
+    placement?: placementType;
   }>(),
   {
     title: null,
     width: undefined,
   },
-)
+);
 
 const finalWidth = computed(() => {
   // if (props.width) {
@@ -70,8 +70,8 @@ const finalWidth = computed(() => {
   // } else {
   //   return undefined
   // }
-  return undefined
-})
+  return undefined;
+});
 </script>
 
 <style lang="scss">

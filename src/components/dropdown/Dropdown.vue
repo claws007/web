@@ -7,11 +7,11 @@
   </ADropdown>
 </template>
 <script setup lang="ts">
-import { DropdownPlacement } from "@/types"
-import { Trigger } from "ant-design-vue/es/dropdown/props"
+import type { DropdownPlacement } from "@/types";
+import type { Trigger } from "ant-design-vue/es/dropdown/props";
 
 defineProps<{
-  placement?: DropdownPlacement
-  trigger?: Trigger
-}>()
+  placement?: DropdownPlacement;
+  trigger?: Trigger;
+}>();
 </script>

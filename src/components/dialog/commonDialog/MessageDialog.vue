@@ -14,18 +14,18 @@
 </template>
 
 <script lang="ts" setup>
-import { AnyDialogType } from "../dialog"
+import type { AnyDialogType } from "../dialog";
 
 withDefaults(
   defineProps<{
-    dialog: AnyDialogType
-    title?: string | null
-    content: string | null
-    width?: string
+    dialog: AnyDialogType;
+    title?: string | null;
+    content: string | null;
+    width?: string;
   }>(),
   {
     title: "提示",
     width: "240px",
   },
-)
+);
 </script>

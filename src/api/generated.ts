@@ -67,6 +67,11 @@ export interface AIModelConnectorResponse {
   name: string;
   type: string;
   params: Record<string, any>;
+  /**
+   * Maximum number of tasks that can execute concurrently with this model connector
+   * @min 1
+   */
+  concurrency: number;
   totalInputTokens?: number;
   totalOutputTokens?: number;
   totalTokens?: number;
@@ -80,7 +85,7 @@ export interface AgentResponse {
   model?: string | null;
   sandboxType?: "NONE" | "DOCKER";
   containerImage?: string | null;
-  userId: number;
+  companyId: number;
   modelConnectorId: number;
   user?: Record<string, any>;
   modelConnector?: AIModelConnectorResponse;
@@ -188,6 +193,11 @@ export interface SubAgentResponse {
   parentAgent?: AgentResponse;
 }
 
+export interface CreateSubAgentWithAgentResponse {
+  agent: AgentResponse;
+  subAgent: SubAgentResponse;
+}
+
 export interface AgentTaskResponse {
   id: number;
   agentId: number;
@@ -269,7 +279,6 @@ export interface AgentMcpServerRelationResponse {
   id: number;
   agentId: number;
   mcpServerId: number;
-  enabled: boolean;
   /** @format date-time */
   assignedAt: string;
   agent?: AgentResponse;
@@ -280,7 +289,6 @@ export interface AgentSkillRelationResponse {
   id: number;
   agentId: number;
   skillId: number;
-  enabled: boolean;
   /** @format date-time */
   assignedAt: string;
   agent?: AgentResponse;
@@ -289,7 +297,7 @@ export interface AgentSkillRelationResponse {
 
 export interface AgentFilePermissionResponse {
   id: number;
-  userId: number;
+  companyId: number;
   agentId: number;
   path: string;
   normalizedPath: string;
@@ -307,7 +315,7 @@ export interface FileResponse {
   bucketName: string;
   objectName: string;
   filePath?: string | null;
-  userId: number;
+  companyId: number;
   /** @format date-time */
   createdAt: string;
   /** @format date-time */
@@ -325,7 +333,7 @@ export interface FileListFileResponse {
 
 export interface FileListResponse {
   id: number;
-  userId: number;
+  companyId: number;
   /** @format date-time */
   createdAt: string;
   /** @format date-time */
@@ -342,7 +350,7 @@ export interface FileListResponse {
 
 export interface SkillResponse {
   id: number;
-  userId: number;
+  companyId: number;
   name: string;
   fileListId: number;
   description?: string | null;
@@ -352,7 +360,7 @@ export interface SkillResponse {
   updatedAt: string;
   fileList?: {
     id?: number;
-    userId?: number;
+    companyId?: number;
     /** @format date-time */
     createdAt?: string;
     /** @format date-time */
@@ -748,18 +756,182 @@ export class Api<
         ...params,
       }),
   };
-  agent = {
+  company = {
+    /**
+     * No description
+     *
+     * @tags Company
+     * @name GetCompany
+     * @summary GET /company
+     * @request GET:/company
+     */
+    getCompany: (params: RequestParams = {}) =>
+      this.request<GenericArrayResponse, any>({
+        path: `/company`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Company
+     * @name PostCompany
+     * @summary POST /company
+     * @request POST:/company
+     */
+    postCompany: (params: RequestParams = {}) =>
+      this.request<GenericObjectResponse, ValidationErrorResponse>({
+        path: `/company`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Company
+     * @name GetCompanyByCompanyId
+     * @summary GET /company/{companyId}
+     * @request GET:/company/{companyId}
+     */
+    getCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
+      this.request<GenericObjectResponse, ErrorResponse>({
+        path: `/company/${companyId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Company
+     * @name PutCompanyByCompanyId
+     * @summary PUT /company/{companyId}
+     * @request PUT:/company/{companyId}
+     */
+    putCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
+      this.request<GenericObjectResponse, ErrorResponse>({
+        path: `/company/${companyId}`,
+        method: "PUT",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Company
+     * @name DeleteCompanyByCompanyId
+     * @summary DELETE /company/{companyId}
+     * @request DELETE:/company/{companyId}
+     */
+    deleteCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/company/${companyId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags System
+     * @name GetCompanyByCompanyIdMembers
+     * @summary GET /company/{companyId}/members
+     * @request GET:/company/{companyId}/members
+     */
+    getCompanyByCompanyIdMembers: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<GenericObjectResponse, ErrorResponse>({
+        path: `/company/${companyId}/members`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags System
+     * @name PostCompanyByCompanyIdMembers
+     * @summary POST /company/{companyId}/members
+     * @request POST:/company/{companyId}/members
+     */
+    postCompanyByCompanyIdMembers: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        GenericObjectResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/members`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags System
+     * @name PutCompanyByCompanyIdMembersByRelationId
+     * @summary PUT /company/{companyId}/members/{relationId}
+     * @request PUT:/company/{companyId}/members/{relationId}
+     */
+    putCompanyByCompanyIdMembersByRelationId: (
+      companyId: number,
+      relationId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<GenericObjectResponse, ErrorResponse>({
+        path: `/company/${companyId}/members/${relationId}`,
+        method: "PUT",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags System
+     * @name DeleteCompanyByCompanyIdMembersByRelationId
+     * @summary DELETE /company/{companyId}/members/{relationId}
+     * @request DELETE:/company/{companyId}/members/{relationId}
+     */
+    deleteCompanyByCompanyIdMembersByRelationId: (
+      companyId: number,
+      relationId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/company/${companyId}/members/${relationId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
     /**
      * No description
      *
      * @tags Agent
-     * @name GetAgent
+     * @name GetCompanyByCompanyIdAgent
      * @summary List all agents
-     * @request GET:/agent
+     * @request GET:/company/{companyId}/agent
      */
-    getAgent: (params: RequestParams = {}) =>
-      this.request<AgentResponse[], any>({
-        path: `/agent`,
+    getCompanyByCompanyIdAgent: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentResponse[], ErrorResponse>({
+        path: `/company/${companyId}/agent`,
         method: "GET",
         format: "json",
         ...params,
@@ -769,11 +941,12 @@ export class Api<
      * @description Creates a new agent. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
      *
      * @tags Agent
-     * @name PostAgent
+     * @name PostCompanyByCompanyIdAgent
      * @summary Create a new agent
-     * @request POST:/agent
+     * @request POST:/company/{companyId}/agent
      */
-    postAgent: (
+    postCompanyByCompanyIdAgent: (
+      companyId: number,
       data: {
         /** @minLength 1 */
         name: string;
@@ -789,8 +962,8 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<AgentResponse, ValidationErrorResponse>({
-        path: `/agent`,
+      this.request<AgentResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/agent`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -802,13 +975,17 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name GetAgentById
+     * @name GetCompanyByCompanyIdAgentById
      * @summary Get an agent by ID
-     * @request GET:/agent/{id}
+     * @request GET:/company/{companyId}/agent/{id}
      */
-    getAgentById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdAgentById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AgentResponse, ErrorResponse>({
-        path: `/agent/${id}`,
+        path: `/company/${companyId}/agent/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -818,11 +995,12 @@ export class Api<
      * @description Updates an existing agent. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
      *
      * @tags Agent
-     * @name PutAgentById
+     * @name PutCompanyByCompanyIdAgentById
      * @summary Update an agent
-     * @request PUT:/agent/{id}
+     * @request PUT:/company/{companyId}/agent/{id}
      */
-    putAgentById: (
+    putCompanyByCompanyIdAgentById: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -840,7 +1018,7 @@ export class Api<
       params: RequestParams = {},
     ) =>
       this.request<AgentResponse, ErrorResponse>({
-        path: `/agent/${id}`,
+        path: `/company/${companyId}/agent/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -852,27 +1030,32 @@ export class Api<
      * No description
      *
      * @tags Agent
-     * @name DeleteAgentById
+     * @name DeleteCompanyByCompanyIdAgentById
      * @summary Delete an agent
-     * @request DELETE:/agent/{id}
+     * @request DELETE:/company/{companyId}/agent/{id}
      */
-    deleteAgentById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdAgentById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent/${id}`,
+        path: `/company/${companyId}/agent/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
 
     /**
-     * No description
+     * @description Creates a new task for an agent. Notify stack fields: - `notifies` is an ordered stack where the last entry is processed first. - `notifyOnSuccessBottomOnly` only applies when the current notify entry is at the stack bottom. - `notifyOnFailureBottomOnly` only applies when the current notify entry is at the stack bottom. - Non-bottom notify entries always notify, regardless of task success or failure.
      *
      * @tags Task
-     * @name PostAgentByIdTasks
-     * @summary Create a task for an agent
-     * @request POST:/agent/{id}/tasks
+     * @name PostCompanyByCompanyIdAgentByIdTasks
+     * @summary Create a task for an agent. `notifies` is an ordered stack where the last entry is processed first. `notifyOnSuccessBottomOnly` and `notifyOnFailureBottomOnly` only apply when the current notify entry is at the stack bottom; non-bottom entries always notify.
+     * @request POST:/company/{companyId}/agent/{id}/tasks
      */
-    postAgentByIdTasks: (
+    postCompanyByCompanyIdAgentByIdTasks: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -886,11 +1069,40 @@ export class Api<
           | "FINISHED"
           | "CANCELLED"
           | null;
+        /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
+        notifies?: (
+          | {
+              /** Notify an agent target. */
+              type: "agent";
+              /**
+               * Target agent ID.
+               * @min 0
+               */
+              agentId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
+          | {
+              /** Notify a user target. */
+              type: "user";
+              /**
+               * Target user ID.
+               * @min 0
+               */
+              userId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
+        )[];
       },
       params: RequestParams = {},
     ) =>
       this.request<AgentTaskResponse, ValidationErrorResponse | ErrorResponse>({
-        path: `/agent/${id}/tasks`,
+        path: `/company/${companyId}/agent/${id}/tasks`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -902,13 +1114,17 @@ export class Api<
      * No description
      *
      * @tags Task
-     * @name GetAgentByIdTasks
+     * @name GetCompanyByCompanyIdAgentByIdTasks
      * @summary List tasks for an agent
-     * @request GET:/agent/{id}/tasks
+     * @request GET:/company/{companyId}/agent/{id}/tasks
      */
-    getAgentByIdTasks: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdAgentByIdTasks: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AgentTaskResponse[], ErrorResponse>({
-        path: `/agent/${id}/tasks`,
+        path: `/company/${companyId}/agent/${id}/tasks`,
         method: "GET",
         format: "json",
         ...params,
@@ -918,30 +1134,36 @@ export class Api<
      * @description Starts queued tasks for the agent. When `sandboxType=DOCKER`, task commands run inside a container created from `containerImage`. If no `containerImage` is configured, `alpine:latest` is used by default.
      *
      * @tags Agent
-     * @name PostAgentByIdRun
+     * @name PostCompanyByCompanyIdAgentByIdRun
      * @summary Run agent task queue
-     * @request POST:/agent/{id}/run
+     * @request POST:/company/{companyId}/agent/{id}/run
      */
-    postAgentByIdRun: (id: number, params: RequestParams = {}) =>
+    postCompanyByCompanyIdAgentByIdRun: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AgentRunResponse, ValidationErrorResponse | ErrorResponse>({
-        path: `/agent/${id}/run`,
+        path: `/company/${companyId}/agent/${id}/run`,
         method: "POST",
         format: "json",
         ...params,
       }),
-  };
-  modelConnector = {
+
     /**
      * No description
      *
      * @tags Model Connector
-     * @name GetModelConnectorTypes
+     * @name GetCompanyByCompanyIdModelConnectorTypes
      * @summary Get supported AI model connector types
-     * @request GET:/model-connector/types
+     * @request GET:/company/{companyId}/model-connector/types
      */
-    getModelConnectorTypes: (params: RequestParams = {}) =>
-      this.request<ModelTypesResponse, any>({
-        path: `/model-connector/types`,
+    getCompanyByCompanyIdModelConnectorTypes: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<ModelTypesResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/types`,
         method: "GET",
         format: "json",
         ...params,
@@ -951,16 +1173,17 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name GetModelConnectorCatalogByType
+     * @name GetCompanyByCompanyIdModelConnectorCatalogByType
      * @summary Get available model names by provider type
-     * @request GET:/model-connector/catalog/{type}
+     * @request GET:/company/{companyId}/model-connector/catalog/{type}
      */
-    getModelConnectorCatalogByType: (
+    getCompanyByCompanyIdModelConnectorCatalogByType: (
+      companyId: number,
       type: string,
       params: RequestParams = {},
     ) =>
       this.request<ModelCatalogResponse, ErrorResponse>({
-        path: `/model-connector/catalog/${type}`,
+        path: `/company/${companyId}/model-connector/catalog/${type}`,
         method: "GET",
         format: "json",
         ...params,
@@ -970,13 +1193,16 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name GetModelConnector
+     * @name GetCompanyByCompanyIdModelConnector
      * @summary List all AI model connectors
-     * @request GET:/model-connector
+     * @request GET:/company/{companyId}/model-connector
      */
-    getModelConnector: (params: RequestParams = {}) =>
-      this.request<AIModelConnectorResponse[], any>({
-        path: `/model-connector`,
+    getCompanyByCompanyIdModelConnector: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AIModelConnectorResponse[], ErrorResponse>({
+        path: `/company/${companyId}/model-connector`,
         method: "GET",
         format: "json",
         ...params,
@@ -986,13 +1212,20 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name PostModelConnector
+     * @name PostCompanyByCompanyIdModelConnector
      * @summary Create a new AI model connector
-     * @request POST:/model-connector
+     * @request POST:/company/{companyId}/model-connector
      */
-    postModelConnector: (data: any, params: RequestParams = {}) =>
-      this.request<AIModelConnectorResponse, ValidationErrorResponse>({
-        path: `/model-connector`,
+    postCompanyByCompanyIdModelConnector: (
+      companyId: number,
+      data: any,
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        AIModelConnectorResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/model-connector`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1004,13 +1237,17 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name GetModelConnectorById
+     * @name GetCompanyByCompanyIdModelConnectorById
      * @summary Get an AI model connector by ID
-     * @request GET:/model-connector/{id}
+     * @request GET:/company/{companyId}/model-connector/{id}
      */
-    getModelConnectorById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdModelConnectorById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AIModelConnectorResponse, ErrorResponse>({
-        path: `/model-connector/${id}`,
+        path: `/company/${companyId}/model-connector/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1020,17 +1257,18 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name PutModelConnectorById
+     * @name PutCompanyByCompanyIdModelConnectorById
      * @summary Update an AI model connector
-     * @request PUT:/model-connector/{id}
+     * @request PUT:/company/{companyId}/model-connector/{id}
      */
-    putModelConnectorById: (
+    putCompanyByCompanyIdModelConnectorById: (
+      companyId: number,
       id: number,
       data: any,
       params: RequestParams = {},
     ) =>
       this.request<AIModelConnectorResponse, ErrorResponse>({
-        path: `/model-connector/${id}`,
+        path: `/company/${companyId}/model-connector/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1042,30 +1280,36 @@ export class Api<
      * No description
      *
      * @tags Model Connector
-     * @name DeleteModelConnectorById
+     * @name DeleteCompanyByCompanyIdModelConnectorById
      * @summary Delete an AI model connector
-     * @request DELETE:/model-connector/{id}
+     * @request DELETE:/company/{companyId}/model-connector/{id}
      */
-    deleteModelConnectorById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdModelConnectorById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/model-connector/${id}`,
+        path: `/company/${companyId}/model-connector/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  subagent = {
+
     /**
      * No description
      *
      * @tags SubAgent
-     * @name GetSubagent
+     * @name GetCompanyByCompanyIdSubagent
      * @summary List all sub-agent relationships
-     * @request GET:/subagent
+     * @request GET:/company/{companyId}/subagent
      */
-    getSubagent: (params: RequestParams = {}) =>
-      this.request<SubAgentResponse[], any>({
-        path: `/subagent`,
+    getCompanyByCompanyIdSubagent: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SubAgentResponse[], ErrorResponse>({
+        path: `/company/${companyId}/subagent`,
         method: "GET",
         format: "json",
         ...params,
@@ -1075,11 +1319,12 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name PostSubagent
-     * @summary Create a sub-agent relationship
-     * @request POST:/subagent
+     * @name PostCompanyByCompanyIdSubagent
+     * @summary Link an existing agent as a sub-agent
+     * @request POST:/company/{companyId}/subagent
      */
-    postSubagent: (
+    postCompanyByCompanyIdSubagent: (
+      companyId: number,
       data: {
         /** @min 0 */
         agentId: number;
@@ -1088,8 +1333,8 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<SubAgentResponse, ValidationErrorResponse>({
-        path: `/subagent`,
+      this.request<SubAgentResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/subagent`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1101,13 +1346,17 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name GetSubagentById
+     * @name GetCompanyByCompanyIdSubagentById
      * @summary Get a sub-agent relationship by ID
-     * @request GET:/subagent/{id}
+     * @request GET:/company/{companyId}/subagent/{id}
      */
-    getSubagentById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdSubagentById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SubAgentResponse, ErrorResponse>({
-        path: `/subagent/${id}`,
+        path: `/company/${companyId}/subagent/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1117,11 +1366,12 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name PutSubagentById
+     * @name PutCompanyByCompanyIdSubagentById
      * @summary Update a sub-agent relationship
-     * @request PUT:/subagent/{id}
+     * @request PUT:/company/{companyId}/subagent/{id}
      */
-    putSubagentById: (
+    putCompanyByCompanyIdSubagentById: (
+      companyId: number,
       id: number,
       data: {
         /** @min 0 */
@@ -1132,7 +1382,7 @@ export class Api<
       params: RequestParams = {},
     ) =>
       this.request<SubAgentResponse, ErrorResponse>({
-        path: `/subagent/${id}`,
+        path: `/company/${companyId}/subagent/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1144,13 +1394,17 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name DeleteSubagentById
+     * @name DeleteCompanyByCompanyIdSubagentById
      * @summary Delete a sub-agent relationship
-     * @request DELETE:/subagent/{id}
+     * @request DELETE:/company/{companyId}/subagent/{id}
      */
-    deleteSubagentById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdSubagentById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/subagent/${id}`,
+        path: `/company/${companyId}/subagent/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
@@ -1160,13 +1414,17 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name GetSubagentAgentByAgentId
+     * @name GetCompanyByCompanyIdSubagentAgentByAgentId
      * @summary List sub-agent relationships by child agent ID
-     * @request GET:/subagent/agent/{agentId}
+     * @request GET:/company/{companyId}/subagent/agent/{agentId}
      */
-    getSubagentAgentByAgentId: (agentId: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdSubagentAgentByAgentId: (
+      companyId: number,
+      agentId: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SubAgentResponse[], ErrorResponse>({
-        path: `/subagent/agent/${agentId}`,
+        path: `/company/${companyId}/subagent/agent/${agentId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1176,33 +1434,76 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name GetSubagentParentByParentAgentId
+     * @name GetCompanyByCompanyIdSubagentParentByParentAgentId
      * @summary List sub-agent relationships by parent agent ID
-     * @request GET:/subagent/parent/{parentAgentId}
+     * @request GET:/company/{companyId}/subagent/parent/{parentAgentId}
      */
-    getSubagentParentByParentAgentId: (
+    getCompanyByCompanyIdSubagentParentByParentAgentId: (
+      companyId: number,
       parentAgentId: number,
       params: RequestParams = {},
     ) =>
       this.request<SubAgentResponse[], ErrorResponse>({
-        path: `/subagent/parent/${parentAgentId}`,
+        path: `/company/${companyId}/subagent/parent/${parentAgentId}`,
         method: "GET",
         format: "json",
         ...params,
       }),
-  };
-  chatHistory = {
+
+    /**
+     * @description Transactionally creates a new Agent and registers it as a sub-agent of the specified parent. Both rows (Agent + SubAgent) are committed atomically. If either fails, neither is persisted. Agent fields: - `name`, `modelConnectorId` are required. - `sandboxType` defaults to `NONE`. Set `containerImage` only when using `DOCKER`.
+     *
+     * @tags SubAgent
+     * @name PostCompanyByCompanyIdSubagentWithAgent
+     * @summary Transactionally create a new agent and register it as a sub-agent
+     * @request POST:/company/{companyId}/subagent/with-agent
+     */
+    postCompanyByCompanyIdSubagentWithAgent: (
+      companyId: number,
+      data: {
+        /** @min 0 */
+        parentAgentId: number;
+        /** @minLength 1 */
+        name: string;
+        /** @min 0 */
+        modelConnectorId: number;
+        description?: string | null;
+        capacity?: string | null;
+        /** @minLength 1 */
+        model?: string | null;
+        sandboxType?: "NONE" | "DOCKER" | null;
+        /** @minLength 1 */
+        containerImage?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        CreateSubAgentWithAgentResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/subagent/with-agent`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
     /**
      * No description
      *
      * @tags Chat History
-     * @name GetChatHistoryById
+     * @name GetCompanyByCompanyIdChatHistoryById
      * @summary Get a chat history record by ID
-     * @request GET:/chat-history/{id}
+     * @request GET:/company/{companyId}/chat-history/{id}
      */
-    getChatHistoryById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdChatHistoryById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<ChatHistoryResponse, ErrorResponse>({
-        path: `/chat-history/${id}`,
+        path: `/company/${companyId}/chat-history/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1212,33 +1513,17 @@ export class Api<
      * No description
      *
      * @tags Chat History
-     * @name GetChatHistoryAgentTaskByAgentTaskId
+     * @name GetCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId
      * @summary List chat history records for an agent task
-     * @request GET:/chat-history/agent-task/{agentTaskId}
+     * @request GET:/company/{companyId}/chat-history/agent-task/{agentTaskId}
      */
-    getChatHistoryAgentTaskByAgentTaskId: (
+    getCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId: (
+      companyId: number,
       agentTaskId: number,
       params: RequestParams = {},
     ) =>
       this.request<ChatHistoryResponse[], ErrorResponse>({
-        path: `/chat-history/agent-task/${agentTaskId}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-  };
-  mcpServer = {
-    /**
-     * No description
-     *
-     * @tags MCP Server
-     * @name GetMcpServer
-     * @summary List all MCP servers
-     * @request GET:/mcp-server
-     */
-    getMcpServer: (params: RequestParams = {}) =>
-      this.request<MCPServerResponse[], any>({
-        path: `/mcp-server`,
+        path: `/company/${companyId}/chat-history/agent-task/${agentTaskId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1248,11 +1533,31 @@ export class Api<
      * No description
      *
      * @tags MCP Server
-     * @name PostMcpServer
-     * @summary Create a new MCP server
-     * @request POST:/mcp-server
+     * @name GetCompanyByCompanyIdMcpServer
+     * @summary List all MCP servers
+     * @request GET:/company/{companyId}/mcp-server
      */
-    postMcpServer: (
+    getCompanyByCompanyIdMcpServer: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<MCPServerResponse[], ErrorResponse>({
+        path: `/company/${companyId}/mcp-server`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags MCP Server
+     * @name PostCompanyByCompanyIdMcpServer
+     * @summary Create a new MCP server
+     * @request POST:/company/{companyId}/mcp-server
+     */
+    postCompanyByCompanyIdMcpServer: (
+      companyId: number,
       data: {
         /** @minLength 1 */
         name?: string | null;
@@ -1264,13 +1569,22 @@ export class Api<
         command?: string | null;
         commandArguments?: string | null;
         headers?: {
-          toolList?: any;
-        } | null;
+          toolList?: {
+            type: "function";
+            function: {
+              /** @minLength 1 */
+              name: string;
+              description?: string | null;
+              parameters?: Record<string, any>;
+            };
+            metadata?: object | null;
+          }[];
+        };
       },
       params: RequestParams = {},
     ) =>
-      this.request<MCPServerResponse, ValidationErrorResponse>({
-        path: `/mcp-server`,
+      this.request<MCPServerResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/mcp-server`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1282,13 +1596,17 @@ export class Api<
      * No description
      *
      * @tags MCP Server
-     * @name GetMcpServerById
+     * @name GetCompanyByCompanyIdMcpServerById
      * @summary Get an MCP server by ID
-     * @request GET:/mcp-server/{id}
+     * @request GET:/company/{companyId}/mcp-server/{id}
      */
-    getMcpServerById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdMcpServerById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<MCPServerResponse, ErrorResponse>({
-        path: `/mcp-server/${id}`,
+        path: `/company/${companyId}/mcp-server/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1298,11 +1616,12 @@ export class Api<
      * No description
      *
      * @tags MCP Server
-     * @name PutMcpServerById
+     * @name PutCompanyByCompanyIdMcpServerById
      * @summary Update an MCP server
-     * @request PUT:/mcp-server/{id}
+     * @request PUT:/company/{companyId}/mcp-server/{id}
      */
-    putMcpServerById: (
+    putCompanyByCompanyIdMcpServerById: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -1315,13 +1634,22 @@ export class Api<
         command?: string | null;
         commandArguments?: string | null;
         headers?: {
-          toolList?: any;
-        } | null;
+          toolList?: {
+            type: "function";
+            function: {
+              /** @minLength 1 */
+              name: string;
+              description?: string | null;
+              parameters?: Record<string, any>;
+            };
+            metadata?: object | null;
+          }[];
+        };
       },
       params: RequestParams = {},
     ) =>
       this.request<MCPServerResponse, ErrorResponse>({
-        path: `/mcp-server/${id}`,
+        path: `/company/${companyId}/mcp-server/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1333,30 +1661,36 @@ export class Api<
      * No description
      *
      * @tags MCP Server
-     * @name DeleteMcpServerById
+     * @name DeleteCompanyByCompanyIdMcpServerById
      * @summary Delete an MCP server
-     * @request DELETE:/mcp-server/{id}
+     * @request DELETE:/company/{companyId}/mcp-server/{id}
      */
-    deleteMcpServerById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdMcpServerById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/mcp-server/${id}`,
+        path: `/company/${companyId}/mcp-server/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  agentMcpServer = {
+
     /**
      * No description
      *
      * @tags Agent MCP Server
-     * @name GetAgentMcpServer
+     * @name GetCompanyByCompanyIdAgentMcpServer
      * @summary List all agent MCP server assignments
-     * @request GET:/agent-mcp-server
+     * @request GET:/company/{companyId}/agent-mcp-server
      */
-    getAgentMcpServer: (params: RequestParams = {}) =>
-      this.request<AgentMcpServerRelationResponse[], any>({
-        path: `/agent-mcp-server`,
+    getCompanyByCompanyIdAgentMcpServer: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentMcpServerRelationResponse[], ErrorResponse>({
+        path: `/company/${companyId}/agent-mcp-server`,
         method: "GET",
         format: "json",
         ...params,
@@ -1366,22 +1700,25 @@ export class Api<
      * No description
      *
      * @tags Agent MCP Server
-     * @name PostAgentMcpServer
+     * @name PostCompanyByCompanyIdAgentMcpServer
      * @summary Assign an MCP server to an agent
-     * @request POST:/agent-mcp-server
+     * @request POST:/company/{companyId}/agent-mcp-server
      */
-    postAgentMcpServer: (
+    postCompanyByCompanyIdAgentMcpServer: (
+      companyId: number,
       data: {
         /** @min 0 */
         agentId: number;
         /** @min 0 */
         mcpServerId: number;
-        enabled?: boolean | null;
       },
       params: RequestParams = {},
     ) =>
-      this.request<AgentMcpServerRelationResponse, ValidationErrorResponse>({
-        path: `/agent-mcp-server`,
+      this.request<
+        AgentMcpServerRelationResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/agent-mcp-server`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1393,16 +1730,17 @@ export class Api<
      * No description
      *
      * @tags Agent MCP Server
-     * @name GetAgentMcpServerAgentByAgentId
+     * @name GetCompanyByCompanyIdAgentMcpServerAgentByAgentId
      * @summary List MCP servers assigned to an agent
-     * @request GET:/agent-mcp-server/agent/{agentId}
+     * @request GET:/company/{companyId}/agent-mcp-server/agent/{agentId}
      */
-    getAgentMcpServerAgentByAgentId: (
+    getCompanyByCompanyIdAgentMcpServerAgentByAgentId: (
+      companyId: number,
       agentId: number,
       params: RequestParams = {},
     ) =>
       this.request<AgentMcpServerRelationResponse[], ErrorResponse>({
-        path: `/agent-mcp-server/agent/${agentId}`,
+        path: `/company/${companyId}/agent-mcp-server/agent/${agentId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1412,38 +1750,18 @@ export class Api<
      * No description
      *
      * @tags Agent MCP Server
-     * @name GetAgentMcpServerById
+     * @name GetCompanyByCompanyIdAgentMcpServerById
      * @summary Get an agent MCP server assignment by ID
-     * @request GET:/agent-mcp-server/{id}
+     * @request GET:/company/{companyId}/agent-mcp-server/{id}
      */
-    getAgentMcpServerById: (id: number, params: RequestParams = {}) =>
-      this.request<AgentMcpServerRelationResponse, ErrorResponse>({
-        path: `/agent-mcp-server/${id}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Agent MCP Server
-     * @name PutAgentMcpServerById
-     * @summary Toggle enabled flag for an agent MCP server assignment
-     * @request PUT:/agent-mcp-server/{id}
-     */
-    putAgentMcpServerById: (
+    getCompanyByCompanyIdAgentMcpServerById: (
+      companyId: number,
       id: number,
-      data: {
-        enabled: boolean;
-      },
       params: RequestParams = {},
     ) =>
       this.request<AgentMcpServerRelationResponse, ErrorResponse>({
-        path: `/agent-mcp-server/${id}`,
-        method: "PUT",
-        body: data,
-        type: ContentType.Json,
+        path: `/company/${companyId}/agent-mcp-server/${id}`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -1452,28 +1770,32 @@ export class Api<
      * No description
      *
      * @tags Agent MCP Server
-     * @name DeleteAgentMcpServerById
+     * @name DeleteCompanyByCompanyIdAgentMcpServerById
      * @summary Remove an MCP server from an agent
-     * @request DELETE:/agent-mcp-server/{id}
+     * @request DELETE:/company/{companyId}/agent-mcp-server/{id}
      */
-    deleteAgentMcpServerById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdAgentMcpServerById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent-mcp-server/${id}`,
+        path: `/company/${companyId}/agent-mcp-server/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  agentTask = {
+
     /**
      * @description Streams ChatHistory updates as Server-Sent Events (SSE) for the target agent task. State events: - `event: task_state` is emitted when task state changes (or first observed state). - Payload shape: `{ taskId, state, previousState }`. Resume semantics: - Each event includes an SSE `id` equal to `ChatHistory.id`. - Browsers using `EventSource` automatically reconnect and send `Last-Event-ID`. - The server also accepts `after` as a fallback cursor for non-browser clients. - When the task reaches FINISHED, FAILED, or CANCELLED, the stream emits `event: done` and closes. Authentication: - Pass the JWT via `?token=<jwt>` because native `EventSource` cannot attach Authorization headers.
      *
      * @tags Agent Task
-     * @name GetAgentTaskByIdStream
+     * @name GetCompanyByCompanyIdAgentTaskByIdStream
      * @summary Stream live chat history updates for an agent task
-     * @request GET:/agent-task/{id}/stream
+     * @request GET:/company/{companyId}/agent-task/{id}/stream
      */
-    getAgentTaskByIdStream: (
+    getCompanyByCompanyIdAgentTaskByIdStream: (
+      companyId: number,
       id: number,
       query: {
         /** JWT access token for EventSource-based authentication. */
@@ -1484,7 +1806,7 @@ export class Api<
       params: RequestParams = {},
     ) =>
       this.request<string, ErrorResponse>({
-        path: `/agent-task/${id}/stream`,
+        path: `/company/${companyId}/agent-task/${id}/stream`,
         method: "GET",
         query: query,
         ...params,
@@ -1494,27 +1816,32 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name GetAgentTaskById
+     * @name GetCompanyByCompanyIdAgentTaskById
      * @summary Get an agent task by ID
-     * @request GET:/agent-task/{id}
+     * @request GET:/company/{companyId}/agent-task/{id}
      */
-    getAgentTaskById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdAgentTaskById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AgentTaskResponse, ErrorResponse>({
-        path: `/agent-task/${id}`,
+        path: `/company/${companyId}/agent-task/${id}`,
         method: "GET",
         format: "json",
         ...params,
       }),
 
     /**
-     * No description
+     * @description Updates an existing agent task. Notify stack fields: - `notifies` is an ordered stack where the last entry is processed first. - BottomOnly notify flags are only honored when the current notify entry is the stack bottom.
      *
      * @tags Agent Task
-     * @name PutAgentTaskById
-     * @summary Update an agent task
-     * @request PUT:/agent-task/{id}
+     * @name PutCompanyByCompanyIdAgentTaskById
+     * @summary Update an agent task. `notifies` is an ordered stack where the last entry is processed first. BottomOnly notify flags only apply when the current notify entry is the stack bottom.
+     * @request PUT:/company/{companyId}/agent-task/{id}
      */
-    putAgentTaskById: (
+    putCompanyByCompanyIdAgentTaskById: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -1528,11 +1855,40 @@ export class Api<
           | "FINISHED"
           | "CANCELLED"
           | null;
+        /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
+        notifies?: (
+          | {
+              /** Notify an agent target. */
+              type: "agent";
+              /**
+               * Target agent ID.
+               * @min 0
+               */
+              agentId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
+          | {
+              /** Notify a user target. */
+              type: "user";
+              /**
+               * Target user ID.
+               * @min 0
+               */
+              userId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
+        )[];
       },
       params: RequestParams = {},
     ) =>
       this.request<AgentTaskResponse, ErrorResponse>({
-        path: `/agent-task/${id}`,
+        path: `/company/${companyId}/agent-task/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1544,13 +1900,17 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name DeleteAgentTaskById
+     * @name DeleteCompanyByCompanyIdAgentTaskById
      * @summary Delete an agent task
-     * @request DELETE:/agent-task/{id}
+     * @request DELETE:/company/{companyId}/agent-task/{id}
      */
-    deleteAgentTaskById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdAgentTaskById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent-task/${id}`,
+        path: `/company/${companyId}/agent-task/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
@@ -1560,16 +1920,20 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name PostAgentTaskByIdRun
+     * @name PostCompanyByCompanyIdAgentTaskByIdRun
      * @summary Run an agent task with priority
-     * @request POST:/agent-task/{id}/run
+     * @request POST:/company/{companyId}/agent-task/{id}/run
      */
-    postAgentTaskByIdRun: (id: number, params: RequestParams = {}) =>
+    postCompanyByCompanyIdAgentTaskByIdRun: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<
         AgentTaskRunResponse,
         ValidationErrorResponse | ErrorResponse
       >({
-        path: `/agent-task/${id}/run`,
+        path: `/company/${companyId}/agent-task/${id}/run`,
         method: "POST",
         format: "json",
         ...params,
@@ -1579,16 +1943,20 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name PostAgentTaskByIdRetry
+     * @name PostCompanyByCompanyIdAgentTaskByIdRetry
      * @summary Retry an agent task (including finished tasks)
-     * @request POST:/agent-task/{id}/retry
+     * @request POST:/company/{companyId}/agent-task/{id}/retry
      */
-    postAgentTaskByIdRetry: (id: number, params: RequestParams = {}) =>
+    postCompanyByCompanyIdAgentTaskByIdRetry: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<
         AgentTaskRunResponse,
         ValidationErrorResponse | ErrorResponse
       >({
-        path: `/agent-task/${id}/retry`,
+        path: `/company/${companyId}/agent-task/${id}/retry`,
         method: "POST",
         format: "json",
         ...params,
@@ -1598,11 +1966,12 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name PostAgentTaskByIdRetryContinue
+     * @name PostCompanyByCompanyIdAgentTaskByIdRetryContinue
      * @summary Continue an agent task without clearing chat history (optional new user message)
-     * @request POST:/agent-task/{id}/retry-continue
+     * @request POST:/company/{companyId}/agent-task/{id}/retry-continue
      */
-    postAgentTaskByIdRetryContinue: (
+    postCompanyByCompanyIdAgentTaskByIdRetryContinue: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -1614,7 +1983,7 @@ export class Api<
         AgentTaskRunResponse,
         ValidationErrorResponse | ErrorResponse
       >({
-        path: `/agent-task/${id}/retry-continue`,
+        path: `/company/${companyId}/agent-task/${id}/retry-continue`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1626,33 +1995,39 @@ export class Api<
      * No description
      *
      * @tags Agent Task
-     * @name PostAgentTaskByIdStop
+     * @name PostCompanyByCompanyIdAgentTaskByIdStop
      * @summary Stop (cancel) an agent task
-     * @request POST:/agent-task/{id}/stop
+     * @request POST:/company/{companyId}/agent-task/{id}/stop
      */
-    postAgentTaskByIdStop: (id: number, params: RequestParams = {}) =>
+    postCompanyByCompanyIdAgentTaskByIdStop: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<
         AgentTaskRunResponse,
         ValidationErrorResponse | ErrorResponse
       >({
-        path: `/agent-task/${id}/stop`,
+        path: `/company/${companyId}/agent-task/${id}/stop`,
         method: "POST",
         format: "json",
         ...params,
       }),
-  };
-  agentFilePermission = {
+
     /**
      * No description
      *
      * @tags Agent File Permission
-     * @name GetAgentFilePermission
+     * @name GetCompanyByCompanyIdAgentFilePermission
      * @summary List all agent file permissions
-     * @request GET:/agent-file-permission
+     * @request GET:/company/{companyId}/agent-file-permission
      */
-    getAgentFilePermission: (params: RequestParams = {}) =>
-      this.request<AgentFilePermissionResponse[], any>({
-        path: `/agent-file-permission`,
+    getCompanyByCompanyIdAgentFilePermission: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentFilePermissionResponse[], ErrorResponse>({
+        path: `/company/${companyId}/agent-file-permission`,
         method: "GET",
         format: "json",
         ...params,
@@ -1662,11 +2037,12 @@ export class Api<
      * No description
      *
      * @tags Agent File Permission
-     * @name PostAgentFilePermission
+     * @name PostCompanyByCompanyIdAgentFilePermission
      * @summary Create an agent file permission
-     * @request POST:/agent-file-permission
+     * @request POST:/company/{companyId}/agent-file-permission
      */
-    postAgentFilePermission: (
+    postCompanyByCompanyIdAgentFilePermission: (
+      companyId: number,
       data: {
         /** @min 0 */
         agentId: number;
@@ -1679,8 +2055,11 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<AgentFilePermissionResponse, ValidationErrorResponse>({
-        path: `/agent-file-permission`,
+      this.request<
+        AgentFilePermissionResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/agent-file-permission`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1692,16 +2071,17 @@ export class Api<
      * No description
      *
      * @tags Agent File Permission
-     * @name GetAgentFilePermissionAgentByAgentId
+     * @name GetCompanyByCompanyIdAgentFilePermissionAgentByAgentId
      * @summary List file permissions assigned to an agent
-     * @request GET:/agent-file-permission/agent/{agentId}
+     * @request GET:/company/{companyId}/agent-file-permission/agent/{agentId}
      */
-    getAgentFilePermissionAgentByAgentId: (
+    getCompanyByCompanyIdAgentFilePermissionAgentByAgentId: (
+      companyId: number,
       agentId: number,
       params: RequestParams = {},
     ) =>
       this.request<AgentFilePermissionResponse[], ErrorResponse>({
-        path: `/agent-file-permission/agent/${agentId}`,
+        path: `/company/${companyId}/agent-file-permission/agent/${agentId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1711,13 +2091,17 @@ export class Api<
      * No description
      *
      * @tags Agent File Permission
-     * @name GetAgentFilePermissionById
+     * @name GetCompanyByCompanyIdAgentFilePermissionById
      * @summary Get an agent file permission by ID
-     * @request GET:/agent-file-permission/{id}
+     * @request GET:/company/{companyId}/agent-file-permission/{id}
      */
-    getAgentFilePermissionById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdAgentFilePermissionById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<AgentFilePermissionResponse, ErrorResponse>({
-        path: `/agent-file-permission/${id}`,
+        path: `/company/${companyId}/agent-file-permission/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1727,11 +2111,12 @@ export class Api<
      * No description
      *
      * @tags Agent File Permission
-     * @name PutAgentFilePermissionById
+     * @name PutCompanyByCompanyIdAgentFilePermissionById
      * @summary Update an agent file permission
-     * @request PUT:/agent-file-permission/{id}
+     * @request PUT:/company/{companyId}/agent-file-permission/{id}
      */
-    putAgentFilePermissionById: (
+    putCompanyByCompanyIdAgentFilePermissionById: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -1744,7 +2129,7 @@ export class Api<
       params: RequestParams = {},
     ) =>
       this.request<AgentFilePermissionResponse, ErrorResponse>({
-        path: `/agent-file-permission/${id}`,
+        path: `/company/${companyId}/agent-file-permission/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1756,30 +2141,36 @@ export class Api<
      * No description
      *
      * @tags Agent File Permission
-     * @name DeleteAgentFilePermissionById
+     * @name DeleteCompanyByCompanyIdAgentFilePermissionById
      * @summary Delete an agent file permission
-     * @request DELETE:/agent-file-permission/{id}
+     * @request DELETE:/company/{companyId}/agent-file-permission/{id}
      */
-    deleteAgentFilePermissionById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdAgentFilePermissionById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent-file-permission/${id}`,
+        path: `/company/${companyId}/agent-file-permission/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  file = {
+
     /**
      * No description
      *
      * @tags File
-     * @name GetFile
+     * @name GetCompanyByCompanyIdFile
      * @summary List file metadata for current user
-     * @request GET:/file
+     * @request GET:/company/{companyId}/file
      */
-    getFile: (params: RequestParams = {}) =>
-      this.request<FileResponse[], any>({
-        path: `/file`,
+    getCompanyByCompanyIdFile: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileResponse[], ErrorResponse>({
+        path: `/company/${companyId}/file`,
         method: "GET",
         format: "json",
         ...params,
@@ -1789,13 +2180,17 @@ export class Api<
      * No description
      *
      * @tags File
-     * @name GetFileById
+     * @name GetCompanyByCompanyIdFileById
      * @summary Get file metadata by ID
-     * @request GET:/file/{id}
+     * @request GET:/company/{companyId}/file/{id}
      */
-    getFileById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdFileById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<FileResponse, ErrorResponse>({
-        path: `/file/${id}`,
+        path: `/company/${companyId}/file/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1805,27 +2200,32 @@ export class Api<
      * No description
      *
      * @tags File
-     * @name DeleteFileById
+     * @name DeleteCompanyByCompanyIdFileById
      * @summary Delete file metadata and object
-     * @request DELETE:/file/{id}
+     * @request DELETE:/company/{companyId}/file/{id}
      */
-    deleteFileById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdFileById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/file/${id}`,
+        path: `/company/${companyId}/file/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
 
     /**
-     * @description Uploads file content to MinIO and stores metadata in the File table. Supported content types: - application/json: send { fileName, contentBase64, contentType?, filePath? } - multipart/form-data: send file field named file and optional filePath Storage strategy: - bucket name: user-{userId} - object key: flat UUID
+     * @description Uploads file content to MinIO and stores metadata in the File table. Supported content types: - application/json: send { fileName, contentBase64, contentType?, filePath? } - multipart/form-data: send file field named file and optional filePath Storage strategy: - bucket name: company-{companyId} - object key: flat UUID
      *
      * @tags File
-     * @name PostFileUpload
+     * @name PostCompanyByCompanyIdFileUpload
      * @summary Upload a file to MinIO and create file metadata
-     * @request POST:/file/upload
+     * @request POST:/company/{companyId}/file/upload
      */
-    postFileUpload: (
+    postCompanyByCompanyIdFileUpload: (
+      companyId: number,
       data: {
         /** @minLength 1 */
         fileName: string;
@@ -1836,8 +2236,8 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<FileResponse, ValidationErrorResponse>({
-        path: `/file/upload`,
+      this.request<FileResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/file/upload`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1849,29 +2249,35 @@ export class Api<
      * @description Downloads object bytes from MinIO by File metadata id. Returns binary stream with Content-Type and Content-Disposition headers.
      *
      * @tags File
-     * @name GetFileByIdDownload
+     * @name GetCompanyByCompanyIdFileByIdDownload
      * @summary Download file object content by metadata ID
-     * @request GET:/file/{id}/download
+     * @request GET:/company/{companyId}/file/{id}/download
      */
-    getFileByIdDownload: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdFileByIdDownload: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<File, ErrorResponse>({
-        path: `/file/${id}/download`,
+        path: `/company/${companyId}/file/${id}/download`,
         method: "GET",
         ...params,
       }),
-  };
-  fileList = {
+
     /**
      * No description
      *
      * @tags File List
-     * @name GetFileList
+     * @name GetCompanyByCompanyIdFileList
      * @summary List all file lists
-     * @request GET:/file-list
+     * @request GET:/company/{companyId}/file-list
      */
-    getFileList: (params: RequestParams = {}) =>
-      this.request<FileListResponse[], any>({
-        path: `/file-list`,
+    getCompanyByCompanyIdFileList: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileListResponse[], ErrorResponse>({
+        path: `/company/${companyId}/file-list`,
         method: "GET",
         format: "json",
         ...params,
@@ -1881,18 +2287,19 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name PostFileList
+     * @name PostCompanyByCompanyIdFileList
      * @summary Create a new file list
-     * @request POST:/file-list
+     * @request POST:/company/{companyId}/file-list
      */
-    postFileList: (
+    postCompanyByCompanyIdFileList: (
+      companyId: number,
       data: {
-        fileIds?: any;
+        fileIds?: number[] | null;
       },
       params: RequestParams = {},
     ) =>
-      this.request<FileListResponse, ValidationErrorResponse>({
-        path: `/file-list`,
+      this.request<FileListResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/file-list`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -1904,13 +2311,17 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name GetFileListById
+     * @name GetCompanyByCompanyIdFileListById
      * @summary Get a file list by ID
-     * @request GET:/file-list/{id}
+     * @request GET:/company/{companyId}/file-list/{id}
      */
-    getFileListById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdFileListById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<FileListResponse, ErrorResponse>({
-        path: `/file-list/${id}`,
+        path: `/company/${companyId}/file-list/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -1920,19 +2331,20 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name PutFileListById
+     * @name PutCompanyByCompanyIdFileListById
      * @summary Update a file list
-     * @request PUT:/file-list/{id}
+     * @request PUT:/company/{companyId}/file-list/{id}
      */
-    putFileListById: (
+    putCompanyByCompanyIdFileListById: (
+      companyId: number,
       id: number,
       data: {
-        fileIds?: any;
+        fileIds?: number[] | null;
       },
       params: RequestParams = {},
     ) =>
       this.request<FileListResponse, ErrorResponse>({
-        path: `/file-list/${id}`,
+        path: `/company/${companyId}/file-list/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -1944,13 +2356,17 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name DeleteFileListById
+     * @name DeleteCompanyByCompanyIdFileListById
      * @summary Delete a file list
-     * @request DELETE:/file-list/{id}
+     * @request DELETE:/company/{companyId}/file-list/{id}
      */
-    deleteFileListById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdFileListById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/file-list/${id}`,
+        path: `/company/${companyId}/file-list/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
@@ -1960,13 +2376,17 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name GetFileListByListIdFiles
+     * @name GetCompanyByCompanyIdFileListByListIdFiles
      * @summary List files in a file list
-     * @request GET:/file-list/{listId}/files
+     * @request GET:/company/{companyId}/file-list/{listId}/files
      */
-    getFileListByListIdFiles: (listId: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdFileListByListIdFiles: (
+      companyId: number,
+      listId: number,
+      params: RequestParams = {},
+    ) =>
       this.request<FileListFileResponse[], ErrorResponse>({
-        path: `/file-list/${listId}/files`,
+        path: `/company/${companyId}/file-list/${listId}/files`,
         method: "GET",
         format: "json",
         ...params,
@@ -1976,11 +2396,12 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name PostFileListByListIdFiles
+     * @name PostCompanyByCompanyIdFileListByListIdFiles
      * @summary Add a file to a file list
-     * @request POST:/file-list/{listId}/files
+     * @request POST:/company/{companyId}/file-list/{listId}/files
      */
-    postFileListByListIdFiles: (
+    postCompanyByCompanyIdFileListByListIdFiles: (
+      companyId: number,
       listId: number,
       data: {
         /** @min 0 */
@@ -1992,7 +2413,7 @@ export class Api<
         FileListFileResponse,
         ValidationErrorResponse | ErrorResponse
       >({
-        path: `/file-list/${listId}/files`,
+        path: `/company/${companyId}/file-list/${listId}/files`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -2004,17 +2425,18 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name GetFileListByListIdFilesByEntryId
+     * @name GetCompanyByCompanyIdFileListByListIdFilesByEntryId
      * @summary Get a file list entry by ID
-     * @request GET:/file-list/{listId}/files/{entryId}
+     * @request GET:/company/{companyId}/file-list/{listId}/files/{entryId}
      */
-    getFileListByListIdFilesByEntryId: (
+    getCompanyByCompanyIdFileListByListIdFilesByEntryId: (
+      companyId: number,
       listId: number,
       entryId: number,
       params: RequestParams = {},
     ) =>
       this.request<FileListFileResponse, ErrorResponse>({
-        path: `/file-list/${listId}/files/${entryId}`,
+        path: `/company/${companyId}/file-list/${listId}/files/${entryId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -2024,34 +2446,37 @@ export class Api<
      * No description
      *
      * @tags File List
-     * @name DeleteFileListByListIdFilesByEntryId
+     * @name DeleteCompanyByCompanyIdFileListByListIdFilesByEntryId
      * @summary Remove a file from a file list
-     * @request DELETE:/file-list/{listId}/files/{entryId}
+     * @request DELETE:/company/{companyId}/file-list/{listId}/files/{entryId}
      */
-    deleteFileListByListIdFilesByEntryId: (
+    deleteCompanyByCompanyIdFileListByListIdFilesByEntryId: (
+      companyId: number,
       listId: number,
       entryId: number,
       params: RequestParams = {},
     ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/file-list/${listId}/files/${entryId}`,
+        path: `/company/${companyId}/file-list/${listId}/files/${entryId}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  skill = {
+
     /**
      * No description
      *
      * @tags Skill
-     * @name GetSkill
+     * @name GetCompanyByCompanyIdSkill
      * @summary List all skills
-     * @request GET:/skill
+     * @request GET:/company/{companyId}/skill
      */
-    getSkill: (params: RequestParams = {}) =>
-      this.request<SkillResponse[], any>({
-        path: `/skill`,
+    getCompanyByCompanyIdSkill: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SkillResponse[], ErrorResponse>({
+        path: `/company/${companyId}/skill`,
         method: "GET",
         format: "json",
         ...params,
@@ -2061,11 +2486,12 @@ export class Api<
      * No description
      *
      * @tags Skill
-     * @name PostSkill
+     * @name PostCompanyByCompanyIdSkill
      * @summary Create a new skill
-     * @request POST:/skill
+     * @request POST:/company/{companyId}/skill
      */
-    postSkill: (
+    postCompanyByCompanyIdSkill: (
+      companyId: number,
       data: {
         /** @minLength 1 */
         name: string;
@@ -2073,8 +2499,8 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<SkillResponse, ValidationErrorResponse>({
-        path: `/skill`,
+      this.request<SkillResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/skill`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -2086,13 +2512,17 @@ export class Api<
      * No description
      *
      * @tags Skill
-     * @name GetSkillById
+     * @name GetCompanyByCompanyIdSkillById
      * @summary Get a skill by ID
-     * @request GET:/skill/{id}
+     * @request GET:/company/{companyId}/skill/{id}
      */
-    getSkillById: (id: number, params: RequestParams = {}) =>
+    getCompanyByCompanyIdSkillById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SkillResponse, ErrorResponse>({
-        path: `/skill/${id}`,
+        path: `/company/${companyId}/skill/${id}`,
         method: "GET",
         format: "json",
         ...params,
@@ -2102,11 +2532,12 @@ export class Api<
      * No description
      *
      * @tags Skill
-     * @name PutSkillById
+     * @name PutCompanyByCompanyIdSkillById
      * @summary Update a skill
-     * @request PUT:/skill/{id}
+     * @request PUT:/company/{companyId}/skill/{id}
      */
-    putSkillById: (
+    putCompanyByCompanyIdSkillById: (
+      companyId: number,
       id: number,
       data: {
         /** @minLength 1 */
@@ -2116,7 +2547,7 @@ export class Api<
       params: RequestParams = {},
     ) =>
       this.request<SkillResponse, ErrorResponse>({
-        path: `/skill/${id}`,
+        path: `/company/${companyId}/skill/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -2128,30 +2559,36 @@ export class Api<
      * No description
      *
      * @tags Skill
-     * @name DeleteSkillById
+     * @name DeleteCompanyByCompanyIdSkillById
      * @summary Delete a skill
-     * @request DELETE:/skill/{id}
+     * @request DELETE:/company/{companyId}/skill/{id}
      */
-    deleteSkillById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdSkillById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/skill/${id}`,
+        path: `/company/${companyId}/skill/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
       }),
-  };
-  agentSkillRelation = {
+
     /**
      * No description
      *
      * @tags Agent Skill Relation
-     * @name GetAgentSkillRelation
+     * @name GetCompanyByCompanyIdAgentSkillRelation
      * @summary List all agent skill assignments
-     * @request GET:/agent-skill-relation
+     * @request GET:/company/{companyId}/agent-skill-relation
      */
-    getAgentSkillRelation: (params: RequestParams = {}) =>
-      this.request<AgentSkillRelationResponse[], any>({
-        path: `/agent-skill-relation`,
+    getCompanyByCompanyIdAgentSkillRelation: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentSkillRelationResponse[], ErrorResponse>({
+        path: `/company/${companyId}/agent-skill-relation`,
         method: "GET",
         format: "json",
         ...params,
@@ -2161,22 +2598,25 @@ export class Api<
      * No description
      *
      * @tags Agent Skill Relation
-     * @name PostAgentSkillRelation
+     * @name PostCompanyByCompanyIdAgentSkillRelation
      * @summary Assign a skill to an agent
-     * @request POST:/agent-skill-relation
+     * @request POST:/company/{companyId}/agent-skill-relation
      */
-    postAgentSkillRelation: (
+    postCompanyByCompanyIdAgentSkillRelation: (
+      companyId: number,
       data: {
         /** @min 0 */
         agentId: number;
         /** @min 0 */
         skillId: number;
-        enabled?: boolean | null;
       },
       params: RequestParams = {},
     ) =>
-      this.request<AgentSkillRelationResponse, ValidationErrorResponse>({
-        path: `/agent-skill-relation`,
+      this.request<
+        AgentSkillRelationResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/agent-skill-relation`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -2188,16 +2628,17 @@ export class Api<
      * No description
      *
      * @tags Agent Skill Relation
-     * @name GetAgentSkillRelationAgentByAgentId
+     * @name GetCompanyByCompanyIdAgentSkillRelationAgentByAgentId
      * @summary List skills assigned to an agent
-     * @request GET:/agent-skill-relation/agent/{agentId}
+     * @request GET:/company/{companyId}/agent-skill-relation/agent/{agentId}
      */
-    getAgentSkillRelationAgentByAgentId: (
+    getCompanyByCompanyIdAgentSkillRelationAgentByAgentId: (
+      companyId: number,
       agentId: number,
       params: RequestParams = {},
     ) =>
       this.request<AgentSkillRelationResponse[], ErrorResponse>({
-        path: `/agent-skill-relation/agent/${agentId}`,
+        path: `/company/${companyId}/agent-skill-relation/agent/${agentId}`,
         method: "GET",
         format: "json",
         ...params,
@@ -2207,38 +2648,18 @@ export class Api<
      * No description
      *
      * @tags Agent Skill Relation
-     * @name GetAgentSkillRelationById
+     * @name GetCompanyByCompanyIdAgentSkillRelationById
      * @summary Get an agent skill assignment by ID
-     * @request GET:/agent-skill-relation/{id}
+     * @request GET:/company/{companyId}/agent-skill-relation/{id}
      */
-    getAgentSkillRelationById: (id: number, params: RequestParams = {}) =>
-      this.request<AgentSkillRelationResponse, ErrorResponse>({
-        path: `/agent-skill-relation/${id}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Agent Skill Relation
-     * @name PutAgentSkillRelationById
-     * @summary Toggle enabled flag for an agent skill assignment
-     * @request PUT:/agent-skill-relation/{id}
-     */
-    putAgentSkillRelationById: (
+    getCompanyByCompanyIdAgentSkillRelationById: (
+      companyId: number,
       id: number,
-      data: {
-        enabled: boolean;
-      },
       params: RequestParams = {},
     ) =>
       this.request<AgentSkillRelationResponse, ErrorResponse>({
-        path: `/agent-skill-relation/${id}`,
-        method: "PUT",
-        body: data,
-        type: ContentType.Json,
+        path: `/company/${companyId}/agent-skill-relation/${id}`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -2247,13 +2668,17 @@ export class Api<
      * No description
      *
      * @tags Agent Skill Relation
-     * @name DeleteAgentSkillRelationById
+     * @name DeleteCompanyByCompanyIdAgentSkillRelationById
      * @summary Remove a skill from an agent
-     * @request DELETE:/agent-skill-relation/{id}
+     * @request DELETE:/company/{companyId}/agent-skill-relation/{id}
      */
-    deleteAgentSkillRelationById: (id: number, params: RequestParams = {}) =>
+    deleteCompanyByCompanyIdAgentSkillRelationById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
       this.request<SuccessResponse, ErrorResponse>({
-        path: `/agent-skill-relation/${id}`,
+        path: `/company/${companyId}/agent-skill-relation/${id}`,
         method: "DELETE",
         format: "json",
         ...params,

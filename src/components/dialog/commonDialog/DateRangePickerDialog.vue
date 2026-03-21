@@ -22,23 +22,24 @@
 </template>
 
 <script lang="ts" setup>
-import { dayjs, Dayjs } from "@/utils/time"
-import { DialogType } from "../dialog"
-import { useI18n } from "vue-i18n"
+import { dayjs } from "@/utils/time";
+import type { Dayjs } from "@/utils/time";
+import type { DialogType } from "../dialog";
+import { useI18n } from "vue-i18n";
 const props = defineProps<{
-  dialog: DialogType<any, [Dayjs | undefined, Dayjs | undefined]>
-  title?: string | null
-  content?: string
-  value?: [string | Dayjs | undefined, string | Dayjs | undefined]
-}>()
+  dialog: DialogType<any, [Dayjs | undefined, Dayjs | undefined]>;
+  title?: string | null;
+  content?: string;
+  value?: [string | Dayjs | undefined, string | Dayjs | undefined];
+}>();
 
-const { t } = useI18n()
-const finalTitle = computed(() => props.title ?? t("pickDateRange"))
+const { t } = useI18n();
+const finalTitle = computed(() => props.title ?? t("pickDateRange"));
 
 const pickerValue = ref<[string, string] | [Dayjs, Dayjs]>(
   (props.value?.map((d) => d ?? "") as [string, string] | [Dayjs, Dayjs]) || [
     "",
     "",
   ],
-)
+);
 </script>

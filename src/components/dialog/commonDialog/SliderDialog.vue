@@ -16,15 +16,15 @@
 </template>
 
 <script lang="ts" setup>
-import { DialogType } from "../dialog"
+import type { DialogType } from "../dialog";
 
 const props = defineProps<{
-  dialog: DialogType<any, number>
-  range: [number, number]
-  title?: string | null
-  content?: string
-  value?: number | null
-}>()
+  dialog: DialogType<any, number>;
+  range: [number, number];
+  title?: string | null;
+  content?: string;
+  value?: number | null;
+}>();
 
-const sliderValue = ref(props.value || props.range[0])
+const sliderValue = ref(props.value || props.range[0]);
 </script>

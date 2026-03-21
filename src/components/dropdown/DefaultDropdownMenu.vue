@@ -14,8 +14,8 @@
           :key="i"
           @click="
             () => {
-              m.click?.(m)
-              click?.(m)
+              m.click?.(m);
+              click?.(m);
             }
           "
           :class="[
@@ -37,25 +37,25 @@
 </template>
 <script lang="ts">
 export type Menu = {
-  divider?: boolean
-  id?: string
-  name?: string
-  icon?: Component
-  show?: boolean
-  danger?: boolean
-  click?: (m: Menu) => void
-  selected?: boolean
-}
+  divider?: boolean;
+  id?: string;
+  name?: string;
+  icon?: Component;
+  show?: boolean;
+  danger?: boolean;
+  click?: (m: Menu) => void;
+  selected?: boolean;
+};
 </script>
 <script setup lang="ts">
-import { Trigger, DropdownPlacement } from "@/types"
+import type { Trigger, DropdownPlacement } from "@/types";
 
 const props = defineProps<{
-  title?: string
-  menus: Menu[]
-  click?: Menu["click"]
-  trigger?: Trigger
-  placement?: DropdownPlacement
-}>()
-const finalMenus = computed(() => props.menus.filter((m) => m.show !== false))
+  title?: string;
+  menus: Menu[];
+  click?: Menu["click"];
+  trigger?: Trigger;
+  placement?: DropdownPlacement;
+}>();
+const finalMenus = computed(() => props.menus.filter((m) => m.show !== false));
 </script>

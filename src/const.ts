@@ -15,3 +15,4 @@ export const taskScheduleHSColorLString = `${taskScheduleHSColorL}%`;
 export const taskScheduleHSColorAString = `${taskScheduleHSColorA}`;
 
 export const defaultPrimaryHue = "217";
+export const drawerPaddingLevel = 4;

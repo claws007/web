@@ -44,83 +44,83 @@
   </AModal>
 </template>
 <script lang="ts" setup>
-import { AnyDialogType } from "./dialog"
+import type { AnyDialogType } from "./dialog";
 
-export type Size = "small" | "medium" | "large"
+export type Size = "small" | "medium" | "large";
 
 const props = withDefaults(
   defineProps<{
-    dialog: AnyDialogType
-    title?: string | null
-    size?: Size
-    width?: string
-    height?: string | number
-    disableEscapeKey?: boolean
-    disableMaskClosable?: boolean
-    resolveByEnter?: boolean
+    dialog: AnyDialogType;
+    title?: string | null;
+    size?: Size;
+    width?: string;
+    height?: string | number;
+    disableEscapeKey?: boolean;
+    disableMaskClosable?: boolean;
+    resolveByEnter?: boolean;
   }>(),
   {
     size: "medium",
     title: null,
     width: undefined,
   },
-)
+);
 
-const isAutoHeight = computed(() => props.height === undefined)
+const isAutoHeight = computed(() => props.height === undefined);
 const finalHeight = computed(() => {
   if (typeof props.height === "string") {
     // 判断是否带了单位
     if (/^[0-9]+(px|em|rem|%|vh|vw)$/.test(props.height)) {
-      return props.height
+      return props.height;
     } else {
-      return parseInt(props.height) + "px"
+      return parseInt(props.height) + "px";
     }
   } else {
-    return props.height + "px"
+    return props.height + "px";
   }
-})
+});
 const finalWidth = computed(() => {
   if (props.width) {
-    return props.width
+    return props.width;
   } else if (props.size) {
     switch (props.size) {
       case "small":
-        return "320px"
+        return "320px";
       case "medium":
-        return "520px"
+        return "520px";
       case "large":
-        return "1024px"
+        return "1024px";
     }
   } else {
-    return undefined
+    return undefined;
   }
-})
+});
 
 function handleKeyup(e: KeyboardEvent) {
   if (e.key === "Enter" && !props.resolveByEnter) {
-    props.dialog.finish()
+    props.dialog.finish();
   }
 }
 const bindEvents = () => {
-  document.addEventListener("keyup", handleKeyup)
-}
+  document.addEventListener("keyup", handleKeyup);
+};
 const unbindEvents = () => {
-  document.removeEventListener("keyup", handleKeyup)
-}
+  document.removeEventListener("keyup", handleKeyup);
+};
 watch(
   () => props.resolveByEnter,
   (v) => {
     if (v) {
-      bindEvents()
+      bindEvents();
     } else {
-      unbindEvents()
+      unbindEvents();
     }
   },
   { immediate: true },
-)
+);
 onBeforeUnmount(() => {
-  unbindEvents()
-})
+  unbindEvents();
+});
 </script>
 
 <style lang="scss">

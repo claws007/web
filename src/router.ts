@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { store } from "@/store";
+import { useCompanyStore } from "@/store/company";
 import { useUserStore } from "@/store/user";
 
 const router = createRouter({
@@ -25,7 +26,7 @@ const router = createRouter({
 	],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
 	const userStore = useUserStore(store);
 	userStore.initAuth();
 
@@ -45,6 +46,11 @@ router.beforeEach((to) => {
 				redirect: to.fullPath,
 			},
 		};
+	}
+
+	if (!to.meta.noAuth) {
+		const companyStore = useCompanyStore(store);
+		await companyStore.initCompanyContext();
 	}
 
 	return true;

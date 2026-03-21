@@ -90,50 +90,53 @@
 </template>
 <script lang="ts">
 export interface ChartData {
-  id: string
-  name: string
-  start: Date
-  end: Date
+  id: string;
+  name: string;
+  start: Date;
+  end: Date;
 }
 </script>
 <script setup lang="ts">
-import { dayjs } from "@/utils/time"
+import { dayjs } from "@/utils/time";
+import { useElementSize } from "@vueuse/core";
 const props = withDefaults(
   defineProps<{
-    requestDatas?: (start: Date, end: Date) => Promise<ChartData[]>
+    requestDatas?: (start: Date, end: Date) => Promise<ChartData[]>;
   }>(),
   {
     requestDatas: () => Promise.resolve([]),
   },
-)
+);
 
-const scrollContainerRef = ref<HTMLElement>()
-const headerRef = ref<HTMLElement>()
+const scrollContainerRef = ref<HTMLElement>();
+const headerRef = ref<HTMLElement>();
 // const mainContainerRef = ref<HTMLElement>()
-const containerRef = ref<HTMLElement>()
+const containerRef = ref<HTMLElement>();
 const { width: containerWidth, height: containerHeight } =
-  useElementSize(containerRef)
+  useElementSize(containerRef);
 
-const { height: headerHeight } = useElementSize(headerRef)
+const { height: headerHeight } = useElementSize(headerRef);
 const mainContainerHeight = computed(
   () => containerHeight.value - headerHeight.value,
-)
-const dateBarHeight = computed(() => headerHeight.value)
+);
+const dateBarHeight = computed(() => headerHeight.value);
 
-const dateUnitWidth = 256
-const dayTimeBarWidth = 80
+const dateUnitWidth = 256;
+const dayTimeBarWidth = 80;
 
-const minDayTime = 0
-const maxDayTime = 24
-const dayTimeUnitAmount = maxDayTime - minDayTime
+const minDayTime = 0;
+const maxDayTime = 24;
+const dayTimeUnitAmount = maxDayTime - minDayTime;
 const dayTimeBarUnitHeight = computed(
   () => mainContainerHeight.value / dayTimeUnitAmount,
-)
+);
 
-const today = ref(dayjs().startOf("day"))
-const currentMonth = ref(today.value.startOf("month"))
-const monthShouldRender = ref([currentMonth.value])
-const firstShouldRenderMonth = computed(() => monthShouldRender.value[0])
+const today = ref(dayjs().startOf("day"));
+const currentMonth = ref(today.value.startOf("month"));
+const monthShouldRender = ref([currentMonth.value]);
+const firstShouldRenderMonth = computed(
+  () => monthShouldRender.value[0] ?? currentMonth.value,
+);
 
 function scrollToToday() {
   scrollContainerRef.value?.scrollTo({
@@ -141,55 +144,61 @@ function scrollToToday() {
       (today.value.date() - 1) * dateUnitWidth -
       /*offset*/ containerWidth.value / 3,
     // behavior: "smooth",
-  })
+  });
 }
 
 onMounted(() => {
-  scrollToToday()
-})
+  scrollToToday();
+});
 
-const currentViewWindow = ref<number[]>([])
-const datas = ref<ChartData[]>([])
+const currentViewWindow = ref<number[]>([]);
+const datas = ref<ChartData[]>([]);
 watch(
   monthShouldRender,
   async (newVal, old) => {
     const newMonths = newVal.filter(
       (m) => !old || !old.find((o) => o.isSame(m)),
-    )
+    );
     await Promise.all(
       newMonths.map((m) =>
         props
           .requestDatas(m.startOf("month").toDate(), m.endOf("month").toDate())
           .then((d) => {
-            datas.value.push(...d)
+            datas.value.push(...d);
           }),
       ),
-    )
+    );
   },
   {
     immediate: true,
   },
-)
+);
 
 function handleScroll(_e: Event) {
-  const scrollLeft = scrollContainerRef.value!.scrollLeft
-  const scrollWidth = scrollContainerRef.value!.scrollWidth
-  const scrollContainerWidth = scrollContainerRef.value!.clientWidth
-  if (scrollLeft < 1000) {
-    const addMonth = monthShouldRender.value[0].subtract(1, "month")
-    monthShouldRender.value = [addMonth, ...monthShouldRender.value]
-    scrollContainerRef.value!.scrollLeft +=
-      addMonth.daysInMonth() * dateUnitWidth
-  }
-  if (scrollWidth - scrollLeft - scrollContainerWidth < 200) {
-    const addMonth = monthShouldRender.value[
-      monthShouldRender.value.length - 1
-    ].add(1, "month")
-    monthShouldRender.value = [...monthShouldRender.value, addMonth]
+  if (!monthShouldRender.value.length) {
+    monthShouldRender.value = [currentMonth.value];
   }
 
-  const currentViewN = Math.ceil(scrollLeft / dateUnitWidth)
-  const viewWidth = Math.ceil(scrollContainerWidth / dateUnitWidth)
-  currentViewWindow.value = [currentViewN, currentViewN + viewWidth]
+  const scrollLeft = scrollContainerRef.value!.scrollLeft;
+  const scrollWidth = scrollContainerRef.value!.scrollWidth;
+  const scrollContainerWidth = scrollContainerRef.value!.clientWidth;
+  if (scrollLeft < 1000) {
+    const firstMonth = monthShouldRender.value[0] ?? currentMonth.value;
+    const addMonth = firstMonth.subtract(1, "month");
+    monthShouldRender.value = [addMonth, ...monthShouldRender.value];
+    scrollContainerRef.value!.scrollLeft +=
+      addMonth.daysInMonth() * dateUnitWidth;
+  }
+  if (scrollWidth - scrollLeft - scrollContainerWidth < 200) {
+    const lastMonth =
+      monthShouldRender.value[monthShouldRender.value.length - 1] ??
+      currentMonth.value;
+    const addMonth = lastMonth.add(1, "month");
+    monthShouldRender.value = [...monthShouldRender.value, addMonth];
+  }
+
+  const currentViewN = Math.ceil(scrollLeft / dateUnitWidth);
+  const viewWidth = Math.ceil(scrollContainerWidth / dateUnitWidth);
+  currentViewWindow.value = [currentViewN, currentViewN + viewWidth];
 }
 </script>

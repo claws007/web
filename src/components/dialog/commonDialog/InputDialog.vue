@@ -43,32 +43,32 @@
 </template>
 
 <script lang="ts" setup>
-import { DialogType } from "../dialog"
+import type { DialogType } from "../dialog";
 
 const props = withDefaults(
   defineProps<{
-    dialog: DialogType<any, string>
-    title?: string | null
-    content?: string | Component
-    prefix?: Component
-    suffix?: Component
-    value?: string | null
-    placeholder?: string
-    disabled?: boolean
-    width?: string
-    type?: "password" | "text" | "email" | "number"
+    dialog: DialogType<any, string>;
+    title?: string | null;
+    content?: string | Component;
+    prefix?: Component;
+    suffix?: Component;
+    value?: string | null;
+    placeholder?: string;
+    disabled?: boolean;
+    width?: string;
+    type?: "password" | "text" | "email" | "number";
     quickOptions?: {
-      label: string
-      value: string
-      danger?: boolean
-      primary?: boolean
-    }[]
+      label: string;
+      value: string;
+      danger?: boolean;
+      primary?: boolean;
+    }[];
   }>(),
   {
     width: "320px",
     quickOptions: () => [],
   },
-)
+);
 
-const inputValue = ref(props.value || "")
+const inputValue = ref(props.value || "");
 </script>

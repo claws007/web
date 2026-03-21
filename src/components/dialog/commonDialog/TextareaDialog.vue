@@ -25,15 +25,15 @@
 </template>
 
 <script lang="ts" setup>
-import { DialogType } from "../dialog"
+import type { DialogType } from "../dialog";
 
 const props = defineProps<{
-  dialog: DialogType<any, string>
-  title?: string | null
-  content?: string
-  value?: string | null
-  placeholder?: string
-}>()
+  dialog: DialogType<any, string>;
+  title?: string | null;
+  content?: string;
+  value?: string | null;
+  placeholder?: string;
+}>();
 
-const textareaValue = ref(props.value || "")
+const textareaValue = ref(props.value || "");
 </script>

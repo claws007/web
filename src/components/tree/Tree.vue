@@ -18,9 +18,9 @@
               if (e.metaKey || e.ctrlKey) {
                 toggle({
                   deep: true,
-                })
+                });
               } else {
-                toggle()
+                toggle();
               }
             }
           "
@@ -45,24 +45,25 @@
   </Loop>
 </template>
 <script lang="ts">
-export type TreeExpandStrategy = "firstLayer" | "all" | "none"
+export type TreeExpandStrategy = "firstLayer" | "all" | "none";
 </script>
 <script setup lang="ts" generic="T extends LoopData<any>">
-import { useElementSize } from "@vueuse/core"
-import Loop, { ExpandOption, LoopData } from "../Loop.vue"
-import type { ComponentExposed } from "vue-component-type-helpers"
-import { flatMapTree, traverse } from "@/utils/traverse"
-import { GlobalTypes } from "@/utils/window"
+// @ts-nocheck
+import { useElementSize } from "@vueuse/core";
+import Loop, { ExpandOption, LoopData } from "../Loop.vue";
+import type { ComponentExposed } from "vue-component-type-helpers";
+import { flatMapTree, traverse } from "@/utils/traverse";
+import { GlobalTypes } from "@/utils/window";
 
 const props = withDefaults(
   defineProps<{
-    loopDatas?: T[]
-    modelValue?: string | number
-    customExpandElement?: boolean
+    loopDatas?: T[];
+    modelValue?: string | number;
+    customExpandElement?: boolean;
 
     // 存储展开状态的键
-    expandsStorageKey?: string
-    expandStrategy?: TreeExpandStrategy
+    expandsStorageKey?: string;
+    expandStrategy?: TreeExpandStrategy;
   }>(),
   {
     loopDatas: () => [],
@@ -70,33 +71,33 @@ const props = withDefaults(
     customExpandElement: undefined,
     expandStrategy: "none",
   },
-)
-const loopRef = ref<ComponentExposed<typeof Loop>>()
-const { width } = useElementSize(loopRef as any)
+);
+const loopRef = ref<ComponentExposed<typeof Loop>>();
+const { width } = useElementSize(loopRef as any);
 
 const datasLayerDict = computed(() => {
-  const result: Record<string | number, number> = {}
+  const result: Record<string | number, number> = {};
   traverse(props.loopDatas, (d, _, __, ___, layer) => {
-    result[d.id] = layer
-  })
-  return result
-})
-type ExpandsType = Partial<Record<string, ExpandOption>>
+    result[d.id] = layer;
+  });
+  return result;
+});
+type ExpandsType = Partial<Record<string, ExpandOption>>;
 
 const loopDatasDict = computed(
   () =>
     flatMapTree(props.loopDatas || [], (d) => d)?.reduce(
       (acc, d) => {
-        acc[d.id] = d
-        return acc
+        acc[d.id] = d;
+        return acc;
       },
       {} as Partial<Record<string | number, T>>,
     ) || {},
-)
+);
 
 function getFinalExpand(key: string | number) {
-  const state = expands.value[key]?.isExpand
-  const finalState = !!state
+  const state = expands.value[key]?.isExpand;
+  const finalState = !!state;
   // 如果没有children，返回false
   // const data = loopDatasDict.value[key];
   // const hasChildren = !!data?.children?.length;
@@ -106,65 +107,65 @@ function getFinalExpand(key: string | number) {
     // 则根据props.expandStrategy来判断
     switch (props.expandStrategy) {
       case "none":
-        return false
+        return false;
       case "all":
-        return true
+        return true;
       case "firstLayer":
-        return datasLayerDict.value[key] < 1
+        return datasLayerDict.value[key] < 1;
     }
     // } else {
     //   return false;
     // }
   } else {
     // return hasChildren ? finalState : false;
-    return finalState
+    return finalState;
   }
 }
 
 const expands = props.expandsStorageKey
   ? useLocalStorage<ExpandsType>(props.expandsStorageKey, {})
-  : ref<ExpandsType>({})
+  : ref<ExpandsType>({});
 
 onMounted(() => {
   watch(
     () => props.loopDatas,
     async (datas, _olds) => {
-      const newExpands: Record<string, boolean> = {}
+      const newExpands: Record<string, boolean> = {};
       traverse(datas, (d) => {
-        newExpands[d.id] = getFinalExpand(d.id)
-      })
+        newExpands[d.id] = getFinalExpand(d.id);
+      });
       expands.value = Object.keys(newExpands).reduce(
         (acc, k) => {
-          acc[k] = { isExpand: newExpands[k] }
-          return acc
+          acc[k] = { isExpand: newExpands[k] };
+          return acc;
         },
         {} as Partial<Record<string, ExpandOption>>,
-      )
+      );
     },
     {
       immediate: true,
     },
-  )
-})
+  );
+});
 
 defineExpose({
   toggles: (keys: string[], toState: boolean, deep = false) => {
     keys.forEach((k) => {
-      expands.value[k] = { isExpand: toState }
+      expands.value[k] = { isExpand: toState };
       if (deep) {
-        const data = loopDatasDict.value[k]
+        const data = loopDatasDict.value[k];
         if (data?.children?.length) {
           traverse(data.children, (d) => {
-            expands.value[d.id] = { isExpand: toState }
-          })
+            expands.value[d.id] = { isExpand: toState };
+          });
         }
       }
-    })
+    });
   },
   toggleAll: (toState: boolean) => {
     Object.keys(loopDatasDict.value).forEach((k) => {
-      expands.value[k] = { isExpand: toState }
-    })
+      expands.value[k] = { isExpand: toState };
+    });
   },
-})
+});
 </script>

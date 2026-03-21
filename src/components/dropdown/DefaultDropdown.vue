@@ -11,7 +11,7 @@
   </Dropdown>
 </template>
 <script setup lang="ts">
-import { DropdownPlacement, Trigger } from "@/types";
+import type { DropdownPlacement, Trigger } from "@/types";
 
 defineProps<{
   placement?: DropdownPlacement;

@@ -18,7 +18,6 @@ declare module 'vue' {
     AModal: typeof import('ant-design-vue/es')['Modal']
     AntdIcon: typeof import('./bizComponents/icon/AntdIcon.vue')['default']
     AntdProvider: typeof import('./components/AntdProvider.vue')['default']
-    APopconfirm: typeof import("ant-design-vue/es")["Popconfirm"]
     ARangePicker: typeof import('ant-design-vue/es')['RangePicker']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']

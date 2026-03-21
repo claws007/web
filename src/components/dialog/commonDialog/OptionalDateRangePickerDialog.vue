@@ -15,9 +15,9 @@
           :disabled-date="
             (d) => {
               if (pickerValue[1]) {
-                return d.isAfter(pickerValue[1])
+                return d.isAfter(pickerValue[1]);
               }
-              return false
+              return false;
             }
           "
         ></DatePicker>
@@ -33,9 +33,9 @@
           :disabled-date="
             (d) => {
               if (pickerValue[0]) {
-                return d.isBefore(pickerValue[0])
+                return d.isBefore(pickerValue[0]);
               }
-              return false
+              return false;
             }
           "
         ></DatePicker>
@@ -62,9 +62,9 @@
           type="text"
           @click="
             () => {
-              const targetDate = today.add(d.offsetToToday, 'day')
-              pickerValue[0] = targetDate
-              pickerValue[1] = null
+              const targetDate = today.add(d.offsetToToday, 'day');
+              pickerValue[0] = targetDate;
+              pickerValue[1] = null;
             }
           "
           >{{ d.name }}</Button
@@ -93,26 +93,27 @@
 </template>
 
 <script lang="ts" setup>
-import { dayjs, Dayjs } from "@/utils/time"
-import { DialogType } from "../dialog"
-import { useSystemStore } from "@/store/system"
-import { useI18n } from "vue-i18n"
+import { dayjs } from "@/utils/time";
+import type { Dayjs } from "@/utils/time";
+import type { DialogType } from "../dialog";
+import { useSystemStore } from "@/store/system";
+import { useI18n } from "vue-i18n";
 
 const props = withDefaults(
   defineProps<{
-    dialog: DialogType<any, [Dayjs | undefined, Dayjs | undefined]>
-    title?: string | null
-    content?: string
+    dialog: DialogType<any, [Dayjs | undefined, Dayjs | undefined]>;
+    title?: string | null;
+    content?: string;
     // value?: [string | Dayjs | undefined, string | Dayjs | undefined]
-    value?: [Dayjs | null, Dayjs | null]
+    value?: [Dayjs | null, Dayjs | null];
   }>(),
   {},
-)
-const { t } = useI18n()
-const finalTitle = computed(() => props.title || t("pickDateRange"))
-const systemStore = useSystemStore()
-const today = computed(() => systemStore.today)
+);
+const { t } = useI18n();
+const finalTitle = computed(() => props.title || t("pickDateRange"));
+const systemStore = useSystemStore();
+const today = computed(() => systemStore.today);
 const pickerValue = ref<[Dayjs | null, Dayjs | null]>(
   props.value || [null, null],
-)
+);
 </script>

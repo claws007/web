@@ -3,16 +3,62 @@
     <div
       class="w-80 bg-light-2 border-r border-light-4 v overflow-hidden [&>div]:px-4 py-4 gap-4"
     >
+      <div class="v gap-2">
+        <div class="text-light-2 text-xs uppercase tracking-[0.22em]">
+          Company
+        </div>
+        <div class="rounded bg-light px-3 py-3 v gap-2">
+          <div class="h items-start justify-between gap-2">
+            <div class="min-w-0 stretch v gap-1">
+              <div class="truncate text-sm font-semibold text-[#261b12]">
+                {{ activeCompany?.name || "No company selected" }}
+              </div>
+              <div class="text-light text-xs leading-5">
+                {{ companyHintText }}
+              </div>
+            </div>
+            <Button
+              size="small"
+              :disabled="!companyStore.hasCompanies"
+              @click="openCompanySelector"
+              v-if="companyStore.companies.length > 1"
+            >
+              Switch
+            </Button>
+            <Button
+              v-if="!companyStore.hasCompanies"
+              size="small"
+              type="primary"
+              @click="openCreateCompany"
+            >
+              Create
+            </Button>
+          </div>
+        </div>
+      </div>
       <div class="h justify-between items-center">
         <div>Agents</div>
         <div class="h items-center gap-2">
-          <Button type="primary" @click="openCreateAgent">
+          <Button
+            type="primary"
+            :disabled="!activeCompanyId"
+            @click="openCreateAgent"
+          >
             <PlusOutlined /> New Agent
           </Button>
-          <Button @click="dialogs.SettingsDialog()">
+          <Button
+            :disabled="!activeCompanyId"
+            @click="dialogs.SettingsDialog()"
+          >
             <SettingOutlined />
           </Button>
         </div>
+      </div>
+      <div
+        v-if="companyStore.errorMessage"
+        class="mx-4 rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+      >
+        {{ companyStore.errorMessage }}
       </div>
       <div
         v-if="errorMessage"
@@ -20,23 +66,33 @@
       >
         {{ errorMessage }}
       </div>
-      <div v-if="isLoading" class="mx-4 text-light text-sm">
+      <div v-if="!companyStore.hasCompanies" class="mx-4 text-light text-sm">
+        No company available yet. Ask an owner to add you, or create one now.
+      </div>
+      <div v-else-if="!activeCompanyId" class="mx-4 text-light text-sm">
+        Select a company to view agents.
+      </div>
+      <div v-else-if="isLoading" class="mx-4 text-light text-sm">
         Loading agents...
       </div>
-      <div v-else-if="agents.length === 0" class="mx-4 text-light text-sm">
+      <div v-else-if="agentTreeRows.length === 0" class="mx-4 text-light text-sm">
         No agent found.
       </div>
       <div v-else class="stretch gap-2 v overflow-y-auto">
-        <SelectableTag
-          v-for="agent in agents"
-          :key="agent.id"
-          :title="agent.name"
-          :content="agent.description ?? `[Cap] ${agent.capacity}`"
-          :menus="getAgentMenus(agent)"
-          :selected="finalAgentId === agent.id"
-          background="3"
-          @click="currentAgentId = agent.id"
-        ></SelectableTag>
+        <div
+          v-for="row in agentTreeRows"
+          :key="row.node.id"
+          :style="{ paddingLeft: `${row.layer * 18}px` }"
+        >
+          <SelectableTag
+            :title="row.node.agent.name"
+            :content="row.node.agent.description ?? `[Cap] ${row.node.agent.capacity}`"
+            :menus="getAgentMenus(row.node.agent)"
+            :selected="finalAgentId === row.node.agent.id"
+            background="3"
+            @click="currentAgentId = row.node.agent.id"
+          ></SelectableTag>
+        </div>
       </div>
     </div>
     <div
@@ -46,6 +102,9 @@
       <div class="h justify-between items-center">
         <div>Tasks</div>
         <div class="h items-center gap-2">
+          <Button :disabled="!finalAgent" @click="openCreateTask">
+            <PlusOutlined />
+          </Button>
           <Button
             :disabled="tasks.length === 0 || isTaskLoading || clearingAllTasks"
             :is-loading="clearingAllTasks"
@@ -252,15 +311,19 @@
 </template>
 <script setup lang="ts">
 import { api } from "@/api";
+import { createCompany } from "@/company/api";
 import { dialogs } from "@/components/dialog";
+import { useCompanyStore } from "@/store/company";
 import type {
   AgentResponse,
   AgentTaskResponse,
   ChatHistoryResponse,
+  SubAgentResponse,
   ToolListItem,
   ToolMetadata,
 } from "@/api";
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
+import { buildTree, traverse } from "@/utils/traverse";
 import {
   DeleteOutlined,
   InfoOutlined,
@@ -271,12 +334,14 @@ import {
   ToolOutlined,
 } from "@ant-design/icons-vue";
 
+const companyStore = useCompanyStore();
 const agents = ref<AgentResponse[]>([]);
 const tasks = ref<AgentTaskResponse[]>([]);
 const isLoading = ref(false);
 const isTaskLoading = ref(false);
 const clearingAllTasks = ref(false);
 const deletingId = ref<number | null>(null);
+const subAgentMutatingRelationId = ref<number | null>(null);
 const deletingTaskId = ref<number | null>(null);
 const actionTaskId = ref<number | null>(null);
 const actionType = ref<"start" | "replay" | "stop" | "resume" | null>(null);
@@ -288,10 +353,19 @@ const taskChatHistoryStreamTaskId = ref<number | null>(null);
 const taskChatHistoryStreamController = ref<AbortController | null>(null);
 const taskChatHistoryStreamReconnectTimer = ref<number | null>(null);
 const taskChatHistoryStreamLastEventIds = ref<Record<number, string>>({});
+const subAgentRelations = ref<SubAgentResponse[]>([]);
 const errorMessage = ref("");
 const taskErrorMessage = ref("");
 const newTaskContent = ref("");
 const taskResumeMessage = ref("");
+
+type AgentTreeNode = {
+  id: number;
+  parentId: number | null;
+  agent: AgentResponse;
+  relation?: SubAgentResponse;
+  children: AgentTreeNode[];
+};
 
 const TASK_STATES = [
   "PENDING",
@@ -301,17 +375,122 @@ const TASK_STATES = [
   "CANCELLED",
 ] as const;
 type TaskState = (typeof TASK_STATES)[number];
+const activeCompanyId = computed(() => companyStore.activeCompanyId);
+const activeCompany = computed(() => companyStore.activeCompany);
+const companyHintText = computed(() => {
+  if (!companyStore.hasCompanies) {
+    return "You do not have access to any company yet.";
+  }
 
-onMounted(async () => {
-  await loadAgents();
+  if (!activeCompany.value) {
+    return "Choose which company workspace you want to manage.";
+  }
+
+  return (
+    activeCompany.value.description ||
+    `Company #${activeCompany.value.id} workspace`
+  );
+});
+const isSelectingCompany = ref(false);
+const hasPromptedInitialCompanySelection = ref(false);
+
+const subAgentRelationByChildId = computed(() => {
+  return subAgentRelations.value.reduce<Record<number, SubAgentResponse>>(
+    (acc, relation) => {
+      acc[relation.agentId] = relation;
+      return acc;
+    },
+    {},
+  );
+});
+
+const descendantIdsByAgentId = computed(() => {
+  const childrenByParentId = new Map<number, number[]>();
+
+  subAgentRelations.value.forEach((relation) => {
+    const nextChildren = childrenByParentId.get(relation.parentAgentId) || [];
+    nextChildren.push(relation.agentId);
+    childrenByParentId.set(relation.parentAgentId, nextChildren);
+  });
+
+  const visited = new Map<number, Set<number>>();
+
+  function collectDescendants(agentId: number, path: Set<number>): Set<number> {
+    if (visited.has(agentId)) {
+      return new Set(visited.get(agentId)!);
+    }
+
+    const descendants = new Set<number>();
+    const children = childrenByParentId.get(agentId) || [];
+
+    for (const childId of children) {
+      if (path.has(childId)) {
+        continue;
+      }
+      descendants.add(childId);
+      const nextPath = new Set(path);
+      nextPath.add(childId);
+      const childDescendants = collectDescendants(childId, nextPath);
+      childDescendants.forEach((id) => descendants.add(id));
+    }
+
+    visited.set(agentId, descendants);
+    return new Set(descendants);
+  }
+
+  return agents.value.reduce<Record<number, Set<number>>>((acc, agent) => {
+    acc[agent.id] = collectDescendants(agent.id, new Set([agent.id]));
+    return acc;
+  }, {});
+});
+
+const agentTree = computed(() => {
+  const nodes = agents.value.map<AgentTreeNode>((agent) => {
+    const relation = subAgentRelationByChildId.value[agent.id];
+    return {
+      id: agent.id,
+      parentId: relation?.parentAgentId || null,
+      agent,
+      relation,
+      children: [],
+    };
+  });
+
+  return buildTree(nodes, {
+    dataKey: "id",
+    parentKey: "parentId",
+    childrenKey: "children",
+  });
+});
+
+const agentTreeRows = computed(() => {
+  const rows: Array<{ node: AgentTreeNode; layer: number }> = [];
+  traverse(agentTree.value, (node, _index, _datas, _parents, layer) => {
+    rows.push({ node, layer });
+  });
+  return rows;
+});
+
+onMounted(() => {
+  void maybePromptForCompanySelection();
 });
 
 async function loadAgents() {
+  if (!activeCompanyId.value) {
+    agents.value = [];
+    subAgentRelations.value = [];
+    return;
+  }
+
   errorMessage.value = "";
   isLoading.value = true;
   try {
-    const response = await api.agent.getAgent();
-    agents.value = response.data || [];
+    const [agentResponse, subAgentResponse] = await Promise.all([
+      api.agent.getAgent(),
+      api.subAgent.getSubAgent(),
+    ]);
+    agents.value = agentResponse.data || [];
+    subAgentRelations.value = subAgentResponse.data || [];
   } catch (error) {
     errorMessage.value = getErrorMessage(error, "Failed to load agents.");
   } finally {
@@ -320,12 +499,20 @@ async function loadAgents() {
 }
 
 async function openCreateAgent() {
+  if (!activeCompanyId.value) {
+    return;
+  }
+
   await dialogs.CreateOrEditAgentDialog().finishPromise(async () => {
     await loadAgents();
   });
 }
 
 async function openEditAgent(id: number) {
+  if (!activeCompanyId.value) {
+    return;
+  }
+
   await dialogs.CreateOrEditAgentDialog({ id }).finishPromise(async () => {
     await loadAgents();
   });
@@ -773,6 +960,11 @@ async function connectTaskChatHistoryStream(taskId: number) {
     return;
   }
 
+  if (!activeCompanyId.value) {
+    stopTaskChatHistoryStream();
+    return;
+  }
+
   const controller = new AbortController();
   taskChatHistoryStreamController.value = controller;
 
@@ -798,7 +990,7 @@ async function connectTaskChatHistoryStream(taskId: number) {
 
   try {
     const response = await api.request<unknown, unknown>({
-      path: `/agent-task/${taskId}/stream`,
+      path: `/company/${activeCompanyId.value}/agent-task/${taskId}/stream`,
       method: "GET",
       headers,
       signal: controller.signal,
@@ -1158,14 +1350,7 @@ async function stopTaskRun(taskId: number) {
   actionType.value = "stop";
   taskErrorMessage.value = "";
   try {
-    const stopApi = (api.agentTask as any).postAgentTaskByIdStop;
-    if (typeof stopApi !== "function") {
-      taskErrorMessage.value =
-        "Current API does not expose a task stop endpoint. Please regenerate API after backend adds /agent-task/{id}/stop.";
-      return;
-    }
-
-    await stopApi(taskId);
+    await api.agentTask.postAgentTaskByIdStop(taskId);
     await loadTasks(finalAgent.value.id);
   } catch (error) {
     taskErrorMessage.value = getErrorMessage(error, "Failed to stop task.");
@@ -1221,8 +1406,203 @@ async function deleteAgent(id: number) {
   }
 }
 
+async function createSubAgent(parentAgentId: number) {
+  await dialogs
+    .CreateOrEditAgentDialog()
+    .finishPromise(async (createdAgent?: AgentResponse) => {
+      if (!createdAgent?.id) {
+        return false;
+      }
+
+      await api.subAgent.postSubAgent({
+        agentId: createdAgent.id,
+        parentAgentId,
+      });
+
+      await loadAgents();
+      currentAgentId.value = createdAgent.id;
+      return true;
+    });
+}
+
+async function bindExistingSubAgent(parentAgent: AgentResponse) {
+  const descendants = descendantIdsByAgentId.value[parentAgent.id] || new Set();
+  const options = agents.value
+    .filter((candidate) => {
+      if (candidate.id === parentAgent.id) {
+        return false;
+      }
+      if (descendants.has(candidate.id)) {
+        return false;
+      }
+      return true;
+    })
+    .map((candidate) => ({
+      id: candidate.id,
+      name: candidate.name,
+    }));
+
+  if (!options.length) {
+    errorMessage.value = "No available agents to bind as sub-agent.";
+    return;
+  }
+
+  const result = await dialogs.SelectDialog({
+    title: "Select Existing Agent",
+    options,
+  });
+
+  if (result.result !== "finish" || typeof result.data?.id !== "number") {
+    return;
+  }
+
+  errorMessage.value = "";
+  try {
+    const existingRelation = subAgentRelationByChildId.value[result.data.id];
+    if (existingRelation) {
+      subAgentMutatingRelationId.value = existingRelation.id;
+      await api.subAgent.putSubAgentById(existingRelation.id, {
+        parentAgentId: parentAgent.id,
+      });
+    } else {
+      await api.subAgent.postSubAgent({
+        agentId: result.data.id,
+        parentAgentId: parentAgent.id,
+      });
+    }
+    await loadAgents();
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "Failed to bind sub-agent.");
+  } finally {
+    subAgentMutatingRelationId.value = null;
+  }
+}
+
+async function reparentSubAgent(agent: AgentResponse) {
+  const relation = subAgentRelationByChildId.value[agent.id];
+  if (!relation) {
+    return;
+  }
+
+  const descendants = descendantIdsByAgentId.value[agent.id] || new Set();
+  const options = agents.value
+    .filter((candidate) => {
+      if (candidate.id === agent.id) {
+        return false;
+      }
+      if (descendants.has(candidate.id)) {
+        return false;
+      }
+      return true;
+    })
+    .map((candidate) => ({
+      id: candidate.id,
+      name: candidate.name,
+    }));
+
+  if (!options.length) {
+    errorMessage.value = "No available parent agent.";
+    return;
+  }
+
+  const result = await dialogs.SelectDialog({
+    title: "Select Parent Agent",
+    options,
+  });
+
+  if (result.result !== "finish" || typeof result.data?.id !== "number") {
+    return;
+  }
+
+  errorMessage.value = "";
+  subAgentMutatingRelationId.value = relation.id;
+  try {
+    await api.subAgent.putSubAgentById(relation.id, {
+      parentAgentId: result.data.id,
+    });
+    await loadAgents();
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "Failed to move sub-agent.");
+  } finally {
+    subAgentMutatingRelationId.value = null;
+  }
+}
+
+async function removeSubAgent(agent: AgentResponse) {
+  const relation = subAgentRelationByChildId.value[agent.id];
+  if (!relation) {
+    return;
+  }
+
+  const shouldDelete = await dialogs
+    .ConfirmDialog({
+      title: "Remove Sub-Agent",
+      content: `Are you sure you want to remove ${agent.name} from its parent?`,
+    })
+    .finallyPromise((isFinished) => isFinished);
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  errorMessage.value = "";
+  subAgentMutatingRelationId.value = relation.id;
+  try {
+    await api.subAgent.deleteSubAgentById(relation.id);
+    await loadAgents();
+  } catch (error) {
+    errorMessage.value = getErrorMessage(
+      error,
+      "Failed to remove sub-agent.",
+    );
+  } finally {
+    subAgentMutatingRelationId.value = null;
+  }
+}
+
 function getAgentMenus(agent: AgentResponse): Menu[] {
+  const relation = subAgentRelationByChildId.value[agent.id];
+  const isMutatingRelation =
+    typeof relation?.id === "number" &&
+    subAgentMutatingRelationId.value === relation.id;
+
   return [
+    {
+      id: "create-sub-agent",
+      name: "Create Sub-Agent",
+      click: () => {
+        void createSubAgent(agent.id);
+      },
+    },
+    {
+      id: "bind-sub-agent",
+      name: "Bind Existing Agent",
+      click: () => {
+        void bindExistingSubAgent(agent);
+      },
+    },
+    {
+      id: "move-sub-agent",
+      name: isMutatingRelation ? "Moving..." : "Change Parent",
+      show: !!relation,
+      click: () => {
+        if (isMutatingRelation) {
+          return;
+        }
+        void reparentSubAgent(agent);
+      },
+    },
+    {
+      id: "remove-sub-agent",
+      name: isMutatingRelation ? "Removing..." : "Remove From Parent",
+      show: !!relation,
+      click: () => {
+        if (isMutatingRelation) {
+          return;
+        }
+        void removeSubAgent(agent);
+      },
+    },
     {
       id: "edit",
       name: "Edit",
@@ -1287,6 +1667,119 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+async function openCompanySelector() {
+  await maybePromptForCompanySelection(true);
+}
+
+async function openCreateCompany() {
+  const nameResult = await dialogs.InputDialog({
+    title: "Create Company",
+    placeholder: "Company name",
+  });
+
+  if (nameResult.result !== "finish") {
+    return;
+  }
+
+  const name = nameResult.data.trim();
+  if (!name) {
+    errorMessage.value = "Company name is required.";
+    return;
+  }
+
+  const descriptionResult = await dialogs.TextareaDialog({
+    title: "Company Description",
+    value: "",
+    placeholder: "Optional description",
+  });
+
+  if (descriptionResult.result !== "finish") {
+    return;
+  }
+
+  errorMessage.value = "";
+  isLoading.value = true;
+
+  try {
+    const createdCompany = await createCompany({
+      name,
+      description: toOptional(descriptionResult.data),
+    });
+
+    await companyStore.initCompanyContext(true);
+
+    if (createdCompany?.id) {
+      companyStore.selectCompany(createdCompany.id);
+    }
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "Failed to create company.");
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function maybePromptForCompanySelection(force = false) {
+  if (isSelectingCompany.value || !companyStore.hasCompanies) {
+    return;
+  }
+
+  if (!force && activeCompanyId.value) {
+    return;
+  }
+  if (companyStore.companies.length === 1) {
+    const onlyCompany = companyStore.companies[0];
+    if (onlyCompany) {
+      companyStore.selectCompany(onlyCompany.id);
+    }
+    return;
+  }
+
+  isSelectingCompany.value = true;
+
+  try {
+    const result = await dialogs.SelectDialog(
+      {
+        title: "Select Company",
+        width: "420px",
+        options: companyStore.companies.map((company) => ({
+          id: company.id,
+          name: company.name,
+        })),
+      },
+      "company-selector",
+    );
+
+    if (result.result === "finish" && typeof result.data?.id === "number") {
+      companyStore.selectCompany(result.data.id);
+    }
+  } finally {
+    isSelectingCompany.value = false;
+    hasPromptedInitialCompanySelection.value = true;
+  }
+}
+
+function resetCompanyScopedState() {
+  stopTaskChatHistoryStream();
+  agents.value = [];
+  tasks.value = [];
+  errorMessage.value = "";
+  taskErrorMessage.value = "";
+  newTaskContent.value = "";
+  taskResumeMessage.value = "";
+  currentAgentId.value = undefined;
+  currentTaskId.value = undefined;
+  taskChatHistories.value = {};
+  taskChatHistoryLoading.value = {};
+  taskChatHistoryErrors.value = {};
+  taskChatHistoryLoaded.value = {};
+  taskChatHistoryStreamLastEventIds.value = {};
+}
+
+function toOptional(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 const currentAgentId = ref<number>();
 const currentTaskId = ref<number>();
 const finalAgentId = computed(() => {
@@ -1308,6 +1801,43 @@ const finalTaskId = computed(() => {
 const finalTask = computed(() => {
   return tasks.value.find((task) => task.id === finalTaskId.value);
 });
+
+watch(
+  () => ({
+    initialized: companyStore.initialized,
+    selectionRequired: companyStore.selectionRequired,
+    activeCompanyId: activeCompanyId.value,
+  }),
+  ({ initialized, selectionRequired, activeCompanyId: companyId }) => {
+    if (!initialized) {
+      return;
+    }
+
+    if (
+      selectionRequired &&
+      !companyId &&
+      !hasPromptedInitialCompanySelection.value
+    ) {
+      void maybePromptForCompanySelection();
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => activeCompanyId.value,
+  async (companyId) => {
+    resetCompanyScopedState();
+
+    if (!companyId) {
+      return;
+    }
+
+    void companyStore.loadMembers(companyId).catch(() => undefined);
+    await loadAgents();
+  },
+  { immediate: true },
+);
 
 watch(
   () => finalAgentId.value,

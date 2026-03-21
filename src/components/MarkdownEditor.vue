@@ -188,7 +188,7 @@ onMounted(() => {
   }
 });
 
-async function insertImages(imageFiles: File[]) {
+async function insertImages(_imageFiles: File[]) {
   // if (imageFiles.length > 0) {
   //   // upload imagefiles
   //   const files = await Promise.all(

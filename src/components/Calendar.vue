@@ -36,22 +36,34 @@
 </template>
 
 <script setup lang="ts">
-import { useWeekdayCH } from "@/const";
 import { useSystemStore } from "@/store/system";
-import { dayjs, Dayjs } from "@/utils/time";
+import { dayjs } from "@/utils/time";
+import type { Dayjs } from "@/utils/time";
 
 const props = defineProps<{
   month: Dayjs;
 }>();
 
-const weekdayCH = useWeekdayCH();
+const weekdayCH = ["一", "二", "三", "四", "五", "六", "日"];
 let firstDate = computed(() => props.month.startOf("month").toDate());
 // let endDate = computed(()=>new Date(currentMonth.value.endOf('month')))
 let totalDays = computed(() => {
   let c = props.month;
-  return [31, c.isLeapYear() ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][
-    c.month()
+  const daysInMonth = [
+    31,
+    c.isLeapYear() ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
   ];
+  return daysInMonth[c.month()] ?? 30;
 });
 // 多少行
 let firstDay = computed(() => {

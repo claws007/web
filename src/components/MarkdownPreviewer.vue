@@ -8,7 +8,6 @@
 <script setup lang="ts">
 import Markdown from "markdown-it";
 import highlightjs from "markdown-it-highlightjs";
-import { useSystemStore } from "@/store/system";
 
 const props = defineProps<{
   noImage?: boolean;
@@ -21,7 +20,6 @@ const modelValue = defineModel<string>("modelValue", {
   default: "",
 });
 
-const systemStore = useSystemStore();
 const markdownContent = computed(() => {
   let content = modelValue.value || "";
   if (props.noImage) {

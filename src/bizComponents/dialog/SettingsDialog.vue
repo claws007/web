@@ -129,6 +129,121 @@
             />
           </div>
         </div>
+
+        <div v-else-if="activeTab === 'company'" class="v gap-3">
+          <div class="h items-center justify-between gap-2">
+            <div class="text-sm font-semibold">Company Management</div>
+            <div class="h gap-2">
+              <Button type="primary" @click="openCreateCompany"
+                >Create Company</Button
+              >
+              <Button @click="loadCompanyContext">Refresh</Button>
+              <Button
+                type="primary"
+                :disabled="!companyStore.canManageCompany || !activeCompany"
+                @click="openEditCompany"
+              >
+                Edit Company
+              </Button>
+              <Button
+                danger
+                :disabled="!companyStore.canDeleteCompany || !activeCompany"
+                @click="deleteCurrentCompany"
+              >
+                Delete Company
+              </Button>
+            </div>
+          </div>
+
+          <div
+            v-if="companyErrorMessage"
+            class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+          >
+            {{ companyErrorMessage }}
+          </div>
+
+          <div v-if="companyIsLoading" class="text-light text-sm">
+            Loading company details...
+          </div>
+
+          <div v-else-if="!activeCompany" class="text-light text-sm">
+            No active company selected.
+          </div>
+
+          <div v-else class="v gap-3 rounded bg-light-2 px-4 py-4">
+            <div class="v gap-1">
+              <div class="text-light text-xs uppercase tracking-[0.18em]">
+                Name
+              </div>
+              <div class="text-sm font-semibold">{{ activeCompany.name }}</div>
+            </div>
+            <div class="v gap-1">
+              <div class="text-light text-xs uppercase tracking-[0.18em]">
+                Description
+              </div>
+              <div class="text-sm whitespace-pre-wrap break-all">
+                {{ activeCompany.description || "No description" }}
+              </div>
+            </div>
+            <div class="v gap-1">
+              <div class="text-light text-xs uppercase tracking-[0.18em]">
+                My Role
+              </div>
+              <div class="text-sm">{{ activeRoleLabel }}</div>
+            </div>
+            <div class="v gap-1">
+              <div class="text-light text-xs uppercase tracking-[0.18em]">
+                Brand
+              </div>
+              <div class="text-sm text-light">
+                Brand file support is pending because the generated OpenAPI
+                schema does not expose the brand field yet.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="activeTab === 'members'" class="v gap-3">
+          <div class="h items-center justify-between gap-2">
+            <div class="text-sm font-semibold">Member Management</div>
+            <div class="h gap-2">
+              <Button @click="loadMembers">Refresh</Button>
+              <Button
+                type="primary"
+                :disabled="!companyStore.canManageMembers || !activeCompanyId"
+                @click="openCreateMember"
+              >
+                Add Member
+              </Button>
+            </div>
+          </div>
+
+          <div
+            v-if="memberErrorMessage"
+            class="rounded bg-[#fff1ef] px-3 py-2 text-sm text-danger"
+          >
+            {{ memberErrorMessage }}
+          </div>
+
+          <div v-if="memberIsLoading" class="text-light text-sm">
+            Loading members...
+          </div>
+
+          <div v-else-if="members.length === 0" class="text-light text-sm">
+            No members found.
+          </div>
+
+          <div v-else class="v gap-2">
+            <SelectableTag
+              v-for="member in members"
+              :key="member.id"
+              :selected="memberMutatingId === member.id"
+              :title="getMemberTitle(member)"
+              :content="getMemberSubtitle(member)"
+              :menus="getMemberMenus(member)"
+            />
+          </div>
+        </div>
       </div>
     </template>
 
@@ -142,6 +257,15 @@
 
 <script setup lang="ts">
 import { api } from "@/api";
+import {
+  createCompany,
+  createCompanyMember,
+  deleteCompany,
+  deleteCompanyMember,
+  updateCompany,
+  updateCompanyMember,
+  type UserCompanyRelationResponse,
+} from "@/company/api";
 import { dialogs } from "@/components/dialog";
 import type {
   AIModelConnectorResponse,
@@ -150,8 +274,11 @@ import type {
 } from "@/api";
 import type { Menu } from "@/components/dropdown/DefaultDropdownMenu.vue";
 import type { DialogType } from "@/components/dialog/dialog";
+import { useCompanyStore } from "@/store/company";
 
-type TabId = "modelConnector" | "skill" | "mcp";
+type TabId = "modelConnector" | "skill" | "mcp" | "company" | "members";
+
+const companyStore = useCompanyStore();
 
 const props = withDefaults(
   defineProps<{
@@ -169,6 +296,8 @@ const tabs: Array<{ id: TabId; title: string }> = [
   { id: "modelConnector", title: "Model Connector" },
   { id: "skill", title: "Skill" },
   { id: "mcp", title: "MCP" },
+  { id: "company", title: "Company" },
+  { id: "members", title: "Members" },
 ];
 
 const activeTab = ref<TabId>("modelConnector");
@@ -181,9 +310,22 @@ const mcpIsLoading = ref(false);
 const modelConnectorDeletingId = ref<number | null>(null);
 const skillDeletingId = ref<number | null>(null);
 const mcpDeletingId = ref<number | null>(null);
+const memberMutatingId = ref<number | null>(null);
 const modelConnectorErrorMessage = ref("");
 const skillErrorMessage = ref("");
 const mcpErrorMessage = ref("");
+const companyErrorMessage = ref("");
+const memberErrorMessage = ref("");
+const companyIsLoading = ref(false);
+const memberIsLoading = ref(false);
+
+const activeCompanyId = computed(() => companyStore.activeCompanyId);
+const activeCompany = computed(() => companyStore.activeCompany);
+const members = computed(() => companyStore.currentMembers);
+const activeRoleLabel = computed(() => {
+  const role = companyStore.activeRole;
+  return role ? role.toLowerCase() : "unknown";
+});
 
 onMounted(async () => {
   await loadModelConnectors();
@@ -197,7 +339,52 @@ watch(activeTab, async (tab) => {
   if (tab === "mcp" && !mcpServers.value.length) {
     await loadMcpServers();
   }
+
+  if (tab === "company") {
+    await loadCompanyContext();
+  }
+
+  if (tab === "members") {
+    await loadMembers();
+  }
 });
+
+async function loadCompanyContext() {
+  companyErrorMessage.value = "";
+  companyIsLoading.value = true;
+
+  try {
+    await companyStore.initCompanyContext(true);
+  } catch (error) {
+    companyErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to load company details.",
+    );
+  } finally {
+    companyIsLoading.value = false;
+  }
+}
+
+async function loadMembers() {
+  memberErrorMessage.value = "";
+
+  if (!activeCompanyId.value) {
+    return;
+  }
+
+  memberIsLoading.value = true;
+
+  try {
+    await companyStore.loadMembers(activeCompanyId.value);
+  } catch (error) {
+    memberErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to load company members.",
+    );
+  } finally {
+    memberIsLoading.value = false;
+  }
+}
 
 async function loadModelConnectors() {
   modelConnectorErrorMessage.value = "";
@@ -373,6 +560,253 @@ async function deleteSkill(id: number) {
   }
 }
 
+async function openCreateCompany() {
+  const nameResult = await dialogs.InputDialog({
+    title: "Create Company",
+    placeholder: "Company name",
+  });
+
+  if (nameResult.result !== "finish") {
+    return;
+  }
+
+  const name = nameResult.data.trim();
+  if (!name) {
+    companyErrorMessage.value = "Company name is required.";
+    return;
+  }
+
+  const descriptionResult = await dialogs.TextareaDialog({
+    title: "Company Description",
+    value: "",
+    placeholder: "Optional description",
+  });
+
+  if (descriptionResult.result !== "finish") {
+    return;
+  }
+
+  companyErrorMessage.value = "";
+  companyIsLoading.value = true;
+
+  try {
+    const company = await createCompany({
+      name,
+      description: toOptional(descriptionResult.data),
+    });
+
+    await companyStore.initCompanyContext(true);
+
+    if (company?.id) {
+      companyStore.selectCompany(company.id);
+    }
+  } catch (error) {
+    companyErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to create company.",
+    );
+  } finally {
+    companyIsLoading.value = false;
+  }
+}
+
+async function openEditCompany() {
+  if (!activeCompany.value || !companyStore.canManageCompany) {
+    return;
+  }
+
+  const nameResult = await dialogs.InputDialog({
+    title: "Company Name",
+    value: activeCompany.value.name,
+    placeholder: "Enter company name",
+  });
+
+  if (nameResult.result !== "finish") {
+    return;
+  }
+
+  const nextName = nameResult.data.trim();
+  if (!nextName) {
+    companyErrorMessage.value = "Company name is required.";
+    return;
+  }
+
+  const descriptionResult = await dialogs.TextareaDialog({
+    title: "Company Description",
+    value: activeCompany.value.description || "",
+    placeholder: "Optional description",
+  });
+
+  if (descriptionResult.result !== "finish") {
+    return;
+  }
+
+  companyErrorMessage.value = "";
+  companyIsLoading.value = true;
+
+  try {
+    await updateCompany(activeCompany.value.id, {
+      name: nextName,
+      description: toOptional(descriptionResult.data),
+    });
+    await companyStore.initCompanyContext(true);
+  } catch (error) {
+    companyErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to update company.",
+    );
+  } finally {
+    companyIsLoading.value = false;
+  }
+}
+
+async function deleteCurrentCompany() {
+  if (!activeCompany.value || !companyStore.canDeleteCompany) {
+    return;
+  }
+
+  const shouldDelete = await dialogs
+    .ConfirmDialog({
+      title: "Delete Company",
+      content: `Are you sure you want to delete ${activeCompany.value.name}?`,
+    })
+    .finallyPromise((isFinished) => isFinished);
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  companyErrorMessage.value = "";
+  companyIsLoading.value = true;
+
+  try {
+    await deleteCompany(activeCompany.value.id);
+    await companyStore.initCompanyContext(true);
+    activeTab.value = "company";
+  } catch (error) {
+    companyErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to delete company.",
+    );
+  } finally {
+    companyIsLoading.value = false;
+  }
+}
+
+async function openCreateMember() {
+  if (!activeCompanyId.value || !companyStore.canManageMembers) {
+    return;
+  }
+
+  const userIdResult = await dialogs.InputDialog({
+    title: "User ID",
+    content: "Enter the user ID to add into this company.",
+    placeholder: "User ID",
+    type: "number",
+  });
+
+  if (userIdResult.result !== "finish") {
+    return;
+  }
+
+  const userId = Number(userIdResult.data);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    memberErrorMessage.value = "A valid user ID is required.";
+    return;
+  }
+
+  const roleResult = await dialogs.SelectDialog({
+    title: "Member Role",
+    options: memberRoleOptions,
+  });
+
+  if (
+    roleResult.result !== "finish" ||
+    typeof roleResult.data?.id !== "string"
+  ) {
+    return;
+  }
+
+  memberErrorMessage.value = "";
+
+  try {
+    await createCompanyMember(activeCompanyId.value, {
+      userId,
+      role: roleResult.data.id,
+    });
+    await loadMembers();
+  } catch (error) {
+    memberErrorMessage.value = getErrorMessage(error, "Failed to add member.");
+  }
+}
+
+async function openEditMemberRole(member: UserCompanyRelationResponse) {
+  if (!activeCompanyId.value || !canEditMemberRole(member)) {
+    return;
+  }
+
+  const roleResult = await dialogs.SelectDialog({
+    title: "Update Member Role",
+    options: memberRoleOptions,
+  });
+
+  if (
+    roleResult.result !== "finish" ||
+    typeof roleResult.data?.id !== "string"
+  ) {
+    return;
+  }
+
+  memberMutatingId.value = member.id;
+  memberErrorMessage.value = "";
+
+  try {
+    await updateCompanyMember(activeCompanyId.value, member.id, {
+      role: roleResult.data.id,
+    });
+    await loadMembers();
+  } catch (error) {
+    memberErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to update member role.",
+    );
+  } finally {
+    memberMutatingId.value = null;
+  }
+}
+
+async function removeMember(member: UserCompanyRelationResponse) {
+  if (!activeCompanyId.value || !canDeleteMember(member)) {
+    return;
+  }
+
+  const shouldDelete = await dialogs
+    .ConfirmDialog({
+      title: "Remove Member",
+      content: `Remove ${getMemberTitle(member)} from this company?`,
+    })
+    .finallyPromise((isFinished) => isFinished);
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  memberMutatingId.value = member.id;
+  memberErrorMessage.value = "";
+
+  try {
+    await deleteCompanyMember(activeCompanyId.value, member.id);
+    await loadMembers();
+  } catch (error) {
+    memberErrorMessage.value = getErrorMessage(
+      error,
+      "Failed to remove member.",
+    );
+  } finally {
+    memberMutatingId.value = null;
+  }
+}
+
 function getModelConnectorMenus(
   modelConnector: AIModelConnectorResponse,
 ): Menu[] {
@@ -446,6 +880,81 @@ function getSkillMenus(skill: SkillResponse): Menu[] {
     },
   ];
 }
+
+function getMemberTitle(member: UserCompanyRelationResponse) {
+  return member.user?.name || member.user?.email || `User #${member.userId}`;
+}
+
+function getMemberSubtitle(member: UserCompanyRelationResponse) {
+  const detailParts = [
+    `Role: ${member.role.toLowerCase()}`,
+    member.user?.email,
+  ].filter((item): item is string => !!item);
+
+  return detailParts.join(" | ");
+}
+
+function getMemberMenus(member: UserCompanyRelationResponse): Menu[] {
+  return [
+    {
+      id: "edit-role",
+      name: "Change Role",
+      show: canEditMemberRole(member),
+      click: () => {
+        void openEditMemberRole(member);
+      },
+    },
+    {
+      id: "delete",
+      name: memberMutatingId.value === member.id ? "Removing..." : "Remove",
+      show: canDeleteMember(member),
+      danger: true,
+      click: () => {
+        if (memberMutatingId.value === member.id) {
+          return;
+        }
+        void removeMember(member);
+      },
+    },
+  ];
+}
+
+function canEditMemberRole(member: UserCompanyRelationResponse) {
+  if (!companyStore.canEditMemberRoles) {
+    return false;
+  }
+
+  return companyStore.currentUserRelation?.id !== member.id;
+}
+
+function canDeleteMember(member: UserCompanyRelationResponse) {
+  const activeRole = companyStore.activeRole;
+  const currentRelationId = companyStore.currentUserRelation?.id;
+
+  if (!activeRole) {
+    return false;
+  }
+
+  if (activeRole === "OWNER") {
+    return currentRelationId !== member.id;
+  }
+
+  if (activeRole === "MANAGER") {
+    return member.role === "STAFF";
+  }
+
+  return false;
+}
+
+function toOptional(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+const memberRoleOptions = [
+  { id: "manager", name: "Manager" },
+  { id: "staff", name: "Staff" },
+];
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (
