@@ -18,7 +18,6 @@ import {
 	type SkillResponse,
 	type SubAgentResponse,
 } from "./generated";
-import { readStoredActiveCompanyId } from "@/company/context";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const loginPath = "/user/login";
