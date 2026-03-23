@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
+import { useFormContext } from "@/composables/useForm";
 
 const props = withDefaults(
   defineProps<{
@@ -12,8 +13,29 @@ const props = withDefaults(
   },
 );
 
+const form = useFormContext();
 const btnRef = ref<HTMLButtonElement | null>(null);
 const isHovered = ref(false);
+
+// Computed disabled state: considers form validation state
+const computedDisabled = computed(() => {
+  // If disabled prop is explicitly set, use it
+  if (props.disabled) {
+    return true;
+  }
+
+  // If loading is set, disable the button
+  if (props.loading) {
+    return true;
+  }
+
+  // If in a form context, check form validation state
+  if (form) {
+    return !form.isValid || form.isValidating;
+  }
+
+  return false;
+});
 
 let pos = 0;
 let raf = 0;
@@ -51,9 +73,9 @@ onUnmounted(() => {
     ref="btnRef"
     class="primary-btn"
     :class="`primary-btn--${size}`"
-    :disabled="disabled || loading"
+    :disabled="computedDisabled"
     v-bind="$attrs"
-    @mouseenter="isHovered = !props.disabled && true"
+    @mouseenter="isHovered = !computedDisabled && true"
     @mouseleave="isHovered = false"
   >
     <span v-if="loading" class="spinner" />

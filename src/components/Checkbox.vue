@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useFormContext } from "@/composables/useForm";
 
 const props = withDefaults(
   defineProps<{
@@ -7,6 +8,7 @@ const props = withDefaults(
     indeterminate?: boolean;
     disabled?: boolean;
     label?: string;
+    fieldName?: string;
   }>(),
   {
     modelValue: false,
@@ -23,8 +25,10 @@ const emit = defineEmits<{
 
 const inputRef = ref<HTMLInputElement | null>(null);
 const boxRef = ref<HTMLSpanElement | null>(null);
+const form = useFormContext();
 const isHovered = ref(false);
 const isActive = computed(() => props.modelValue || props.indeterminate);
+const fieldError = ref<string | null>(null);
 
 let pos = 0;
 let raf = 0;
@@ -54,10 +58,18 @@ function onChange(event: Event) {
   if (props.indeterminate) {
     emit("update:indeterminate", false);
     emit("update:modelValue", true);
+    if (form && props.fieldName) {
+      form.updateFieldTouched(props.fieldName, true);
+      form.updateFieldValue(props.fieldName, true);
+    }
     return;
   }
 
   emit("update:modelValue", checked);
+  if (form && props.fieldName) {
+    form.updateFieldTouched(props.fieldName, true);
+    form.updateFieldValue(props.fieldName, checked);
+  }
 
   if (!checked && boxRef.value) {
     pos = 0;
@@ -82,12 +94,46 @@ watch(isActive, (active) => {
 
 onMounted(() => {
   syncNativeIndeterminate();
+  if (form && props.fieldName) {
+    if (!form.getField(props.fieldName)) {
+      form.registerField(props.fieldName);
+    }
+    form.updateFieldValue(props.fieldName, props.modelValue);
+    fieldError.value = form.getFieldError(props.fieldName);
+  }
   raf = requestAnimationFrame(tick);
 });
 
 onUnmounted(() => {
+  if (form && props.fieldName) {
+    form.unregisterField(props.fieldName);
+  }
   cancelAnimationFrame(raf);
 });
+
+watch(
+  () => props.modelValue,
+  (next) => {
+    if (form && props.fieldName) {
+      form.updateFieldValue(props.fieldName, next);
+    }
+  },
+);
+
+watch(
+  () => (form && props.fieldName ? form.getFieldError(props.fieldName) : null),
+  (nextError) => {
+    fieldError.value = nextError;
+  },
+);
+
+watch(
+  () => (form ? form.submitValidationVersion : 0),
+  () => {
+    if (!form || !props.fieldName) return;
+    fieldError.value = form.getFieldError(props.fieldName);
+  },
+);
 </script>
 
 <template>
@@ -112,7 +158,9 @@ onUnmounted(() => {
       :class="{
         'is-active': modelValue || indeterminate,
         'is-mixed': indeterminate && !modelValue,
+        'is-error': !!fieldError,
       }"
+      :title="fieldError ?? undefined"
       aria-hidden="true"
     >
       <svg
@@ -238,6 +286,11 @@ onUnmounted(() => {
     0 8px 24px rgb(76 147 244 / 0.26),
     0 0 0 1px rgb(255 255 255 / 0.16) inset;
   background-image: var(--checkbox-flow);
+}
+
+.checkbox-box.is-error {
+  border-color: rgb(220 38 38 / 0.85);
+  box-shadow: 0 0 0 1px rgb(220 38 38 / 0.25);
 }
 
 .checkbox-box.is-active::before {

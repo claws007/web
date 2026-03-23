@@ -1,25 +1,49 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import Form from "@/components/Form.vue";
+import Input from "@/components/Input.vue";
 import KeepLoginCheckbox from "@/components/Checkbox.vue";
+import PrimaryButton from "@/components/PrimaryButton.vue";
 import { useUserStore } from "@/store/user";
 import { msg } from "@/utils/message";
 import TextButton from "@/components/TextButton.vue";
 import DefaultButton from "@/components/DefaultButton.vue";
+import { required, email as emailValidator } from "@/utils/validators";
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
-const userId = ref("");
+const email = ref("");
 const password = ref("");
 const keepLoggedIn = ref(true);
 const loading = ref(false);
 
+function resolveRedirectPath() {
+  const redirect =
+    typeof route.query.redirect === "string" ? route.query.redirect : "/";
+  if (redirect.startsWith("/") && !redirect.startsWith("//")) {
+    return redirect;
+  }
+  return "/";
+}
+
+if (userStore.isLoggedIn) {
+  router.replace(resolveRedirectPath());
+}
+
+// Define form validators
+const formValidators = {
+  email: [required("请输入邮箱"), emailValidator()],
+  password: [required("请输入密码")],
+};
+
 async function handleSubmit() {
   loading.value = true;
   try {
-    await userStore.login(userId.value, password.value, keepLoggedIn.value);
-    router.push("/");
+    await userStore.login(email.value, password.value, keepLoggedIn.value);
+    router.push(resolveRedirectPath());
   } catch {
     msg.error("登录失败，请检查您的账号和密码");
   } finally {
@@ -35,49 +59,54 @@ async function handleSubmit() {
         <div class="brand-mark" aria-hidden="true">✦</div>
         <h1 class="brand-title">
           <div>一人工作室</div>
-          <p class="card-subtitle">只一人可抵千军万马</p>
+          <p class="card-subtitle">可抵千军万马</p>
         </h1>
 
-        <form class="login-card" @submit.prevent="handleSubmit">
-          <h2 class="card-title">欢迎回来</h2>
-          <p class="card-subtitle">请输入您的凭证以启动您的个人工作室</p>
+        <Form ref="formRef" :validators="formValidators" @submit="handleSubmit">
+          <div class="login-card">
+            <h2 class="card-title">欢迎回来</h2>
+            <p class="card-subtitle">请输入您的凭证以启动您的个人工作室</p>
 
-          <div class="form-grid">
-            <Input
-              v-model="userId"
-              label="ID"
-              placeholder="yourname@alchemy.io"
-              type="email"
-              validate="^[^\s@]+@[^\s@]+\.[^\s@]+$"
-            />
-            <Input
-              v-model="password"
-              label="Password"
-              placeholder="••••••••"
-              type="password"
-            />
+            <div class="form-grid">
+              <Input
+                v-model="email"
+                label="Email"
+                placeholder="yourname@alchemy.io"
+                type="email"
+                field-name="email"
+              />
+              <Input
+                v-model="password"
+                label="Password"
+                placeholder="••••••••"
+                type="password"
+                field-name="password"
+              />
+            </div>
+
+            <div class="meta-row">
+              <KeepLoginCheckbox v-model="keepLoggedIn" label="保持登录" />
+              <TextButton href="#">忘记密码</TextButton>
+            </div>
+
+            <PrimaryButton class="w-full" type="submit" :loading="loading"
+              >登录</PrimaryButton
+            >
+
+            <p class="or-text">或者通过以下方式登录</p>
+
+            <div class="social-row">
+              <DefaultButton>Google</DefaultButton>
+              <DefaultButton>GitHub</DefaultButton>
+            </div>
           </div>
-
-          <div class="meta-row">
-            <KeepLoginCheckbox v-model="keepLoggedIn" label="保持登录" />
-            <TextButton href="#">忘记密码</TextButton>
-          </div>
-
-          <PrimaryButton class="w-full" type="submit" :loading="loading"
-            >登录</PrimaryButton
-          >
-
-          <p class="or-text">或者通过以下方式登录</p>
-
-          <div class="social-row">
-            <DefaultButton>Google</DefaultButton>
-            <DefaultButton>GitHub</DefaultButton>
-          </div>
-        </form>
+        </Form>
 
         <p class="register-text">
           还没有账户？先来
-          <TextButton href="#" class="register-link">注册一个用户吧！</TextButton>
+          <TextButton href="#" class="register-link"
+            >注册一个用户吧！</TextButton
+          >
         </p>
       </section>
     </main>

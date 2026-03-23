@@ -35,8 +35,8 @@
         <span class="notification-badge">3</span>
       </button>
 
-      <!-- User Avatar -->
-      <button class="user-avatar">
+      <!-- User Avatar (click to logout) -->
+      <button class="user-avatar" title="退出登录" @click="handleLogout">
         <span>{{ userInitial }}</span>
       </button>
     </div>
@@ -45,8 +45,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/user";
 
+const router = useRouter();
 const userStore = useUserStore();
 
 const currentCompany = computed(() => {
@@ -58,6 +60,12 @@ const userInitial = computed(() => {
   const name = userStore.user?.name || userStore.user?.email || "User";
   return name.charAt(0).toUpperCase();
 });
+
+function handleLogout() {
+  userStore.logout();
+  // Use replace to avoid returning to protected page via browser back
+  router.replace({ name: "login" });
+}
 </script>
 
 <style scoped>

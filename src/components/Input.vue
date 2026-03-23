@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import Tooltip from "./Tooltip.vue";
+import { useFormContext } from "@/composables/useForm";
+import { runValidator } from "@/utils/validators";
+import type { Validator } from "@/utils/validators";
 
 /**
- * Validate function return value:
- *   undefined / null / true  → valid
- *   false                    → invalid (generic message)
- *   string                   → invalid, use as error message
- *   number                   → invalid, use as error code string
+ * Deprecated: Use Validator type from validators.ts instead
+ * Kept for backward compatibility
  */
 type ValidateFn = (
   value: string,
@@ -23,6 +23,8 @@ const props = withDefaults(
     validate?: RegExp | string | ValidateFn;
     /** Validation throttle interval in milliseconds. Set 0 to disable throttling. */
     validateThrottleMs?: number;
+    /** Field name for form integration. If provided, validators will be retrieved from Form context */
+    fieldName?: string;
   }>(),
   {
     modelValue: "",
@@ -35,8 +37,10 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
 }>();
 
+const form = useFormContext();
 const showPassword = ref(false);
 const errorMessage = ref<string | null>(null);
+const isValidating = ref(false);
 let throttleTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingValidationValue: string | null = null;
 let lastValidationAt = 0;
@@ -49,34 +53,61 @@ const resolvedType = computed(() => {
 });
 
 function runValidation(value: string) {
-  if (!props.validate) {
+  // Check if we should use validators from form context
+  let validator: Validator | undefined;
+
+  if (form && props.fieldName) {
+    const field = form.getField(props.fieldName);
+    if (field && field.validators.length > 0) {
+      // Use form's validators for this field
+      isValidating.value = true;
+      const validators = field.validators;
+
+      // Run all validators sequentially
+      (async () => {
+        try {
+          for (const v of validators) {
+            const result = await runValidator(v, value);
+            if (!result.isValid) {
+              errorMessage.value = result.message;
+              form.updateFieldValue(props.fieldName!, value);
+              return;
+            }
+          }
+          errorMessage.value = null;
+          form.updateFieldValue(props.fieldName!, value);
+        } finally {
+          isValidating.value = false;
+        }
+      })();
+      return;
+    }
+  }
+
+  // Fallback to prop-based validator (backward compatibility)
+  validator = props.validate;
+
+  if (!validator) {
     errorMessage.value = null;
+    if (form && props.fieldName) {
+      form.updateFieldValue(props.fieldName, value);
+    }
     return;
   }
 
-  const v = props.validate;
+  isValidating.value = true;
 
-  if (typeof v === "string") {
-    errorMessage.value = new RegExp(v).test(value) ? null : "格式不正确";
-    return;
-  }
-
-  if (v instanceof RegExp) {
-    errorMessage.value = v.test(value) ? null : "格式不正确";
-    return;
-  }
-
-  // validator function
-  const result = v(value);
-  if (result === undefined || result === null || result === true) {
-    errorMessage.value = null;
-  } else if (result === false) {
-    errorMessage.value = "校验失败";
-  } else if (typeof result === "number") {
-    errorMessage.value = String(result);
-  } else {
-    errorMessage.value = result;
-  }
+  (async () => {
+    try {
+      const result = await runValidator(validator, value);
+      errorMessage.value = result.message;
+      if (form && props.fieldName) {
+        form.updateFieldValue(props.fieldName, value);
+      }
+    } finally {
+      isValidating.value = false;
+    }
+  })();
 }
 
 function clearThrottleTimer() {
@@ -121,6 +152,12 @@ function scheduleValidation(value: string, immediate = false) {
 function onInput(event: Event) {
   const value = (event.target as HTMLInputElement).value;
   emit("update:modelValue", value);
+
+  // Mark field as touched in form
+  if (form && props.fieldName) {
+    form.updateFieldTouched(props.fieldName, true);
+  }
+
   scheduleValidation(value);
 }
 
@@ -136,7 +173,55 @@ async function copyValue() {
 
 onUnmounted(() => {
   clearThrottleTimer();
+  // Unregister field from form if it was registered
+  if (form && props.fieldName) {
+    form.unregisterField(props.fieldName);
+  }
 });
+
+// On mount, register field with form if fieldName is provided
+onMounted(() => {
+  if (form && props.fieldName) {
+    if (!form.getField(props.fieldName)) {
+      form.registerField(props.fieldName);
+    }
+    form.updateFieldValue(props.fieldName, props.modelValue ?? "");
+    if (props.validate) {
+      form.updateFieldValidators(props.fieldName, [props.validate]);
+    }
+  }
+});
+
+// Watch for external validator updates
+watch(
+  () => props.validate,
+  (newValidator) => {
+    if (form && props.fieldName && newValidator) {
+      form.updateFieldValidators(props.fieldName, [newValidator]);
+    }
+  },
+);
+
+watch(
+  () => (form && props.fieldName ? form.getFieldError(props.fieldName) : null),
+  (nextError) => {
+    if (nextError !== null) {
+      errorMessage.value = nextError;
+      return;
+    }
+    if (form && props.fieldName && form.getField(props.fieldName)?.touched) {
+      errorMessage.value = null;
+    }
+  },
+);
+
+watch(
+  () => (form ? form.submitValidationVersion : 0),
+  () => {
+    if (!form || !props.fieldName) return;
+    errorMessage.value = form.getFieldError(props.fieldName);
+  },
+);
 
 /** Expose so parent components can trigger validation imperatively */
 defineExpose({

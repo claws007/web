@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { useUserStore } from "@/store/user";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -6,6 +7,7 @@ const router = createRouter({
     {
       path: "/",
       component: () => import("@/views/layout/Default.vue"),
+      meta: { requiresAuth: true },
       children: [
         {
           path: "",
@@ -18,18 +20,35 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: () => import("@/views/Login.vue"),
-      meta: { public: true },
+      meta: { guestOnly: true },
     },
   ],
 });
 
 router.beforeEach((to) => {
-  if (to.meta.public) return true;
+  const userStore = useUserStore();
+  const isLoggedIn = userStore.isLoggedIn;
 
-  const token =
-    localStorage.getItem("auth_token") ?? sessionStorage.getItem("auth_token");
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    return {
+      name: "login",
+      query: {
+        redirect: to.fullPath,
+      },
+    };
+  }
 
-  if (!token) return { name: "login" };
+  if (to.meta.guestOnly && isLoggedIn) {
+    const redirect =
+      typeof to.query.redirect === "string" ? to.query.redirect : null;
+
+    if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+      return redirect;
+    }
+
+    return { name: "home" };
+  }
+
   return true;
 });
 
