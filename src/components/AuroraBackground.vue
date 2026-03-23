@@ -1,26 +1,18 @@
 <template>
-  <div class="aurora-root">
+  <div class="contents">
+    <slot />
     <!-- animated orbs -->
     <div class="orb orb-cyan" aria-hidden="true" />
     <div class="orb orb-purple" aria-hidden="true" />
     <div class="orb orb-pink" aria-hidden="true" />
-    <!-- page content -->
-    <div :class="['aurora-content', viewClass]">
-      <slot />
-    </div>
   </div>
 </template>
-<script setup lang="ts">
-defineProps<{
-  viewClass?: string | string[];
-}>();
-</script>
 
 <style scoped>
 .aurora-root {
   position: relative;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   overflow: hidden;
   background: linear-gradient(170deg, #f8fbff 0%, #f3f6fc 55%, #f5f0fb 100%);
 }
@@ -29,12 +21,12 @@ defineProps<{
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
 }
 
 /* ---- shared orb base ---- */
 .orb {
-  position: absolute;
+  position: fixed;
   border-radius: 50%;
   pointer-events: none;
   filter: blur(72px);

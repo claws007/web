@@ -33,7 +33,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   const userStore = useUserStore();
   const isLoggedIn = userStore.isLoggedIn;
-  const hasNoCompany = userStore.companyCount === 0;
+  const hasNoCompany = userStore.companies.length === 0;
   const isNoAuthPage = to.meta.noAuth === true;
 
   if (!isNoAuthPage && !isLoggedIn) {

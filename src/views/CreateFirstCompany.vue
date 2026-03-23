@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, ref } from "vue";
+import { useRouter } from "vue-router";
+import { api, setStoredActiveCompanyId } from "@/api";
 import Form from "@/components/Form.vue";
 import Input from "@/components/Input.vue";
 import Textarea from "@/components/Textarea.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
+import { RouteName } from "@/router/route-name";
+import { useUserStore } from "@/store/user";
 import { required, minLength, optional } from "@/utils/validators";
 import { msg } from "@/utils/message";
 
+const router = useRouter();
+const userStore = useUserStore();
 const logoInputRef = ref<HTMLInputElement | null>(null);
-const logoFileName = ref("");
+const logoFile = ref<File | null>(null);
+const logoPreviewUrl = ref("");
 const companyName = ref("");
 const companyIntro = ref("");
 const loading = ref(false);
@@ -31,13 +38,46 @@ function openLogoPicker() {
 function onLogoChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
-  logoFileName.value = file?.name ?? "";
+
+  if (!file) {
+    return;
+  }
+
+  if (logoPreviewUrl.value) {
+    URL.revokeObjectURL(logoPreviewUrl.value);
+    logoPreviewUrl.value = "";
+  }
+
+  logoFile.value = file;
+  logoPreviewUrl.value = URL.createObjectURL(file);
 }
+
+onBeforeUnmount(() => {
+  if (logoPreviewUrl.value) {
+    URL.revokeObjectURL(logoPreviewUrl.value);
+  }
+});
 
 async function handleCreate() {
   loading.value = true;
   try {
-    msg.info("请接入公司创建 API 后提交数据");
+    const payload = {
+      name: companyName.value.trim(),
+      description: companyIntro.value.trim() || undefined,
+      brandFile: logoFile.value ?? undefined,
+    };
+
+    const res = await api.company.postCompany(payload);
+    const createdCompany = res.data;
+
+    setStoredActiveCompanyId(createdCompany.id);
+    userStore.markCompanyCreated(createdCompany);
+
+    await router.replace({ name: RouteName.Home });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "创建公司失败，请稍后重试";
+    await msg.error(message);
   } finally {
     loading.value = false;
   }
@@ -45,11 +85,8 @@ async function handleCreate() {
 </script>
 
 <template>
-  <AuroraBackground
-    class="size-full"
-    view-class="v justify-center items-center"
-  >
-    <div class="create-company-page">
+  <AuroraBackground>
+    <div class="size-full v justify-center items-center">
       <section class="hero">
         <h1 class="title">
           开启你的
@@ -62,10 +99,18 @@ async function handleCreate() {
         <div class="panel">
           <div class="upload-area">
             <button class="upload-btn" type="button" @click="openLogoPicker">
-              <span class="upload-plus">
-                <span class="relative -top-0.75"> + </span></span
-              >
-              <span class="upload-text"> UPLOAD</span>
+              <img
+                v-if="logoPreviewUrl"
+                :src="logoPreviewUrl"
+                alt="公司 Logo 预览"
+                class="upload-preview"
+              />
+              <template v-else>
+                <span class="upload-plus">
+                  <span class="relative -top-0.75"> + </span></span
+                >
+                <span class="upload-text"> UPLOAD</span>
+              </template>
             </button>
             <input
               ref="logoInputRef"
@@ -75,9 +120,6 @@ async function handleCreate() {
               @change="onLogoChange"
             />
             <p class="upload-hint">上传公司 Logo / 商标</p>
-            <p v-if="logoFileName" class="upload-file">
-              已选择：{{ logoFileName }}
-            </p>
           </div>
 
           <div class="form-grid">
@@ -173,6 +215,8 @@ async function handleCreate() {
 }
 
 .upload-btn {
+  position: relative;
+  overflow: hidden;
   width: 5.4rem;
   height: 5.4rem;
   border-radius: 999px;
@@ -193,6 +237,12 @@ async function handleCreate() {
   transition:
     transform 180ms ease,
     box-shadow 180ms ease;
+}
+
+.upload-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .upload-btn:hover {

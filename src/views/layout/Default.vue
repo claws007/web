@@ -1,15 +1,14 @@
 <template>
-  <div class="layout-container">
-    <!-- Navbar -->
-    <header class="layout-header">
+  <AuroraBackground>
+    <div class="size-full">
       <Navbar />
-    </header>
+    </div>
 
     <!-- Main Content -->
     <main class="layout-main">
       <router-view />
     </main>
-  </div>
+  </AuroraBackground>
 </template>
 
 <script setup lang="ts">
@@ -20,8 +19,8 @@ import Navbar from "@/components/Navbar.vue";
 .layout-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  width: 100%;
+  height: 100%;
 }
 
 .layout-header {

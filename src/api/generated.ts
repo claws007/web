@@ -53,6 +53,18 @@ export interface AuthResponse {
   token: string;
 }
 
+export interface CompanyResponse {
+  id: number;
+  name: string;
+  description?: string | null;
+  brandFileId?: number | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+  brandFile?: FileResponse | null;
+}
+
 export interface ModelTypesResponse {
   types: string[];
 }
@@ -762,11 +774,11 @@ export class Api<
      *
      * @tags Company
      * @name GetCompany
-     * @summary GET /company
+     * @summary List companies for current user
      * @request GET:/company
      */
     getCompany: (params: RequestParams = {}) =>
-      this.request<GenericArrayResponse, any>({
+      this.request<CompanyResponse[], any>({
         path: `/company`,
         method: "GET",
         format: "json",
@@ -778,13 +790,27 @@ export class Api<
      *
      * @tags Company
      * @name PostCompany
-     * @summary POST /company
+     * @summary Create a company
      * @request POST:/company
      */
-    postCompany: (params: RequestParams = {}) =>
-      this.request<GenericObjectResponse, ValidationErrorResponse>({
+    postCompany: (
+      data: {
+        /** @minLength 1 */
+        name: string;
+        description?: string;
+        /**
+         * Optional company brand image file
+         * @format binary
+         */
+        brandFile?: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CompanyResponse, ValidationErrorResponse>({
         path: `/company`,
         method: "POST",
+        body: data,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),
@@ -794,11 +820,11 @@ export class Api<
      *
      * @tags Company
      * @name GetCompanyByCompanyId
-     * @summary GET /company/{companyId}
+     * @summary Get company by ID
      * @request GET:/company/{companyId}
      */
     getCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
-      this.request<GenericObjectResponse, ErrorResponse>({
+      this.request<CompanyResponse, ErrorResponse>({
         path: `/company/${companyId}`,
         method: "GET",
         format: "json",
@@ -810,13 +836,29 @@ export class Api<
      *
      * @tags Company
      * @name PutCompanyByCompanyId
-     * @summary PUT /company/{companyId}
+     * @summary Update company
      * @request PUT:/company/{companyId}
      */
-    putCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
-      this.request<GenericObjectResponse, ErrorResponse>({
+    putCompanyByCompanyId: (
+      companyId: number,
+      data: {
+        /** @minLength 1 */
+        name?: string;
+        /** Send empty string to clear description */
+        description?: string;
+        /**
+         * Optional company brand image file
+         * @format binary
+         */
+        brandFile?: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CompanyResponse, ErrorResponse>({
         path: `/company/${companyId}`,
         method: "PUT",
+        body: data,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),
@@ -826,7 +868,7 @@ export class Api<
      *
      * @tags Company
      * @name DeleteCompanyByCompanyId
-     * @summary DELETE /company/{companyId}
+     * @summary Delete company
      * @request DELETE:/company/{companyId}
      */
     deleteCompanyByCompanyId: (companyId: number, params: RequestParams = {}) =>
@@ -842,7 +884,7 @@ export class Api<
      *
      * @tags System
      * @name GetCompanyByCompanyIdMembers
-     * @summary GET /company/{companyId}/members
+     * @summary List company members
      * @request GET:/company/{companyId}/members
      */
     getCompanyByCompanyIdMembers: (
@@ -861,7 +903,7 @@ export class Api<
      *
      * @tags System
      * @name PostCompanyByCompanyIdMembers
-     * @summary POST /company/{companyId}/members
+     * @summary Add company member
      * @request POST:/company/{companyId}/members
      */
     postCompanyByCompanyIdMembers: (
@@ -883,7 +925,7 @@ export class Api<
      *
      * @tags System
      * @name PutCompanyByCompanyIdMembersByRelationId
-     * @summary PUT /company/{companyId}/members/{relationId}
+     * @summary Update company member role
      * @request PUT:/company/{companyId}/members/{relationId}
      */
     putCompanyByCompanyIdMembersByRelationId: (
@@ -903,7 +945,7 @@ export class Api<
      *
      * @tags System
      * @name DeleteCompanyByCompanyIdMembersByRelationId
-     * @summary DELETE /company/{companyId}/members/{relationId}
+     * @summary Remove company member
      * @request DELETE:/company/{companyId}/members/{relationId}
      */
     deleteCompanyByCompanyIdMembersByRelationId: (
