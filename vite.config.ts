@@ -4,6 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
 import { AntDesignVueResolver } from "unplugin-vue-components/resolvers";
+import { resolve } from "node:path";
+import { dialogsPlugin } from "./plugins/dialogs-plugin";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -26,6 +28,10 @@ export default defineConfig(({ mode }) => {
     plugins: [
       tailwindcss(),
       vue(),
+      dialogsPlugin({
+        dir: resolve(__dirname, "src/components/dialog"),
+        dts: "src/dialogs.d.ts",
+      }),
       AutoImport({
         imports: ["vue", "vue-router", "vue-i18n"],
         dts: "src/auto-imports.d.ts",

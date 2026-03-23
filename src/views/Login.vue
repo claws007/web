@@ -12,7 +12,7 @@ const userId = ref("");
 const password = ref("");
 const keepLoggedIn = ref(true);
 const loading = ref(false);
-msg.confirm("hello world").resolve();
+
 async function handleSubmit() {
   loading.value = true;
   try {
@@ -62,7 +62,7 @@ async function handleSubmit() {
           </div>
 
           <PrimaryButton class="w-full" type="submit" :loading="loading"
-            >登录系统</PrimaryButton
+            >登录</PrimaryButton
           >
 
           <p class="or-text">或者通过以下方式登录</p>

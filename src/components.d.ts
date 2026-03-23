@@ -11,93 +11,16 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AButton: typeof import("ant-design-vue/es")["Button"]
-    ADatePicker: typeof import("ant-design-vue/es")["DatePicker"]
-    ADropdown: typeof import("ant-design-vue/es")["Dropdown"]
-    AInput: typeof import("ant-design-vue/es")["Input"]
-    AModal: typeof import("ant-design-vue/es")["Modal"]
-    AntdIcon: typeof import("./bizComponents/icon/AntdIcon.vue")["default"]
-    AntdProvider: typeof import("./components/AntdProvider.vue")["default"]
-    ARangePicker: typeof import("ant-design-vue/es")["RangePicker"]
-    ASelect: typeof import("ant-design-vue/es")["Select"]
-    ASelectOption: typeof import("ant-design-vue/es")["SelectOption"]
-    ASlider: typeof import("ant-design-vue/es")["Slider"]
-    ASwitch: typeof import("ant-design-vue/es")["Switch"]
-    ATabPane: typeof import("ant-design-vue/es")["TabPane"]
-    ATabs: typeof import("ant-design-vue/es")["Tabs"]
-    ATextarea: typeof import("ant-design-vue/es")["Textarea"]
-    ATooltip: typeof import("ant-design-vue/es")["Tooltip"]
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
-    Badge: typeof import("./components/Badge.vue")["default"]
-    Bar: typeof import("./components/scrollbar/src/bar.vue")["default"]
     Button: typeof import('./components/dialog/Button.vue')['default']
-    Calendar: typeof import("./components/Calendar.vue")["default"]
-    Chart: typeof import("./components/Chart.vue")["default"]
     Checkbox: typeof import('./components/Checkbox.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
-    copy: typeof import("./components/ResizeDiv copy.vue")["default"]
-    CreateOrEditAgentDialog: typeof import("./bizComponents/dialog/CreateOrEditAgentDialog.vue")[
-    CreateOrEditAgentTaskDialog: typeof import("./bizComponents/dialog/CreateOrEditAgentTaskDialog.vue")[
-    CreateOrEditMcpServerDialog: typeof import("./bizComponents/dialog/CreateOrEditMcpServerDialog.vue")[
-    CreateOrEditModelConnectorDialog: typeof import("./bizComponents/dialog/CreateOrEditModelConnectorDialog.vue")[
-    CreateOrEditModelDialog: typeof import("./bizComponents/dialog/CreateOrEditModelDialog.vue")[
-    CreateOrEditSkillDialog: typeof import("./bizComponents/dialog/CreateOrEditSkillDialog.vue")[
-    DatePicker: typeof import("./components/DatePicker.vue")["default"]
-    DatePickerDialog: typeof import("./components/dialog/commonDialog/DatePickerDialog.vue")[
-    DateRangePicker: typeof import("./components/DateRangePicker.vue")["default"]
-    DateRangePickerDialog: typeof import("./components/dialog/commonDialog/DateRangePickerDialog.vue")[
-    DateTimePicker: typeof import("./components/DateTimePicker.vue")["default"]
-    DefaultDropdown: typeof import("./components/dropdown/DefaultDropdown.vue")["default"]
-    DefaultDropdownMenu: typeof import("./components/dropdown/DefaultDropdownMenu.vue")["default"]
-    DefaultTabs: typeof import("./components/DefaultTabs.vue")["default"]
     Dialog: typeof import('./components/Dialog.vue')['default']
-    DraggableTree: typeof import("./components/tree/DraggableTree.vue")["default"]
-    Drawer: typeof import("./components/dialog/Drawer.vue")["default"]
-    Dropdown: typeof import("./components/dropdown/Dropdown.vue")["default"]
-    DropZone: typeof import("./components/DropZone.vue")["default"]
-    Empty: typeof import("./components/Empty.vue")["default"]
-    ExpandIcon: typeof import("./components/ExpandIcon.vue")["default"]
-    FactorProgressBar: typeof import("./components/FactorProgressBar.vue")["default"]
-    FileListManagerDialog: typeof import("./bizComponents/dialog/FileListManagerDialog.vue")[
-    GanttChart: typeof import("./components/GanttChart/GanttChart.vue")["default"]
-    HeightTransition: typeof import("./components/transition/HeightTransition.vue")["default"]
-    HSLAHuePicker: typeof import("./components/HSLAHuePicker.vue")["default"]
-    Icon: typeof import("./bizComponents/icon/Icon.vue")["default"]
     Input: typeof import('./components/Input.vue')['default']
-    InputDialog: typeof import("./components/dialog/commonDialog/InputDialog.vue")[
-    JSEditor: typeof import("./components/JSEditor.vue")["default"]
-    Loading: typeof import("./components/Loading.vue")["default"]
-    Loop: typeof import("./components/Loop.vue")["default"]
-    MarkdownEditor: typeof import("./components/MarkdownEditor.vue")["default"]
-    MarkdownEditorDialog: typeof import("./components/dialog/commonDialog/MarkdownEditorDialog.vue")[
-    MarkdownPreviewer: typeof import("./components/MarkdownPreviewer.vue")["default"]
     MessageDialog: typeof import('./components/dialog/MessageDialog.vue')['default']
-    MonthPicker: typeof import("./components/MonthPicker.vue")["default"]
-    ObjectUpdater: typeof import("./components/ObjectUpdater.vue")["default"]
-    OptionalDateRangePickerDialog: typeof import("./components/dialog/commonDialog/OptionalDateRangePickerDialog.vue")[
-    Pagination: typeof import("./components/Pagination.vue")["default"]
-    Pie: typeof import("./components/Pie.vue")["default"]
-    PopConfirm: typeof import("./components/PopConfirm.vue")["default"]
     PrimaryButton: typeof import('./components/PrimaryButton.vue')['default']
-    RangeSlider: typeof import("./components/RangeSlider.vue")["default"]
-    ResizeDiv: typeof import("./components/ResizeDiv.vue")["default"]
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    Scope: typeof import("./components/Scope.vue")["default"]
-    Scrollbar: typeof import("./components/scrollbar/src/Scrollbar.vue")["default"]
-    Select: typeof import("./components/Select.vue")["default"]
-    SelectableTag: typeof import("./components/SelectableTag.vue")["default"]
-    SelectDialog: typeof import("./components/dialog/commonDialog/SelectDialog.vue")[
-    SettingsDialog: typeof import("./bizComponents/dialog/SettingsDialog.vue")["default"]
-    Slider: typeof import("./components/Slider.vue")["default"]
-    SliderDialog: typeof import("./components/dialog/commonDialog/SliderDialog.vue")[
-    Switch: typeof import("./components/Switch.vue")["default"]
-    Textarea: typeof import("./components/Textarea.vue")["default"]
-    TextareaDialog: typeof import("./components/dialog/commonDialog/TextareaDialog.vue")[
-    TextareaDropdown: typeof import("./components/dropdown/TextareaDropdown.vue")["default"]
-    Thumb: typeof import("./components/scrollbar/src/thumb.vue")["default"]
-    TimeRangePicker: typeof import("./components/TimeRangePicker.vue")["default"]
     Tooltip: typeof import('./components/Tooltip.vue')['default']
-    Tree: typeof import("./components/tree/Tree.vue")["default"]
   }
 }

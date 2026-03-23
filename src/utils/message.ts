@@ -1,4 +1,4 @@
-import { ConfirmDialog, MessageDialog, openDialog } from "../components/dialog";
+import { dialogs } from "virtual:dialogs";
 
 type ConfirmOptions = {
 	title?: string;
@@ -11,15 +11,15 @@ type ConfirmOptions = {
 
 export const msg = {
 	info(message: string) {
-		return openDialog(MessageDialog, { content: message, type: "info" });
+		return dialogs.MessageDialog({ content: message, type: "info" });
 	},
 	success(message: string) {
-		return openDialog(MessageDialog, { content: message, type: "success" });
+		return dialogs.MessageDialog({ content: message, type: "success" });
 	},
 	error(message: string) {
-		return openDialog(MessageDialog, { content: message, type: "error" });
+		return dialogs.MessageDialog({ content: message, type: "error" });
 	},
 	confirm(message: string, options: ConfirmOptions = {}) {
-		return openDialog(ConfirmDialog, { content: message, ...options });
+		return dialogs.ConfirmDialog({ content: message, ...options });
 	},
 };
