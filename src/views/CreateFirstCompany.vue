@@ -6,6 +6,7 @@ import Form from "@/components/Form.vue";
 import Input from "@/components/Input.vue";
 import Textarea from "@/components/Textarea.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
+import FlowPrimaryText from "@/components/FlowPrimaryText.vue";
 import { RouteName } from "@/router/route-name";
 import { useUserStore } from "@/store/user";
 import { required, minLength, optional } from "@/utils/validators";
@@ -90,7 +91,7 @@ async function handleCreate() {
       <section class="hero">
         <h1 class="title">
           开启你的
-          <span class="title-gradient">一人公司之旅</span>
+          <FlowPrimaryText>一人公司之旅</FlowPrimaryText>
         </h1>
         <p class="subtitle">在数字维度中凝聚第一枚晶石，定义你的品牌之源。</p>
       </section>
@@ -171,13 +172,6 @@ async function handleCreate() {
   letter-spacing: 0.02em;
   font-weight: 700;
   color: #10131b;
-}
-
-.title-gradient {
-  background: linear-gradient(90deg, #007f9f 0%, #4a43cf 54%, #8133cf 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .subtitle {
