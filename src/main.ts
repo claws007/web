@@ -1,8 +1,8 @@
 import { createApp } from "vue";
 import "./styles/index.css";
-// import "ant-design-vue/dist/reset.css";
 import App from "./App.vue";
-import plugins from "./plugins";
+import router from "./router";
 
-createApp(App).use(plugins)
+createApp(App)
+	.use(router)
 	.mount("#app");

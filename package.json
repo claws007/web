@@ -10,6 +10,7 @@
     "gen:api": "node ./scripts/gen-api.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "axios": "^1.13.6",
     "dayjs": "^1.11.19",
     "pinia": "^3.0.4",

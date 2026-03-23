@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme.css";
 
 .v {
   @apply flex flex-col;
@@ -12,10 +13,15 @@
 
 * {
   margin: 0;
+  box-sizing: border-box;
 }
 
 html,
 body,
 #app {
   @apply size-full;
+}
+
+body {
+  @apply antialiased;
 }

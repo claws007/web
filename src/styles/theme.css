@@ -1,0 +1,165 @@
+@import "@fontsource-variable/plus-jakarta-sans";
+
+:root {
+  color-scheme: light;
+
+  /* Core semantic colors */
+  --background: #f7f9fb;
+  --surface: #f7f9fb;
+  --surface-container-low: #f2f4f6;
+  --surface-container: #edf1f4;
+  --surface-container-high: #e7ecef;
+  --surface-container-lowest: rgb(255 255 255 / 0.8);
+  --foreground: #191c1e;
+  --foreground-muted: #5a666d;
+  --outline-ghost: rgb(102 115 124 / 0.15);
+
+  /* Brand palette */
+  --primary: #006877;
+  --primary-soft: #a2eeff;
+  --secondary: #7825ea;
+  --secondary-soft: #ebdcff;
+  --tertiary: #a43073;
+  --tertiary-soft: #ffd7eb;
+
+  /* Light effects */
+  --glow-cyan: rgb(34 211 238 / 0.18);
+  --glow-purple: rgb(138 63 252 / 0.15);
+  --glow-pink: rgb(164 48 115 / 0.14);
+  --rainbow-edge: linear-gradient(
+    135deg,
+    rgb(34 211 238 / 0.2),
+    rgb(138 63 252 / 0.2),
+    rgb(164 48 115 / 0.16)
+  );
+  --page-aurora:
+    radial-gradient(
+      circle at top left,
+      rgb(34 211 238 / 0.16),
+      transparent 34%
+    ),
+    radial-gradient(circle at 85% 12%, rgb(138 63 252 / 0.14), transparent 30%),
+    radial-gradient(
+      circle at 50% 100%,
+      rgb(164 48 115 / 0.08),
+      transparent 32%
+    ),
+    linear-gradient(180deg, #fbfdff 0%, #f7f9fb 42%, #f2f4f6 100%);
+
+  /* Typography */
+  --font-sans: "Plus Jakarta Sans Variable", "Segoe UI", sans-serif;
+  --tracking-display: 0.08em;
+  --tracking-label: 0.16em;
+  --leading-body: 1.6;
+
+  /* Shape */
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-pill: 9999px;
+
+  /* Elevation */
+  --shadow-ambient: 0 24px 60px rgb(0 104 119 / 0.08);
+  --shadow-float: 0 30px 80px rgb(0 104 119 / 0.12);
+  --shadow-glow:
+    0 0 0 1px rgb(255 255 255 / 0.55), 0 16px 40px rgb(0 104 119 / 0.08);
+  --shadow-focus: 0 0 0 4px rgb(34 211 238 / 0.18);
+
+  /* Motion */
+  --ease-crystal: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-gentle: 240ms;
+  --duration-drift: 400ms;
+
+  /* Spacing */
+  --section-gap: 5.5rem;
+  --content-gap: 3.5rem;
+  --blur-glass: 20px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-outline-ghost: var(--outline-ghost);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-soft: var(--tertiary-soft);
+  --color-glow-cyan: var(--glow-cyan);
+  --color-glow-purple: var(--glow-purple);
+  --color-glow-pink: var(--glow-pink);
+
+  --font-sans: var(--font-sans);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-pill);
+
+  --shadow-ambient: var(--shadow-ambient);
+  --shadow-float: var(--shadow-float);
+  --shadow-glow: var(--shadow-glow);
+
+  --ease-crystal: var(--ease-crystal);
+
+  --tracking-display: var(--tracking-display);
+  --tracking-label: var(--tracking-label);
+
+  --spacing-section: var(--section-gap);
+  --spacing-content: var(--content-gap);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--page-aurora), var(--background);
+    color: var(--foreground);
+    font-feature-settings:
+      "liga" 1,
+      "kern" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgb(162 238 255 / 0.65);
+    color: var(--foreground);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  *:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
