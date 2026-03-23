@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useUserStore } from "@/store/user";
+import { RouteName } from "./route-name";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -7,20 +8,24 @@ const router = createRouter({
     {
       path: "/",
       component: () => import("@/views/layout/Default.vue"),
-      meta: { requiresAuth: true },
       children: [
         {
           path: "",
-          name: "home",
+          name: RouteName.Home,
           component: () => import("@/views/Home.vue"),
         },
       ],
     },
     {
       path: "/login",
-      name: "login",
+      name: RouteName.Login,
       component: () => import("@/views/Login.vue"),
-      meta: { guestOnly: true },
+      meta: { noAuth: true },
+    },
+    {
+      path: "/createFirstCompany",
+      name: RouteName.CreateFirstCompany,
+      component: () => import("@/views/CreateFirstCompany.vue"),
     },
   ],
 });
@@ -28,25 +33,28 @@ const router = createRouter({
 router.beforeEach((to) => {
   const userStore = useUserStore();
   const isLoggedIn = userStore.isLoggedIn;
+  const hasNoCompany = userStore.companyCount === 0;
+  const isNoAuthPage = to.meta.noAuth === true;
 
-  if (to.meta.requiresAuth && !isLoggedIn) {
+  if (!isNoAuthPage && !isLoggedIn) {
     return {
-      name: "login",
+      name: RouteName.Login,
       query: {
         redirect: to.fullPath,
       },
     };
   }
+  if (
+    isLoggedIn &&
+    hasNoCompany &&
+    to.name !== RouteName.CreateFirstCompany &&
+    to.name !== RouteName.Login
+  ) {
+    return { name: RouteName.CreateFirstCompany };
+  }
 
-  if (to.meta.guestOnly && isLoggedIn) {
-    const redirect =
-      typeof to.query.redirect === "string" ? to.query.redirect : null;
-
-    if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
-      return redirect;
-    }
-
-    return { name: "home" };
+  if (isLoggedIn && !hasNoCompany && to.name === RouteName.CreateFirstCompany) {
+    return { name: RouteName.Home };
   }
 
   return true;

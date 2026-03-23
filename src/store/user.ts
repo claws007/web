@@ -7,44 +7,72 @@ const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
 
 export const useUserStore = defineStore("user", () => {
-	const storedToken = localStorage.getItem(TOKEN_KEY) ??
-		sessionStorage.getItem(TOKEN_KEY);
-	const storedUser = localStorage.getItem(USER_KEY) ??
-		sessionStorage.getItem(USER_KEY);
+  const storedToken =
+    localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+  const storedUser =
+    localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
 
-	const token = ref<string | null>(storedToken);
-	const user = ref<SafeUserResponse | null>(
-		storedUser ? (JSON.parse(storedUser) as SafeUserResponse) : null,
-	);
+  const token = ref<string | null>(storedToken);
+  const user = ref<SafeUserResponse | null>(
+    storedUser ? (JSON.parse(storedUser) as SafeUserResponse) : null,
+  );
 
-	const isLoggedIn = computed(() => !!token.value);
+  const isLoggedIn = computed(() => !!token.value);
+  const companyCount = computed(() => {
+    if (!user.value) return 0;
 
-	if (token.value) {
-		setApiToken(token.value);
-	}
+    const withMeta = user.value as SafeUserResponse & {
+      companyCount?: number;
+      company_count?: number;
+      companies?: unknown[];
+      companyIds?: number[];
+    };
 
-	async function login(email: string, password: string, remember: boolean) {
-		const res = await api.user.postUserLogin({ email, password });
-		const { token: newToken, user: newUser } = res.data;
+    if (typeof withMeta.companyCount === "number") {
+      return withMeta.companyCount;
+    }
 
-		token.value = newToken;
-		user.value = newUser;
-		setApiToken(newToken);
+    if (typeof withMeta.company_count === "number") {
+      return withMeta.company_count;
+    }
 
-		const storage = remember ? localStorage : sessionStorage;
-		storage.setItem(TOKEN_KEY, newToken);
-		storage.setItem(USER_KEY, JSON.stringify(newUser));
-	}
+    if (Array.isArray(withMeta.companies)) {
+      return withMeta.companies.length;
+    }
 
-	function logout() {
-		token.value = null;
-		user.value = null;
-		clearApiToken();
-		localStorage.removeItem(TOKEN_KEY);
-		localStorage.removeItem(USER_KEY);
-		sessionStorage.removeItem(TOKEN_KEY);
-		sessionStorage.removeItem(USER_KEY);
-	}
+    if (Array.isArray(withMeta.companyIds)) {
+      return withMeta.companyIds.length;
+    }
 
-	return { token, user, isLoggedIn, login, logout };
+    return 0;
+  });
+
+  if (token.value) {
+    setApiToken(token.value);
+  }
+
+  async function login(email: string, password: string, remember: boolean) {
+    const res = await api.user.postUserLogin({ email, password });
+    const { token: newToken, user: newUser } = res.data;
+
+    token.value = newToken;
+    user.value = newUser;
+    setApiToken(newToken);
+
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem(TOKEN_KEY, newToken);
+    storage.setItem(USER_KEY, JSON.stringify(newUser));
+  }
+
+  function logout() {
+    token.value = null;
+    user.value = null;
+    clearApiToken();
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  }
+
+  return { token, user, isLoggedIn, companyCount, login, logout };
 });

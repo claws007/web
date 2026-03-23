@@ -24,6 +24,8 @@ declare module 'vue' {
     PrimaryButton: typeof import('./components/PrimaryButton.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Tabs: typeof import('./components/Tabs.vue')['default']
+    Textarea: typeof import('./components/Textarea.vue')['default']
     TextButton: typeof import('./components/TextButton.vue')['default']
     Tooltip: typeof import('./components/Tooltip.vue')['default']
   }

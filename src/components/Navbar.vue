@@ -47,6 +47,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/user";
+import { RouteName } from "@/router/route-name";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -64,7 +65,7 @@ const userInitial = computed(() => {
 function handleLogout() {
   userStore.logout();
   // Use replace to avoid returning to protected page via browser back
-  router.replace({ name: "login" });
+  router.replace({ name: RouteName.Login });
 }
 </script>
 

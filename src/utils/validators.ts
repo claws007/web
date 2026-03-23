@@ -140,12 +140,52 @@ export const pattern =
 export const custom = (validatorFn: ValidateFn): ValidateFn => validatorFn;
 
 /**
- * Compose multiple validators into one
+ * Compose multiple validators into one (logical AND)
  * Returns on first failure
  */
 export const compose =
   (validators: Validator[]): ValidateFn =>
   async (value) => {
+    return await runValidators(validators, value).then(
+      (result) => result.isValid || result.message || false,
+    );
+  };
+
+/**
+ * Logical OR combinator: passes if at least one validator succeeds.
+ * If all fail, returns the message from the last failed validator
+ * (or a custom fallback message if provided).
+ */
+export const or =
+  (validators: Validator[], message?: string): ValidateFn =>
+  async (value) => {
+    let lastMessage: string | null = null;
+    for (const validator of validators) {
+      const result = await runValidator(validator, value);
+      if (result.isValid) return true;
+      lastMessage = result.message;
+    }
+    return message ?? lastMessage ?? "校验失败";
+  };
+
+/**
+ * Optional combinator: skips all inner validators when the value is
+ * empty (undefined, null, or blank string). If the value is present,
+ * the inner validators run normally.
+ *
+ * Usage: optional([minLength(6), email()])
+ */
+export const optional =
+  (validators: Validator[], strict = false): ValidateFn =>
+  async (value) => {
+    if (
+      strict
+        ? value === undefined
+        : value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "")
+    )
+      return true;
     return await runValidators(validators, value).then(
       (result) => result.isValid || result.message || false,
     );

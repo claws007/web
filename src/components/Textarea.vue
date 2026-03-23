@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import Tooltip from "./Tooltip.vue";
 import { useFormContext } from "@/composables/useForm";
 import { runValidator } from "@/utils/validators";
 import type { Validator } from "@/utils/validators";
 
-/**
- * Deprecated: Use Validator type from validators.ts instead
- * Kept for backward compatibility
- */
 type ValidateFn = (
   value: string,
 ) => undefined | null | boolean | string | number;
@@ -18,7 +14,7 @@ const props = withDefaults(
     modelValue?: string;
     label?: string;
     placeholder?: string;
-    type?: "text" | "password" | "email";
+    rows?: number;
     /** RegExp, pattern string (converted via new RegExp), or validator function */
     validate?: RegExp | string | ValidateFn;
     /** Validation throttle interval in milliseconds. Set 0 to disable throttling. */
@@ -28,7 +24,7 @@ const props = withDefaults(
   }>(),
   {
     modelValue: "",
-    type: "text",
+    rows: 4,
     validateThrottleMs: 500,
   },
 );
@@ -38,32 +34,21 @@ const emit = defineEmits<{
 }>();
 
 const form = useFormContext();
-const showPassword = ref(false);
 const errorMessage = ref<string | null>(null);
 const isValidating = ref(false);
 let throttleTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingValidationValue: string | null = null;
 let lastValidationAt = 0;
 
-const resolvedType = computed(() => {
-  if (props.type === "password" && showPassword.value) {
-    return "text";
-  }
-  return props.type;
-});
-
 function runValidation(value: string) {
-  // Check if we should use validators from form context
   let validator: Validator | undefined;
 
   if (form && props.fieldName) {
     const field = form.getField(props.fieldName);
     if (field && field.validators.length > 0) {
-      // Use form's validators for this field
       isValidating.value = true;
       const validators = field.validators;
 
-      // Run all validators sequentially
       (async () => {
         try {
           for (const v of validators) {
@@ -84,7 +69,6 @@ function runValidation(value: string) {
     }
   }
 
-  // Fallback to prop-based validator (backward compatibility)
   validator = props.validate;
 
   if (!validator) {
@@ -150,10 +134,9 @@ function scheduleValidation(value: string, immediate = false) {
 }
 
 function onInput(event: Event) {
-  const value = (event.target as HTMLInputElement).value;
+  const value = (event.target as HTMLTextAreaElement).value;
   emit("update:modelValue", value);
 
-  // Mark field as touched in form
   if (form && props.fieldName) {
     form.updateFieldTouched(props.fieldName, true);
   }
@@ -161,25 +144,13 @@ function onInput(event: Event) {
   scheduleValidation(value);
 }
 
-function togglePassword() {
-  showPassword.value = !showPassword.value;
-}
-
-async function copyValue() {
-  if (!props.modelValue) return;
-  if (!navigator?.clipboard?.writeText) return;
-  await navigator.clipboard.writeText(props.modelValue);
-}
-
 onUnmounted(() => {
   clearThrottleTimer();
-  // Unregister field from form if it was registered
   if (form && props.fieldName) {
     form.unregisterField(props.fieldName);
   }
 });
 
-// On mount, register field with form if fieldName is provided
 onMounted(() => {
   if (form && props.fieldName) {
     if (!form.getField(props.fieldName)) {
@@ -192,7 +163,6 @@ onMounted(() => {
   }
 });
 
-// Watch for external validator updates
 watch(
   () => props.validate,
   (newValidator) => {
@@ -223,122 +193,33 @@ watch(
   },
 );
 
-/** Expose so parent components can trigger validation imperatively */
 defineExpose({
   validate: () => scheduleValidation(props.modelValue ?? "", true),
 });
 </script>
 
 <template>
-  <div class="input-root">
+  <div class="textarea-root">
     <label v-if="label" class="form-label">{{ label }}</label>
-    <div :class="['input-wrapper', { 'input-wrapper--error': errorMessage }]">
-      <input
-        :type="resolvedType"
+    <div
+      :class="['textarea-wrapper', { 'textarea-wrapper--error': errorMessage }]"
+      style="position: relative"
+    >
+      <textarea
+        :rows="rows"
         :placeholder="placeholder"
         :value="modelValue"
-        class="input-field"
+        class="textarea-field"
         @input="onInput"
       />
 
-      <button
-        v-if="type === 'password'"
-        type="button"
-        class="input-action"
-        tabindex="-1"
-        @click="togglePassword"
-      >
-        <svg
-          v-if="showPassword"
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
-          />
-          <path
-            d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
-          />
-          <line x1="1" y1="1" x2="23" y2="23" />
-        </svg>
-
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      </button>
-
-      <!-- email icon -->
-      <span v-else-if="type === 'email'" class="input-action non-interactive">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-          <polyline points="2,4 12,13 22,4" />
-        </svg>
-      </span>
-
-      <!-- copy icon for other types -->
-      <button
-        v-else
-        type="button"
-        class="input-action"
-        tabindex="-1"
-        @click="copyValue"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-      </button>
-
-      <!-- validation error icon -->
       <Tooltip
         :content="errorMessage ?? undefined"
         placement="top"
         :persistent="true"
+        class="textarea-error-icon"
       >
-        <span
-          v-show="errorMessage"
-          class="input-error-icon"
-          aria-label="校验错误"
-        >
+        <span v-show="errorMessage" aria-label="校验错误">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="15"
@@ -361,24 +242,24 @@ defineExpose({
 </template>
 
 <style scoped>
-.input-root {
+.textarea-root {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
 }
 
-.input-wrapper {
+.textarea-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 1.5px solid var(--outline-ghost);
   transition: border-color var(--duration-gentle) var(--ease-crystal);
 }
 
-.input-wrapper:focus-within {
+.textarea-wrapper:focus-within {
   border-color: var(--primary);
 }
 
-.input-field {
+.textarea-field {
   flex: 1;
   min-width: 0;
   background: transparent;
@@ -389,58 +270,36 @@ defineExpose({
   font-family: var(--font-sans);
   color: var(--foreground);
   line-height: var(--leading-body);
+  resize: vertical;
 }
-.input-field:focus {
+
+.textarea-field:focus {
   box-shadow: none;
 }
 
-.input-field::placeholder {
+.textarea-field::placeholder {
   color: rgb(90 102 109 / 0.45);
 }
 
-.input-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  color: var(--foreground-muted);
-  opacity: 0.6;
-  transition: opacity var(--duration-gentle);
-  flex-shrink: 0;
-}
-
-.input-action:hover {
-  opacity: 1;
-}
-
-.input-action.non-interactive {
-  pointer-events: none;
-}
-
-.input-wrapper--error {
+.textarea-wrapper--error {
   border-color: #e5484d;
 }
 
-.input-wrapper--error:focus-within {
+.textarea-wrapper--error:focus-within {
   border-color: #e5484d;
 }
 
-.input-error-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 0.25rem;
+.textarea-error-icon {
+  position: absolute;
+  bottom: 0.375rem;
+  right: 0.25rem;
   color: #e5484d;
   cursor: default;
   opacity: 0.85;
   transition: opacity var(--duration-gentle);
 }
 
-.input-error-icon:hover {
+.textarea-error-icon:hover {
   opacity: 1;
 }
 </style>

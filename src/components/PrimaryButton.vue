@@ -121,7 +121,8 @@ onUnmounted(() => {
   box-shadow: 0 8px 28px rgb(120 37 234 / 0.22);
   transition:
     transform var(--duration-gentle) var(--ease-crystal),
-    box-shadow var(--duration-gentle) var(--ease-crystal);
+    box-shadow var(--duration-gentle) var(--ease-crystal),
+    opacity var(--duration-gentle) var(--ease-crystal);
   user-select: none;
 }
 

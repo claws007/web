@@ -5,11 +5,16 @@
     <div class="orb orb-purple" aria-hidden="true" />
     <div class="orb orb-pink" aria-hidden="true" />
     <!-- page content -->
-    <div class="aurora-content">
+    <div :class="['aurora-content', viewClass]">
       <slot />
     </div>
   </div>
 </template>
+<script setup lang="ts">
+defineProps<{
+  viewClass?: string | string[];
+}>();
+</script>
 
 <style scoped>
 .aurora-root {

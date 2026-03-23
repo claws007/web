@@ -29,8 +29,8 @@ function resolveRedirectPath() {
   return "/";
 }
 
-if (userStore.isLoggedIn) {
-  router.replace(resolveRedirectPath());
+function resolvePostLoginPath() {
+  return resolveRedirectPath();
 }
 
 // Define form validators
@@ -43,7 +43,7 @@ async function handleSubmit() {
   loading.value = true;
   try {
     await userStore.login(email.value, password.value, keepLoggedIn.value);
-    router.push(resolveRedirectPath());
+    router.push(resolvePostLoginPath());
   } catch {
     msg.error("登录失败，请检查您的账号和密码");
   } finally {
@@ -58,14 +58,14 @@ async function handleSubmit() {
       <section class="login-shell">
         <div class="brand-mark" aria-hidden="true">✦</div>
         <h1 class="brand-title">
-          <div>一人工作室</div>
+          <div>一人公司</div>
           <p class="card-subtitle">可抵千军万马</p>
         </h1>
 
-        <Form ref="formRef" :validators="formValidators" @submit="handleSubmit">
+        <Form :validators="formValidators" @submit="handleSubmit">
           <div class="login-card">
             <h2 class="card-title">欢迎回来</h2>
-            <p class="card-subtitle">请输入您的凭证以启动您的个人工作室</p>
+            <p class="card-subtitle">请输入您的凭证以启动您的个人公司</p>
 
             <div class="form-grid">
               <Input
