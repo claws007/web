@@ -4,6 +4,8 @@ import { useRouter } from "vue-router";
 import KeepLoginCheckbox from "@/components/Checkbox.vue";
 import { useUserStore } from "@/store/user";
 import { msg } from "@/utils/message";
+import TextButton from "@/components/TextButton.vue";
+import DefaultButton from "@/components/DefaultButton.vue";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -58,7 +60,7 @@ async function handleSubmit() {
 
           <div class="meta-row">
             <KeepLoginCheckbox v-model="keepLoggedIn" label="保持登录" />
-            <a href="#" class="forgot-link">忘记密码</a>
+            <TextButton href="#">忘记密码</TextButton>
           </div>
 
           <PrimaryButton class="w-full" type="submit" :loading="loading"
@@ -68,14 +70,14 @@ async function handleSubmit() {
           <p class="or-text">或者通过以下方式登录</p>
 
           <div class="social-row">
-            <button type="button" class="social-btn">Google</button>
-            <button type="button" class="social-btn">GitHub</button>
+            <DefaultButton>Google</DefaultButton>
+            <DefaultButton>GitHub</DefaultButton>
           </div>
         </form>
 
         <p class="register-text">
           还没有账户？先来
-          <a href="#">注册一个用户吧！</a>
+          <TextButton href="#" class="register-link">注册一个用户吧！</TextButton>
         </p>
       </section>
     </main>
@@ -153,15 +155,6 @@ async function handleSubmit() {
   font-size: 0.78rem;
 }
 
-.forgot-link {
-  color: var(--primary);
-  text-decoration: none;
-}
-
-.forgot-link:hover {
-  text-decoration: underline;
-}
-
 .or-text {
   margin: 1rem 0 0.95rem;
   color: rgb(90 102 109 / 0.75);
@@ -174,30 +167,14 @@ async function handleSubmit() {
   gap: 0.65rem;
 }
 
-.social-btn {
-  height: 2.4rem;
-  border-radius: 999px;
-  border: 1px solid rgb(90 102 109 / 0.25);
-  background: rgb(255 255 255 / 0.85);
-  font-size: 0.9rem;
-  color: #242933;
-  cursor: pointer;
-  transition: transform var(--duration-gentle) var(--ease-crystal);
-}
-
-.social-btn:hover {
-  transform: translateY(-1px);
-}
-
 .register-text {
   margin-top: 1.55rem;
   font-size: 0.93rem;
   color: var(--foreground-muted);
 }
 
-.register-text a {
+.register-text :deep(.register-link) {
   color: #b50066;
-  text-decoration: none;
   font-weight: 700;
 }
 

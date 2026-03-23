@@ -15,12 +15,15 @@ declare module 'vue' {
     Button: typeof import('./components/dialog/Button.vue')['default']
     Checkbox: typeof import('./components/Checkbox.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
+    DefaultButton: typeof import('./components/DefaultButton.vue')['default']
     Dialog: typeof import('./components/Dialog.vue')['default']
     Input: typeof import('./components/Input.vue')['default']
     MessageDialog: typeof import('./components/dialog/MessageDialog.vue')['default']
+    Navbar: typeof import('./components/Navbar.vue')['default']
     PrimaryButton: typeof import('./components/PrimaryButton.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    TextButton: typeof import('./components/TextButton.vue')['default']
     Tooltip: typeof import('./components/Tooltip.vue')['default']
   }
 }
