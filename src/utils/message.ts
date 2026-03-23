@@ -1,22 +1,25 @@
-import { dialogs } from "@/components/dialog";
+import { ConfirmDialog, MessageDialog, openDialog } from "../components/dialog";
+
+type ConfirmOptions = {
+	title?: string;
+	confirmText?: string;
+	cancelText?: string;
+	confirmType?: "primary" | "danger";
+	onConfirm?: () => void | Promise<void>;
+	onCancel?: () => void;
+};
 
 export const msg = {
-	_msg(
-		message: string,
-	) {
-		return dialogs.MessageDialog({
-			content: message,
-		});
-	},
-	info(
-		message: string,
-	) {
-		return this._msg(message);
+	info(message: string) {
+		return openDialog(MessageDialog, { content: message, type: "info" });
 	},
 	success(message: string) {
-		return this._msg(message);
+		return openDialog(MessageDialog, { content: message, type: "success" });
 	},
 	error(message: string) {
-		return this._msg(message);
+		return openDialog(MessageDialog, { content: message, type: "error" });
+	},
+	confirm(message: string, options: ConfirmOptions = {}) {
+		return openDialog(ConfirmDialog, { content: message, ...options });
 	},
 };

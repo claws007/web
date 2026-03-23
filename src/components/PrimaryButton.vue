@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 
-const props = defineProps<{
-  disabled?: boolean;
-  loading?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    disabled?: boolean;
+    loading?: boolean;
+    size?: "default" | "medium";
+  }>(),
+  {
+    size: "default",
+  },
+);
 
 const btnRef = ref<HTMLButtonElement | null>(null);
 const isHovered = ref(false);
@@ -14,8 +20,8 @@ let raf = 0;
 let lastTs = 0;
 
 // Speed in % per second (frame-rate independent via delta time)
-// Normal: 12 %/s → full cycle in ~8.3s
-// Hover:  36 %/s → ~3× faster
+// Normal: 12 %/s -> full cycle in ~8.3s
+// Hover: 36 %/s -> 3x faster
 const SPEED_NORMAL = 12;
 const SPEED_HOVER = 36;
 
@@ -35,13 +41,16 @@ function tick(ts: DOMHighResTimeStamp) {
 onMounted(() => {
   raf = requestAnimationFrame(tick);
 });
-onUnmounted(() => cancelAnimationFrame(raf));
+onUnmounted(() => {
+  cancelAnimationFrame(raf);
+});
 </script>
 
 <template>
   <button
     ref="btnRef"
     class="primary-btn"
+    :class="`primary-btn--${size}`"
     :disabled="disabled || loading"
     v-bind="$attrs"
     @mouseenter="isHovered = !props.disabled && true"
@@ -58,8 +67,7 @@ onUnmounted(() => cancelAnimationFrame(raf));
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  width: 100%;
-  padding: 0.875rem 2rem;
+  padding: 0.55rem 1.75rem;
   border: none;
   border-radius: var(--radius-pill);
 
@@ -84,7 +92,7 @@ onUnmounted(() => cancelAnimationFrame(raf));
 
   color: #fff;
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -93,6 +101,11 @@ onUnmounted(() => cancelAnimationFrame(raf));
     transform var(--duration-gentle) var(--ease-crystal),
     box-shadow var(--duration-gentle) var(--ease-crystal);
   user-select: none;
+}
+
+.primary-btn--medium {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
 }
 
 .primary-btn:hover:not(:disabled) {

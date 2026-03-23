@@ -30,11 +30,11 @@ declare module 'vue' {
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
     Badge: typeof import("./components/Badge.vue")["default"]
     Bar: typeof import("./components/scrollbar/src/bar.vue")["default"]
-    Button: typeof import("./components/Button.vue")["default"]
+    Button: typeof import('./components/dialog/Button.vue')['default']
     Calendar: typeof import("./components/Calendar.vue")["default"]
     Chart: typeof import("./components/Chart.vue")["default"]
     Checkbox: typeof import('./components/Checkbox.vue')['default']
-    ConfirmDialog: typeof import("./components/dialog/commonDialog/ConfirmDialog.vue")[
+    ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
     copy: typeof import("./components/ResizeDiv copy.vue")["default"]
     CreateOrEditAgentDialog: typeof import("./bizComponents/dialog/CreateOrEditAgentDialog.vue")[
     CreateOrEditAgentTaskDialog: typeof import("./bizComponents/dialog/CreateOrEditAgentTaskDialog.vue")[
@@ -50,7 +50,7 @@ declare module 'vue' {
     DefaultDropdown: typeof import("./components/dropdown/DefaultDropdown.vue")["default"]
     DefaultDropdownMenu: typeof import("./components/dropdown/DefaultDropdownMenu.vue")["default"]
     DefaultTabs: typeof import("./components/DefaultTabs.vue")["default"]
-    Dialog: typeof import("./components/dialog/Dialog.vue")["default"]
+    Dialog: typeof import('./components/Dialog.vue')['default']
     DraggableTree: typeof import("./components/tree/DraggableTree.vue")["default"]
     Drawer: typeof import("./components/dialog/Drawer.vue")["default"]
     Dropdown: typeof import("./components/dropdown/Dropdown.vue")["default"]
@@ -71,7 +71,7 @@ declare module 'vue' {
     MarkdownEditor: typeof import("./components/MarkdownEditor.vue")["default"]
     MarkdownEditorDialog: typeof import("./components/dialog/commonDialog/MarkdownEditorDialog.vue")[
     MarkdownPreviewer: typeof import("./components/MarkdownPreviewer.vue")["default"]
-    MessageDialog: typeof import("./components/dialog/commonDialog/MessageDialog.vue")[
+    MessageDialog: typeof import('./components/dialog/MessageDialog.vue')['default']
     MonthPicker: typeof import("./components/MonthPicker.vue")["default"]
     ObjectUpdater: typeof import("./components/ObjectUpdater.vue")["default"]
     OptionalDateRangePickerDialog: typeof import("./components/dialog/commonDialog/OptionalDateRangePickerDialog.vue")[

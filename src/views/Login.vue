@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import KeepLoginCheckbox from "@/components/checkbox.vue";
+import { useRouter } from "vue-router";
+import KeepLoginCheckbox from "@/components/Checkbox.vue";
+import { useUserStore } from "@/store/user";
+import { msg } from "@/utils/message";
+
+const router = useRouter();
+const userStore = useUserStore();
 
 const userId = ref("");
 const password = ref("");
-const keepLoggedIn = ref(false);
+const keepLoggedIn = ref(true);
 const loading = ref(false);
-
+msg.confirm("hello world").resolve();
 async function handleSubmit() {
   loading.value = true;
   try {
-    await new Promise((resolve) => setTimeout(resolve, 650));
+    await userStore.login(userId.value, password.value, keepLoggedIn.value);
+    router.push("/");
+  } catch {
+    msg.error("登录失败，请检查您的账号和密码");
   } finally {
     loading.value = false;
   }
@@ -52,7 +61,7 @@ async function handleSubmit() {
             <a href="#" class="forgot-link">忘记密码</a>
           </div>
 
-          <PrimaryButton type="submit" :loading="loading"
+          <PrimaryButton class="w-full" type="submit" :loading="loading"
             >登录系统</PrimaryButton
           >
 
