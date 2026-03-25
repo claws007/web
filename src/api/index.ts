@@ -1,27 +1,48 @@
 import {
+  type AgentFilePermissionPageResponse,
   type AgentFilePermissionResponse,
+  type AgentMcpServerRelationPageResponse,
+  type AgentPageResponse,
   type AgentMcpServerRelationResponse,
   type AgentResponse,
+  type AgentSkillRelationPageResponse,
   type AgentSkillRelationResponse,
+  type AIModelConnectorPageResponse,
+  type AgentTaskPageResponse,
   type AgentTaskResponse,
   type AIModelConnectorResponse,
   Api,
-  type ChatHistoryResponse,
+  type ChatHistoryPageResponse,
+  type FileListFilePageResponse,
   type FileListFileResponse,
+  type FileListPageResponse,
   type FileListResponse,
+  type FilePageResponse,
   type FileResponse,
   type HttpResponse,
+  type MCPServerPageResponse,
   type MCPServerResponse,
   type ModelCatalogResponse,
   type ModelTypesResponse,
   type RequestParams,
+  type SkillPageResponse,
   type SkillResponse,
+  type SubAgentPageResponse,
   type SubAgentResponse,
 } from "./generated";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const loginPath = "/user/login";
 const ACTIVE_COMPANY_ID_KEY = "active_company_id";
+
+export function getImageUrlByFileId(fileId: number | null | undefined) {
+  if (!fileId || fileId <= 0) {
+    return null;
+  }
+
+  const normalizedBaseUrl = apiBaseUrl.replace(/\/$/, "");
+  return `${normalizedBaseUrl}/images/${fileId}`;
+}
 
 let unauthorizedHandler: (() => void | Promise<void>) | null = null;
 
@@ -106,8 +127,9 @@ const rawApi = new Api<string>({
 
 type LegacyAgentApi = {
   getAgent(
+    query?: Parameters<Api<string>["company"]["getCompanyByCompanyIdAgent"]>[1],
     params?: RequestParams,
-  ): Promise<HttpResponse<AgentResponse[], unknown>>;
+  ): Promise<HttpResponse<AgentPageResponse, unknown>>;
   getAgentById(
     id: number,
     params?: RequestParams,
@@ -137,7 +159,7 @@ type LegacyAgentApi = {
   getAgentByIdTasks(
     id: number,
     params?: RequestParams,
-  ): Promise<HttpResponse<AgentTaskResponse[], unknown>>;
+  ): Promise<HttpResponse<AgentTaskPageResponse, unknown>>;
   postAgentByIdRun(
     id: number,
     params?: RequestParams,
@@ -156,7 +178,7 @@ type EnhancedApi = Api<string> & {
     ): Promise<HttpResponse<ModelCatalogResponse, unknown>>;
     getModelConnector(
       params?: RequestParams,
-    ): Promise<HttpResponse<AIModelConnectorResponse[], unknown>>;
+    ): Promise<HttpResponse<AIModelConnectorPageResponse, unknown>>;
     getModelConnectorById(
       id: number,
       params?: RequestParams,
@@ -178,7 +200,7 @@ type EnhancedApi = Api<string> & {
   mcpServer: {
     getMcpServer(
       params?: RequestParams,
-    ): Promise<HttpResponse<MCPServerResponse[], unknown>>;
+    ): Promise<HttpResponse<MCPServerPageResponse, unknown>>;
     getMcpServerById(
       id: number,
       params?: RequestParams,
@@ -204,7 +226,7 @@ type EnhancedApi = Api<string> & {
   skill: {
     getSkill(
       params?: RequestParams,
-    ): Promise<HttpResponse<SkillResponse[], unknown>>;
+    ): Promise<HttpResponse<SkillPageResponse, unknown>>;
     getSkillById(
       id: number,
       params?: RequestParams,
@@ -266,14 +288,15 @@ type EnhancedApi = Api<string> & {
   chatHistory: {
     getChatHistoryAgentTaskByAgentTaskId(
       agentTaskId: number,
+      query?: { page?: number; pageSize?: number },
       params?: RequestParams,
-    ): Promise<HttpResponse<ChatHistoryResponse[], unknown>>;
+    ): Promise<HttpResponse<ChatHistoryPageResponse, unknown>>;
   };
   agentMcpServer: {
     getAgentMcpServerAgentByAgentId(
       agentId: number,
       params?: RequestParams,
-    ): Promise<HttpResponse<AgentMcpServerRelationResponse[], unknown>>;
+    ): Promise<HttpResponse<AgentMcpServerRelationPageResponse, unknown>>;
     postAgentMcpServer(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdAgentMcpServer"]
@@ -289,7 +312,7 @@ type EnhancedApi = Api<string> & {
     getAgentSkillRelationAgentByAgentId(
       agentId: number,
       params?: RequestParams,
-    ): Promise<HttpResponse<AgentSkillRelationResponse[], unknown>>;
+    ): Promise<HttpResponse<AgentSkillRelationPageResponse, unknown>>;
     postAgentSkillRelation(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdAgentSkillRelation"]
@@ -305,7 +328,7 @@ type EnhancedApi = Api<string> & {
     getAgentFilePermissionAgentByAgentId(
       agentId: number,
       params?: RequestParams,
-    ): Promise<HttpResponse<AgentFilePermissionResponse[], unknown>>;
+    ): Promise<HttpResponse<AgentFilePermissionPageResponse, unknown>>;
     postAgentFilePermission(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdAgentFilePermission"]
@@ -327,7 +350,7 @@ type EnhancedApi = Api<string> & {
   subAgent: {
     getSubAgent(
       params?: RequestParams,
-    ): Promise<HttpResponse<SubAgentResponse[], unknown>>;
+    ): Promise<HttpResponse<SubAgentPageResponse, unknown>>;
     postSubAgent(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdSubagent"]
@@ -349,7 +372,7 @@ type EnhancedApi = Api<string> & {
   file: {
     getFile(
       params?: RequestParams,
-    ): Promise<HttpResponse<FileResponse[], unknown>>;
+    ): Promise<HttpResponse<FilePageResponse, unknown>>;
     getFileById(
       id: number,
       params?: RequestParams,
@@ -372,7 +395,7 @@ type EnhancedApi = Api<string> & {
   fileList: {
     getFileList(
       params?: RequestParams,
-    ): Promise<HttpResponse<FileListResponse[], unknown>>;
+    ): Promise<HttpResponse<FileListPageResponse, unknown>>;
     postFileList(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdFileList"]
@@ -390,7 +413,7 @@ type EnhancedApi = Api<string> & {
     getFileListByListIdFiles(
       listId: number,
       params?: RequestParams,
-    ): Promise<HttpResponse<FileListFileResponse[], unknown>>;
+    ): Promise<HttpResponse<FileListFilePageResponse, unknown>>;
     postFileListByListIdFiles(
       listId: number,
       data: Parameters<
@@ -423,8 +446,14 @@ function withCompanyScope<TArgs extends unknown[], TResult>(
 
 export const api = Object.assign(rawApi, {
   agent: {
-    getAgent: withCompanyScope((companyId, params: RequestParams = {}) =>
-      rawApi.company.getCompanyByCompanyIdAgent(companyId, params),
+    getAgent: withCompanyScope(
+      (
+        companyId,
+        query: Parameters<
+          Api<string>["company"]["getCompanyByCompanyIdAgent"]
+        >[1],
+        params: RequestParams = {},
+      ) => rawApi.company.getCompanyByCompanyIdAgent(companyId, query, params),
     ),
     getAgentById: withCompanyScope(
       (companyId, id: number, params: RequestParams = {}) =>
@@ -707,10 +736,16 @@ export const api = Object.assign(rawApi, {
   },
   chatHistory: {
     getChatHistoryAgentTaskByAgentTaskId: withCompanyScope(
-      (companyId, agentTaskId: number, params: RequestParams = {}) =>
+      (
+        companyId,
+        agentTaskId: number,
+        query?: { page?: number; pageSize?: number },
+        params: RequestParams = {},
+      ) =>
         rawApi.company.getCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId(
           companyId,
           agentTaskId,
+          query,
           params,
         ),
     ),

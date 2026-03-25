@@ -46,6 +46,7 @@ export interface SafeUserResponse {
   /** @format email */
   email: string | null;
   mobile: string | null;
+  avatarFileId?: number | null;
 }
 
 export interface AuthResponse {
@@ -97,6 +98,7 @@ export interface AgentResponse {
   model?: string | null;
   sandboxType?: "NONE" | "DOCKER";
   containerImage?: string | null;
+  avatarFileId?: number | null;
   companyId: number;
   modelConnectorId: number;
   user?: Record<string, any>;
@@ -255,6 +257,186 @@ export interface ChatHistoryResponse {
   agentTaskId: number;
   /** @format date-time */
   createdAt: string;
+}
+
+export interface ChatHistoryPageResponse {
+  items: ChatHistoryResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface CompanyPageResponse {
+  items: CompanyResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AIModelConnectorPageResponse {
+  items: AIModelConnectorResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentPageResponse {
+  items: AgentResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentTaskPageResponse {
+  items: AgentTaskResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface SubAgentPageResponse {
+  items: SubAgentResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface MCPServerPageResponse {
+  items: MCPServerResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentMcpServerRelationPageResponse {
+  items: AgentMcpServerRelationResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentSkillRelationPageResponse {
+  items: AgentSkillRelationResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentFilePermissionPageResponse {
+  items: AgentFilePermissionResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface FilePageResponse {
+  items: FileResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface FileListPageResponse {
+  items: FileListResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface FileListFilePageResponse {
+  items: FileListFileResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface SkillPageResponse {
+  items: SkillResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface GenericPageResponse {
+  items: Record<string, any>[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
 }
 
 export interface AgentRunResponse {
@@ -725,6 +907,23 @@ export class Api<
         ...params,
       }),
   };
+  asyncapiYaml = {
+    /**
+     * No description
+     *
+     * @tags Docs
+     * @name GetAsyncapiYaml
+     * @summary Get AsyncAPI YAML document
+     * @request GET:/asyncapi.yaml
+     */
+    getAsyncapiYaml: (params: RequestParams = {}) =>
+      this.request<GenericArrayResponse, any>({
+        path: `/asyncapi.yaml`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
   docs = {
     /**
      * No description
@@ -767,6 +966,67 @@ export class Api<
         format: "json",
         ...params,
       }),
+
+    /**
+     * @description Uploads avatar content for the current user over HTTP. Body fields: - `fileName`: original file name. - `contentBase64`: base64 encoded file content. - `contentType`: optional MIME type.
+     *
+     * @tags User
+     * @name PostUserAvatar
+     * @summary Upload current user avatar
+     * @request POST:/user/avatar
+     */
+    postUserAvatar: (
+      data: {
+        /** @minLength 1 */
+        fileName: string;
+        /** @minLength 1 */
+        contentBase64: string;
+        contentType?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SafeUserResponse, ValidationErrorResponse>({
+        path: `/user/avatar`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  events = {
+    /**
+     * No description
+     *
+     * @tags System
+     * @name GetEventsWs
+     * @summary GET /events/ws
+     * @request GET:/events/ws
+     */
+    getEventsWs: (params: RequestParams = {}) =>
+      this.request<GenericArrayResponse, any>({
+        path: `/events/ws`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  images = {
+    /**
+     * No description
+     *
+     * @tags System
+     * @name GetImagesByFileId
+     * @summary GET /images/{fileId}
+     * @request GET:/images/{fileId}
+     */
+    getImagesByFileId: (fileId: number, params: RequestParams = {}) =>
+      this.request<GenericObjectResponse, ErrorResponse>({
+        path: `/images/${fileId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
   };
   company = {
     /**
@@ -778,7 +1038,7 @@ export class Api<
      * @request GET:/company
      */
     getCompany: (params: RequestParams = {}) =>
-      this.request<CompanyResponse[], any>({
+      this.request<CompanyPageResponse, any>({
         path: `/company`,
         method: "GET",
         format: "json",
@@ -891,7 +1151,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<GenericObjectResponse, ErrorResponse>({
+      this.request<GenericPageResponse, ErrorResponse>({
         path: `/company/${companyId}/members`,
         method: "GET",
         format: "json",
@@ -970,17 +1230,27 @@ export class Api<
      */
     getCompanyByCompanyIdAgent: (
       companyId: number,
+      query?: {
+        /** Filter by whether the listed agents are sub-agents. Accepts true or false. */
+        subAgents?: boolean;
+        /**
+         * Filter by parent agent ID when listing sub-agents. Must be a positive integer.
+         * @min 1
+         */
+        parentAgentId?: number;
+      },
       params: RequestParams = {},
     ) =>
-      this.request<AgentResponse[], ErrorResponse>({
+      this.request<AgentPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent`,
         method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
 
     /**
-     * @description Creates a new agent. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
+     * @description Creates a new agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and writes `avatarFileId` atomically with Agent creation. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
      *
      * @tags Agent
      * @name PostCompanyByCompanyIdAgent
@@ -992,15 +1262,21 @@ export class Api<
       data: {
         /** @minLength 1 */
         name: string;
-        description?: string | null;
+        description?: string;
+        /** Send empty string to clear capacity */
         capacity?: string | null;
         /** @minLength 1 */
-        model?: string | null;
-        sandboxType?: "NONE" | "DOCKER" | null;
+        model?: string;
+        sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
-        containerImage?: string | null;
-        /** @min 0 */
+        containerImage?: string;
+        /** @min 1 */
         modelConnectorId: number;
+        /**
+         * Optional avatar image file
+         * @format binary
+         */
+        avatarFile?: File;
       },
       params: RequestParams = {},
     ) =>
@@ -1008,7 +1284,7 @@ export class Api<
         path: `/company/${companyId}/agent`,
         method: "POST",
         body: data,
-        type: ContentType.Json,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),
@@ -1034,7 +1310,7 @@ export class Api<
       }),
 
     /**
-     * @description Updates an existing agent. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
+     * @description Updates an existing agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and updates `avatarFileId` in the same database transaction as other Agent updates. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
      *
      * @tags Agent
      * @name PutCompanyByCompanyIdAgentById
@@ -1046,16 +1322,23 @@ export class Api<
       id: number,
       data: {
         /** @minLength 1 */
-        name?: string | null;
+        name?: string;
+        /** Send empty string to clear description */
         description?: string | null;
+        /** Send empty string to clear capacity */
         capacity?: string | null;
         /** @minLength 1 */
-        model?: string | null;
-        sandboxType?: "NONE" | "DOCKER" | null;
+        model?: string;
+        sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
-        containerImage?: string | null;
-        /** @min 0 */
-        modelConnectorId?: number | null;
+        containerImage?: string;
+        /** @min 1 */
+        modelConnectorId?: number;
+        /**
+         * Optional avatar image file
+         * @format binary
+         */
+        avatarFile?: File;
       },
       params: RequestParams = {},
     ) =>
@@ -1063,7 +1346,7 @@ export class Api<
         path: `/company/${companyId}/agent/${id}`,
         method: "PUT",
         body: data,
-        type: ContentType.Json,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),
@@ -1165,7 +1448,7 @@ export class Api<
       id: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentTaskResponse[], ErrorResponse>({
+      this.request<AgentTaskPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent/${id}/tasks`,
         method: "GET",
         format: "json",
@@ -1243,7 +1526,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AIModelConnectorResponse[], ErrorResponse>({
+      this.request<AIModelConnectorPageResponse, ErrorResponse>({
         path: `/company/${companyId}/model-connector`,
         method: "GET",
         format: "json",
@@ -1350,7 +1633,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<SubAgentResponse[], ErrorResponse>({
+      this.request<SubAgentPageResponse, ErrorResponse>({
         path: `/company/${companyId}/subagent`,
         method: "GET",
         format: "json",
@@ -1456,26 +1739,6 @@ export class Api<
      * No description
      *
      * @tags SubAgent
-     * @name GetCompanyByCompanyIdSubagentAgentByAgentId
-     * @summary List sub-agent relationships by child agent ID
-     * @request GET:/company/{companyId}/subagent/agent/{agentId}
-     */
-    getCompanyByCompanyIdSubagentAgentByAgentId: (
-      companyId: number,
-      agentId: number,
-      params: RequestParams = {},
-    ) =>
-      this.request<SubAgentResponse[], ErrorResponse>({
-        path: `/company/${companyId}/subagent/agent/${agentId}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags SubAgent
      * @name GetCompanyByCompanyIdSubagentParentByParentAgentId
      * @summary List sub-agent relationships by parent agent ID
      * @request GET:/company/{companyId}/subagent/parent/{parentAgentId}
@@ -1485,7 +1748,7 @@ export class Api<
       parentAgentId: number,
       params: RequestParams = {},
     ) =>
-      this.request<SubAgentResponse[], ErrorResponse>({
+      this.request<SubAgentPageResponse, ErrorResponse>({
         path: `/company/${companyId}/subagent/parent/${parentAgentId}`,
         method: "GET",
         format: "json",
@@ -1552,21 +1815,36 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Returns paginated chat history for a task over plain HTTP pagination. Pagination: - `page` defaults to 1. - `pageSize` defaults to 20. - Results are ordered by `createdAt` ascending.
      *
      * @tags Chat History
      * @name GetCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId
-     * @summary List chat history records for an agent task
+     * @summary List chat history records for an agent task with pagination
      * @request GET:/company/{companyId}/chat-history/agent-task/{agentTaskId}
      */
     getCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId: (
       companyId: number,
       agentTaskId: number,
+      query?: {
+        /**
+         * 1-based page number.
+         * @min 1
+         * @default 1
+         */
+        page?: number;
+        /**
+         * Number of records returned per page.
+         * @min 1
+         * @default 20
+         */
+        pageSize?: number;
+      },
       params: RequestParams = {},
     ) =>
-      this.request<ChatHistoryResponse[], ErrorResponse>({
+      this.request<ChatHistoryPageResponse, ErrorResponse>({
         path: `/company/${companyId}/chat-history/agent-task/${agentTaskId}`,
         method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -1583,7 +1861,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<MCPServerResponse[], ErrorResponse>({
+      this.request<MCPServerPageResponse, ErrorResponse>({
         path: `/company/${companyId}/mcp-server`,
         method: "GET",
         format: "json",
@@ -1731,7 +2009,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentMcpServerRelationResponse[], ErrorResponse>({
+      this.request<AgentMcpServerRelationPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-mcp-server`,
         method: "GET",
         format: "json",
@@ -1781,7 +2059,7 @@ export class Api<
       agentId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentMcpServerRelationResponse[], ErrorResponse>({
+      this.request<AgentMcpServerRelationPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-mcp-server/agent/${agentId}`,
         method: "GET",
         format: "json",
@@ -1825,32 +2103,6 @@ export class Api<
         path: `/company/${companyId}/agent-mcp-server/${id}`,
         method: "DELETE",
         format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Streams ChatHistory updates as Server-Sent Events (SSE) for the target agent task. State events: - `event: task_state` is emitted when task state changes (or first observed state). - Payload shape: `{ taskId, state, previousState }`. Resume semantics: - Each event includes an SSE `id` equal to `ChatHistory.id`. - Browsers using `EventSource` automatically reconnect and send `Last-Event-ID`. - The server also accepts `after` as a fallback cursor for non-browser clients. - When the task reaches FINISHED, FAILED, or CANCELLED, the stream emits `event: done` and closes. Authentication: - Pass the JWT via `?token=<jwt>` because native `EventSource` cannot attach Authorization headers.
-     *
-     * @tags Agent Task
-     * @name GetCompanyByCompanyIdAgentTaskByIdStream
-     * @summary Stream live chat history updates for an agent task
-     * @request GET:/company/{companyId}/agent-task/{id}/stream
-     */
-    getCompanyByCompanyIdAgentTaskByIdStream: (
-      companyId: number,
-      id: number,
-      query: {
-        /** JWT access token for EventSource-based authentication. */
-        token: string;
-        /** Fallback resume cursor. Streams records with ChatHistory.id greater than this value. */
-        after?: number;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<string, ErrorResponse>({
-        path: `/company/${companyId}/agent-task/${id}/stream`,
-        method: "GET",
-        query: query,
         ...params,
       }),
 
@@ -2068,7 +2320,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentFilePermissionResponse[], ErrorResponse>({
+      this.request<AgentFilePermissionPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-file-permission`,
         method: "GET",
         format: "json",
@@ -2122,7 +2374,7 @@ export class Api<
       agentId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentFilePermissionResponse[], ErrorResponse>({
+      this.request<AgentFilePermissionPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-file-permission/agent/${agentId}`,
         method: "GET",
         format: "json",
@@ -2211,7 +2463,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<FileResponse[], ErrorResponse>({
+      this.request<FilePageResponse, ErrorResponse>({
         path: `/company/${companyId}/file`,
         method: "GET",
         format: "json",
@@ -2318,7 +2570,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<FileListResponse[], ErrorResponse>({
+      this.request<FileListPageResponse, ErrorResponse>({
         path: `/company/${companyId}/file-list`,
         method: "GET",
         format: "json",
@@ -2427,7 +2679,7 @@ export class Api<
       listId: number,
       params: RequestParams = {},
     ) =>
-      this.request<FileListFileResponse[], ErrorResponse>({
+      this.request<FileListFilePageResponse, ErrorResponse>({
         path: `/company/${companyId}/file-list/${listId}/files`,
         method: "GET",
         format: "json",
@@ -2517,7 +2769,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<SkillResponse[], ErrorResponse>({
+      this.request<SkillPageResponse, ErrorResponse>({
         path: `/company/${companyId}/skill`,
         method: "GET",
         format: "json",
@@ -2629,7 +2881,7 @@ export class Api<
       companyId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentSkillRelationResponse[], ErrorResponse>({
+      this.request<AgentSkillRelationPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-skill-relation`,
         method: "GET",
         format: "json",
@@ -2679,7 +2931,7 @@ export class Api<
       agentId: number,
       params: RequestParams = {},
     ) =>
-      this.request<AgentSkillRelationResponse[], ErrorResponse>({
+      this.request<AgentSkillRelationPageResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-skill-relation/agent/${agentId}`,
         method: "GET",
         format: "json",

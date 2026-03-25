@@ -2,7 +2,7 @@
   <header
     class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-[#ffffff55] backdrop-blur-md px-4"
   >
-    <PrimaryButton>{{ currentCompanyName }}</PrimaryButton>
+    <FlowPrimaryText>{{ currentCompanyName }}</FlowPrimaryText>
     <div class="flex items-center gap-2 md:gap-3">
       <Button
         class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-orange-200 text-sm font-semibold text-orange-700"
@@ -16,9 +16,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { readStoredActiveCompanyId, setStoredActiveCompanyId } from "@/api";
+import { readStoredActiveCompanyId } from "@/api";
 import { useUserStore } from "@/store/user";
 import { RouteName } from "@/router/route-name";
 

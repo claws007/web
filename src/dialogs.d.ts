@@ -9,6 +9,8 @@ declare module "virtual:dialogs" {
 	type _DR = import("./components/Dialog.vue").DialogRejectedResult;
 	type _IK = "key" | "ref" | "ref_for" | "ref_key" | "class" | "style" | `on${string}`;
 	type _P<T extends _C> = Omit<_CP<T>, _IK>;
+	type _RK<T> = { [K in keyof T]-?: {} extends Pick<T, K> ? never : K }[keyof T];
+	type _A<T extends _C> = [_RK<_P<T>>] extends [never] ? [props?: _P<T>] : [props: _P<T>];
 	type _V<T extends _C> = _CE<T> extends _DE<infer R> ? R : void;
 	type _R<T extends _C> = _DS<_V<T>>;
 	type _RN = _DR["reason"];
@@ -17,7 +19,8 @@ declare module "virtual:dialogs" {
 		reject(callback: (reason: _RN) => void): _H<T>;
 	};
 	export const dialogs: {
-		ConfirmDialog: (props: _P<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
-		MessageDialog: (props: _P<typeof import("./components/dialog/MessageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/MessageDialog.vue")["default"]>;
+		ConfirmDialog: (...args: _A<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
+		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
+		MessageDialog: (...args: _A<typeof import("./components/dialog/MessageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/MessageDialog.vue")["default"]>;
 	};
 }

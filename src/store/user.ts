@@ -18,6 +18,101 @@ type UserWithCompanyMeta = SafeUserResponse & {
   companyIds?: number[];
 };
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readCompanyCandidates(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!isObject(payload)) {
+    return [];
+  }
+
+  const directCandidates = ["companies", "items", "list"];
+  for (const key of directCandidates) {
+    const candidate = payload[key];
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  const nestedData = payload.data;
+  if (Array.isArray(nestedData)) {
+    return nestedData;
+  }
+
+  if (isObject(nestedData)) {
+    for (const key of directCandidates) {
+      const candidate = nestedData[key];
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return [];
+}
+
+function normalizeCompanyItem(item: unknown): CompanyResponse | null {
+  if (!isObject(item)) {
+    return null;
+  }
+
+  const candidate = isObject(item.company) ? item.company : item;
+  const id = candidate.id;
+  const name = candidate.name;
+
+  if (typeof id !== "number" || typeof name !== "string") {
+    return null;
+  }
+
+  // Fill missing fields for compatibility when API returns summary/relation payloads.
+  const brandFile =
+    isObject(candidate.brandFile) &&
+    typeof candidate.brandFile.id === "number" &&
+    typeof candidate.brandFile.bucketName === "string" &&
+    typeof candidate.brandFile.objectName === "string" &&
+    typeof candidate.brandFile.companyId === "number" &&
+    typeof candidate.brandFile.createdAt === "string" &&
+    typeof candidate.brandFile.updatedAt === "string"
+      ? (candidate.brandFile as unknown as CompanyResponse["brandFile"])
+      : null;
+
+  return {
+    id,
+    name,
+    description:
+      typeof candidate.description === "string" ||
+      candidate.description === null
+        ? candidate.description
+        : null,
+    brandFileId:
+      typeof candidate.brandFileId === "number" ||
+      candidate.brandFileId === null
+        ? candidate.brandFileId
+        : null,
+    createdAt:
+      typeof candidate.createdAt === "string"
+        ? candidate.createdAt
+        : new Date(0).toISOString(),
+    updatedAt:
+      typeof candidate.updatedAt === "string"
+        ? candidate.updatedAt
+        : new Date(0).toISOString(),
+    brandFile,
+  };
+}
+
+function normalizeCompanyList(payload: unknown): CompanyResponse[] {
+  const candidates = readCompanyCandidates(payload);
+  return candidates
+    .map(normalizeCompanyItem)
+    .filter((company): company is CompanyResponse => company !== null);
+}
+
 export const useUserStore = defineStore("user", () => {
   const storedToken =
     localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
@@ -105,7 +200,7 @@ export const useUserStore = defineStore("user", () => {
 
     try {
       const companyRes = await api.company.getCompany();
-      syncCompanies(companyRes.data);
+      syncCompanies(normalizeCompanyList(companyRes.data));
     } catch {
       companies.value = Array.isArray(user.value?.companies)
         ? user.value.companies

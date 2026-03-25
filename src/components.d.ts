@@ -11,12 +11,14 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AgentCard: typeof import('./components/AgentCard.vue')['default']
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
     Button: typeof import('./components/dialog/Button.vue')['default']
     Checkbox: typeof import('./components/Checkbox.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
     DefaultButton: typeof import('./components/DefaultButton.vue')['default']
     Dialog: typeof import('./components/Dialog.vue')['default']
+    EditOrCreateAgentDialog: typeof import('./components/dialog/EditOrCreateAgentDialog.vue')['default']
     FlowPrimaryText: typeof import('./components/FlowPrimaryText.vue')['default']
     Form: typeof import('./components/Form.vue')['default']
     Input: typeof import('./components/Input.vue')['default']

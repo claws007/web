@@ -148,6 +148,8 @@ function mountDialog(component, props) {
       `\ttype _DR = import(${dv}).DialogRejectedResult;`,
       `\ttype _IK = "key" | "ref" | "ref_for" | "ref_key" | "class" | "style" | \`on\${string}\`;`,
       `\ttype _P<T extends _C> = Omit<_CP<T>, _IK>;`,
+      `\ttype _RK<T> = { [K in keyof T]-?: {} extends Pick<T, K> ? never : K }[keyof T];`,
+      `\ttype _A<T extends _C> = [_RK<_P<T>>] extends [never] ? [props?: _P<T>] : [props: _P<T>];`,
       `\ttype _V<T extends _C> = _CE<T> extends _DE<infer R> ? R : void;`,
       `\ttype _R<T extends _C> = _DS<_V<T>>;`,
       `\ttype _RN = _DR["reason"];`,
@@ -163,7 +165,7 @@ function mountDialog(component, props) {
       let rel = relative(dtsDir, filePath).replace(/\\/g, "/");
       if (!rel.startsWith(".")) rel = `./${rel}`;
       const comp = `typeof import(${JSON.stringify(rel)})["default"]`;
-      lines.push(`\t\t${name}: (props: _P<${comp}>) => _H<${comp}>;`);
+      lines.push(`\t\t${name}: (...args: _A<${comp}>) => _H<${comp}>;`);
     }
 
     lines.push("\t};", "}", "");
