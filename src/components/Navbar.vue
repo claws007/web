@@ -1,8 +1,10 @@
 <template>
   <header
-    class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-[#ffffff55] backdrop-blur-md px-4"
+    class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-[#ffffff55] backdrop-blur-md px-10"
   >
-    <FlowPrimaryText>{{ currentCompanyName }}</FlowPrimaryText>
+    <FlowPrimaryText class="text-2xl font-bold">{{
+      currentCompanyName
+    }}</FlowPrimaryText>
     <div class="flex items-center gap-2 md:gap-3">
       <DropdownMenu
         placement="bottom"
@@ -118,6 +120,11 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
     }
 
     await dialogs.ManageDockerImageDialog();
+    return;
+  }
+
+  if (menu.key === "mcp-server") {
+    await dialogs.ManageMcpServerDialog();
     return;
   }
 

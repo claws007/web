@@ -1,4 +1,4 @@
-import type { ComputedRef, UnwrapRef } from "vue";
+import type { ComputedRef } from "vue";
 
 export interface UseTimerPauseOptions {
   // Function to pause timers

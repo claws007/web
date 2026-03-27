@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   api,
   type DockerAvailabilityResponse,
@@ -13,7 +13,7 @@ import Input from "@/components/Input.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { msg } from "@/utils/message";
-import { notify } from "../notification";
+import { subscribeCommandProgressRealtime } from "@/services/command-progress-realtime";
 
 const emit = defineEmits<{
   close: [];
@@ -32,6 +32,8 @@ const localPage = ref(1);
 const localPageSize = ref(10);
 const localTotal = ref(0);
 const localTotalPages = ref(0);
+let localSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let unsubscribeProgressRealtime: (() => void) | null = null;
 
 const availabilityText = computed(() => {
   if (!availability.value) {
@@ -138,7 +140,8 @@ async function pullImage(target?: string) {
   try {
     await api.modelConnector.pullDockerImage({ image });
     pullImageName.value = image;
-    notify.success(`开始拉取镜像：${image}`);
+    // 不需要notify，因为websocket会有回调
+    // notify.success(`开始拉取镜像：${image}`);
   } catch (error) {
     await msg.error(error instanceof Error ? error.message : "拉取镜像失败");
   } finally {
@@ -181,9 +184,45 @@ async function handleLocalPageChange(nextPage: number) {
   await loadLocalImages(nextPage);
 }
 
+function clearLocalSearchDebounceTimer() {
+  if (!localSearchDebounceTimer) {
+    return;
+  }
+  clearTimeout(localSearchDebounceTimer);
+  localSearchDebounceTimer = null;
+}
+
+function scheduleLocalSearch() {
+  clearLocalSearchDebounceTimer();
+  localSearchDebounceTimer = setTimeout(() => {
+    localSearchDebounceTimer = null;
+    void loadLocalImages(1);
+  }, 320);
+}
+
+watch(localKeyword, () => {
+  scheduleLocalSearch();
+});
+
 onMounted(async () => {
+  unsubscribeProgressRealtime = subscribeCommandProgressRealtime((event) => {
+    if (event.commandType !== "docker_pull" || event.status !== "success") {
+      return;
+    }
+
+    void loadLocalImages(1);
+  });
+
   await loadAvailability();
   await loadLocalImages(1);
+});
+
+onUnmounted(() => {
+  clearLocalSearchDebounceTimer();
+  if (unsubscribeProgressRealtime) {
+    unsubscribeProgressRealtime();
+    unsubscribeProgressRealtime = null;
+  }
 });
 </script>
 
@@ -210,7 +249,7 @@ onMounted(async () => {
           label="拉取镜像"
           placeholder="输入关键词后搜索，例如 nginx"
           selector-placeholder="选择镜像（将按 latest 拉取）"
-          :strict="true"
+          :strict="false"
         />
         <PrimaryButton :loading="pulling" @click="pullImage()">
           拉 取
@@ -225,7 +264,6 @@ onMounted(async () => {
           label="本地筛选"
           placeholder="repository/tag"
         />
-        <Button @click="loadLocalImages(1)">查 询</Button>
       </div>
 
       <PaginatedListPanel
@@ -324,7 +362,7 @@ onMounted(async () => {
 
 .panel-toolbar {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 0.6rem;
   align-items: end;
 }

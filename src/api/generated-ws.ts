@@ -11,7 +11,13 @@ export type WsEventType = "entity_change";
 
 export type CommandProgressStatus = "running" | "success" | "failed";
 
-export type EntityType = "agent" | "skill" | "mcp_server" | "command_progress";
+export type EntityType =
+  | "agent"
+  | "agent_task"
+  | "chat_history"
+  | "skill"
+  | "mcp_server"
+  | "command_progress";
 
 export type EntityOperation = "create" | "update" | "delete";
 
@@ -39,6 +45,43 @@ export interface AgentEntityRecord {
 export interface AgentDeleteTombstone {
   id: number;
   companyId: number;
+}
+
+export interface AgentTaskEntityRecord {
+  id: number;
+  companyId: number;
+  createdByUserId: number | unknown;
+  updatedByUserId: number | unknown;
+  taskId: number;
+  agentId: number;
+  content: string;
+  ac: string | unknown;
+  state: string;
+  queueOrder: number;
+  assignedAt: string;
+  startedAt: string | unknown;
+  finishedAt: string | unknown;
+  updatedAt: string;
+}
+
+export interface ChatHistoryEntityRecord {
+  id: number;
+  companyId: number;
+  createdByUserId: number | unknown;
+  role: "SYSTEM" | "USER" | "ASSISTANT" | "TOOL";
+  eventType:
+    | "MESSAGE"
+    | "EXECUTION"
+    | "MCP_CALL"
+    | "MCP_RESULT"
+    | "SKILL_CALL"
+    | "TOOL_CALL";
+  eventTypeName: string | unknown;
+  durationMs: number | unknown;
+  extraLogs: unknown;
+  content: string;
+  agentTaskId: number;
+  createdAt: string;
 }
 
 export interface SkillEntityRecord {
@@ -81,6 +124,8 @@ export interface CommandProgressEntityRecord {
 
 export type EntityRecord =
   | AgentEntityRecord
+  | AgentTaskEntityRecord
+  | ChatHistoryEntityRecord
   | SkillEntityRecord
   | MCPServerEntityRecord
   | AgentDeleteTombstone
@@ -118,12 +163,14 @@ export interface SubscribeCommand {
   type: SubscribeCommandType;
   companyId: number;
   events: SubscriptionEventList;
+  entities?: EntityType[];
 }
 
 export interface UnsubscribeCommand {
   type: UnsubscribeCommandType;
   companyId: number;
   events: SubscriptionEventList;
+  entities?: EntityType[];
 }
 
 /** Messages sent by the client on the `/events/ws` channel */

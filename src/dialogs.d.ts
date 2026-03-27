@@ -21,8 +21,15 @@ declare module "virtual:dialogs" {
 	export const dialogs: {
 		ConfirmDialog: (...args: _A<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
 		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
+		EditOrCreateAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>;
+		EditOrCreateMcpServerDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>;
 		EditOrCreateModelConnectorDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>;
+		ManageAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/ManageAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentFilePermissionDialog.vue")["default"]>;
+		ManageAgentMcpServerDialog: (...args: _A<typeof import("./components/dialog/ManageAgentMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentMcpServerDialog.vue")["default"]>;
+		ManageAgentSkillDialog: (...args: _A<typeof import("./components/dialog/ManageAgentSkillDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentSkillDialog.vue")["default"]>;
+		ManageAgentTaskChatHistoryDialog: (...args: _A<typeof import("./components/dialog/ManageAgentTaskChatHistoryDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentTaskChatHistoryDialog.vue")["default"]>;
 		ManageDockerImageDialog: (...args: _A<typeof import("./components/dialog/ManageDockerImageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageDockerImageDialog.vue")["default"]>;
+		ManageMcpServerDialog: (...args: _A<typeof import("./components/dialog/ManageMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageMcpServerDialog.vue")["default"]>;
 		ManageModelConnectorDialog: (...args: _A<typeof import("./components/dialog/ManageModelConnectorDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageModelConnectorDialog.vue")["default"]>;
 		MessageDialog: (...args: _A<typeof import("./components/dialog/MessageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/MessageDialog.vue")["default"]>;
 		SelectOptionDialog: (...args: _A<typeof import("./components/dialog/SelectOptionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/SelectOptionDialog.vue")["default"]>;

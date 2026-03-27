@@ -598,6 +598,7 @@ export interface TaskResponse {
   createdAt: string;
   /** @format date-time */
   updatedAt: string;
+  agentTasks?: AgentTaskResponse[];
 }
 
 export type GenericObjectResponse = Record<string, any>;

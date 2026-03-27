@@ -9,7 +9,6 @@
 <style scoped>
 .flow-primary-text {
   display: inline-block;
-  font-size: inherit;
   font-weight: inherit;
   background-image: linear-gradient(
     110deg,

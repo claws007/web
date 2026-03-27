@@ -2,26 +2,35 @@ import type { CommandProgressItem } from "@/api";
 import { api } from "@/api";
 import { notify, type ProgressHandle } from "@/components/notification";
 import type {
-  EntityChangePayload,
   CommandProgressEntityRecord,
+  EntityChangePayload,
 } from "@/api/generated-ws";
 import {
   registerEntityChangeHandler,
-  startEventsRealtime,
+  requestRealtimeSubscription,
 } from "@/services/events-realtime";
 
 type NormalizedCommandProgress = {
   commandId: string;
+  commandType: string;
   title: string;
   status: "running" | "success" | "failed";
   progress: number | null;
   message: string | null;
 };
 
+export type CommandProgressRealtimeEvent =
+  | CommandProgressItem
+  | NormalizedCommandProgress;
+
 const commandHandleMap = new Map<string, ProgressHandle>();
+const progressEventSubscribers = new Set<
+  (event: CommandProgressRealtimeEvent) => void
+>();
 
 let running = false;
 let unsubscribeEntityChange: (() => void) | null = null;
+let releaseSubscriptionDemand: (() => void) | null = null;
 
 function toProgressValue(value: number | null): number {
   if (typeof value !== "number") {
@@ -46,6 +55,10 @@ function applyProgressUpdate(
 ) {
   const handle = ensureHandle(task);
   const message = task.message ?? undefined;
+
+  for (const subscriber of progressEventSubscribers) {
+    subscriber(task);
+  }
 
   if (task.status === "running") {
     handle.update(toProgressValue(task.progress), message);
@@ -78,12 +91,11 @@ function parseCommandProgressFromEntityChange(
     return null;
   }
 
-  const status =
-    record.status === "running" ||
-    record.status === "success" ||
-    record.status === "failed"
-      ? record.status
-      : null;
+  const status = record.status === "running" ||
+      record.status === "success" ||
+      record.status === "failed"
+    ? record.status
+    : null;
   if (!status) {
     return null;
   }
@@ -94,6 +106,7 @@ function parseCommandProgressFromEntityChange(
 
   return {
     commandId: record.id,
+    commandType: record.commandType,
     title: record.title,
     status,
     progress,
@@ -137,10 +150,19 @@ export async function startCommandProgressRealtime(options: {
 
   running = true;
   if (!unsubscribeEntityChange) {
-    unsubscribeEntityChange = registerEntityChangeHandler(handleEntityChange);
+    unsubscribeEntityChange = registerEntityChangeHandler(handleEntityChange, {
+      entities: ["command_progress"],
+    });
+  }
+  if (!releaseSubscriptionDemand) {
+    releaseSubscriptionDemand = requestRealtimeSubscription({
+      token,
+      companyId,
+      events: ["entity_change"],
+      entities: ["command_progress"],
+    });
   }
   await loadInitialProgressList();
-  startEventsRealtime({ token, companyId });
 }
 
 export function stopCommandProgressRealtime() {
@@ -149,4 +171,17 @@ export function stopCommandProgressRealtime() {
     unsubscribeEntityChange();
     unsubscribeEntityChange = null;
   }
+  if (releaseSubscriptionDemand) {
+    releaseSubscriptionDemand();
+    releaseSubscriptionDemand = null;
+  }
+}
+
+export function subscribeCommandProgressRealtime(
+  handler: (event: CommandProgressRealtimeEvent) => void,
+): () => void {
+  progressEventSubscribers.add(handler);
+  return () => {
+    progressEventSubscribers.delete(handler);
+  };
 }

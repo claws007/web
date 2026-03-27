@@ -31,6 +31,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
+  enter: [event: KeyboardEvent, value: string];
 }>();
 
 const form = useFormContext();
@@ -144,6 +145,11 @@ function onInput(event: Event) {
   scheduleValidation(value);
 }
 
+function onEnter(event: KeyboardEvent) {
+  const value = (event.target as HTMLTextAreaElement).value;
+  emit("enter", event, value);
+}
+
 onUnmounted(() => {
   clearThrottleTimer();
   if (form && props.fieldName) {
@@ -211,6 +217,7 @@ defineExpose({
         :value="modelValue"
         class="textarea-field"
         @input="onInput"
+        @keydown.enter="onEnter"
       />
 
       <Tooltip
