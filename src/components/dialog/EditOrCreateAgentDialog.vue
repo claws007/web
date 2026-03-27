@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { api, type AgentResponse } from "@/api";
+import { api, type AgentResponse, type AIModelConnectorResponse } from "@/api";
 import Dialog, {
   createDialogExpose,
   useDialogContext,
@@ -9,8 +9,10 @@ import Form from "@/components/Form.vue";
 import Input from "@/components/Input.vue";
 import Textarea from "@/components/Textarea.vue";
 import Checkbox from "@/components/Checkbox.vue";
+import Selector, { type SelectorItem } from "@/components/Selector.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
+import { dialogs } from "virtual:dialogs";
 import { msg } from "@/utils/message";
 import { minLength, required, type Validator } from "@/utils/validators";
 
@@ -32,11 +34,30 @@ const model = ref("");
 const modelConnectorId = ref("");
 const useDockerSandbox = ref(false);
 const containerImage = ref("");
+const modelConnectors = ref<AIModelConnectorResponse[]>([]);
+const modelConnectorOptions = ref<SelectorItem[]>([]);
+const modelOptions = ref<SelectorItem[]>([]);
+const connectorLoading = ref(false);
+const modelCatalogLoading = ref(false);
 
 const isEditMode = computed(() => typeof props.id === "number");
 
 const computedTitle = computed(() => {
   return isEditMode.value ? "编辑 Agent" : "创建 Agent";
+});
+
+const selectedConnectorOption = computed(() => {
+  return (
+    modelConnectorOptions.value.find(
+      (item) => String(item.id) === modelConnectorId.value,
+    ) ?? null
+  );
+});
+
+const selectedModelOption = computed(() => {
+  return (
+    modelOptions.value.find((item) => String(item.id) === model.value) ?? null
+  );
 });
 
 const formValidators: Record<string, Validator[]> = {
@@ -59,29 +80,118 @@ const formValidators: Record<string, Validator[]> = {
       return text.length >= 2 ? true : "能力简介至少 2 个字符";
     },
   ],
-  model: [required("请输入模型名称")],
-  modelConnectorId: [
-    required("请输入模型连接器 ID"),
-    (value: string) => {
-      const text = String(value ?? "").trim();
-      if (!/^\d+$/.test(text)) {
-        return "模型连接器 ID 必须是正整数";
-      }
-      return Number(text) > 0 ? true : "模型连接器 ID 必须大于 0";
-    },
-  ],
-  containerImage: [
-    (value: string) => {
-      const text = String(value ?? "").trim();
-      if (!useDockerSandbox.value) {
-        return true;
-      }
-      return text.length > 0 ? true : "启用 Docker 沙箱时必须填写镜像";
-    },
-  ],
 };
 
 defineExpose(createDialogExpose<AgentResponse>());
+
+function toConnectorOption(connector: AIModelConnectorResponse): SelectorItem {
+  return {
+    id: connector.id,
+    label: connector.name || `连接器 #${connector.id}`,
+    description: `类型：${connector.type}`,
+    icon: "C",
+  };
+}
+
+function toModelOption(modelName: string, type: string): SelectorItem {
+  return {
+    id: modelName,
+    label: modelName,
+    description: `来源：${type}`,
+    icon: "M",
+  };
+}
+
+async function resolveConnectorById(id: number) {
+  const fromList = modelConnectors.value.find((item) => item.id === id);
+  if (fromList) {
+    return fromList;
+  }
+
+  const res = await api.modelConnector.getModelConnectorById(id);
+  const connector = res.data;
+  modelConnectors.value.push(connector);
+
+  if (!modelConnectorOptions.value.some((item) => Number(item.id) === id)) {
+    modelConnectorOptions.value.push(toConnectorOption(connector));
+  }
+
+  return connector;
+}
+
+async function loadModelConnectors() {
+  connectorLoading.value = true;
+  try {
+    const res = await api.modelConnector.getModelConnector();
+    const items = res.data.items ?? [];
+    modelConnectors.value = items;
+    modelConnectorOptions.value = items.map(toConnectorOption);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "获取模型连接器列表失败，请稍后重试";
+    await msg.error(message);
+  } finally {
+    connectorLoading.value = false;
+  }
+}
+
+async function loadModelCatalogByConnectorId(
+  connectorIdText: string,
+  preserveCurrentModel = false,
+) {
+  const connectorId = Number(connectorIdText);
+  if (!Number.isInteger(connectorId) || connectorId <= 0) {
+    modelOptions.value = [];
+    if (!preserveCurrentModel) {
+      model.value = "";
+    }
+    return;
+  }
+
+  modelCatalogLoading.value = true;
+  try {
+    const connector = await resolveConnectorById(connectorId);
+    const res = await api.modelConnector.getModelConnectorCatalogByType(
+      connector.type,
+    );
+    const options = (res.data.models ?? []).map((name) =>
+      toModelOption(name, connector.type),
+    );
+
+    const hasCurrentModel = options.some(
+      (item) => String(item.id) === model.value,
+    );
+    if (preserveCurrentModel && model.value && !hasCurrentModel) {
+      options.unshift({
+        id: model.value,
+        label: model.value,
+        description: "当前模型（未在目录中）",
+        icon: "!",
+      });
+    }
+
+    modelOptions.value = options;
+    if (!preserveCurrentModel && !hasCurrentModel) {
+      model.value = "";
+    }
+  } catch (error) {
+    modelOptions.value = [];
+    model.value = "";
+    const message =
+      error instanceof Error ? error.message : "获取模型目录失败，请稍后重试";
+    await msg.error(message);
+  } finally {
+    modelCatalogLoading.value = false;
+  }
+}
+
+async function onModelConnectorChange(value: string | number) {
+  modelConnectorId.value = String(value);
+  model.value = "";
+  await loadModelCatalogByConnectorId(modelConnectorId.value);
+}
 
 async function loadAgentById() {
   if (typeof props.id !== "number") {
@@ -103,6 +213,10 @@ async function loadAgentById() {
         : "";
     useDockerSandbox.value = agent.sandboxType === "DOCKER";
     containerImage.value = agent.containerImage ?? "";
+
+    if (modelConnectorId.value) {
+      await loadModelCatalogByConnectorId(modelConnectorId.value, true);
+    }
   } catch (error) {
     const message =
       error instanceof Error
@@ -141,6 +255,22 @@ function triggerSubmit() {
 }
 
 async function handleFormSubmit() {
+  const connectorId = Number(modelConnectorId.value);
+  if (!Number.isInteger(connectorId) || connectorId <= 0) {
+    await msg.error("请选择模型连接器");
+    return;
+  }
+
+  if (!model.value.trim()) {
+    await msg.error("请选择模型");
+    return;
+  }
+
+  if (useDockerSandbox.value && !containerImage.value.trim()) {
+    await msg.error("启用 Docker 沙箱时必须选择镜像");
+    return;
+  }
+
   const sandboxType: "NONE" | "DOCKER" = useDockerSandbox.value
     ? "DOCKER"
     : "NONE";
@@ -150,7 +280,7 @@ async function handleFormSubmit() {
     description: description.value.trim() || "",
     capacity: capacity.value.trim() || "",
     model: model.value.trim(),
-    modelConnectorId: Number(modelConnectorId.value),
+    modelConnectorId: connectorId,
     sandboxType,
     containerImage: useDockerSandbox.value
       ? containerImage.value.trim() || undefined
@@ -172,7 +302,64 @@ async function handleFormSubmit() {
   }
 }
 
-onMounted(loadAgentById);
+async function openDockerImageDialog() {
+  if (!useDockerSandbox.value) {
+    await msg.info("请先启用 Docker 沙箱");
+    return;
+  }
+
+  const result = await dialogs.SelectOptionDialog({
+    title: "选择 Docker 镜像",
+    description: "从本地镜像列表中搜索并分页选择",
+    modelValue: containerImage.value || null,
+    pageSize: 10,
+    searchPlaceholder: "按镜像名搜索，例如 nginx",
+    emptyText: "暂无本地镜像",
+    loadingText: "正在加载本地镜像...",
+    fetchOptions: async ({ keyword, page, pageSize }) => {
+      const res = await api.modelConnector.getDockerImages({
+        page,
+        pageSize,
+        keyword: keyword || undefined,
+      });
+
+      const pageData = res.data;
+      return {
+        items: (pageData.items || []).map((item) => ({
+          id: item.fullName,
+          label: item.fullName,
+          description: `ID: ${item.imageId} · ${item.size || "未知大小"}`,
+          keywords: [item.repository, item.tag, item.imageId],
+        })),
+        total: pageData.total || 0,
+        page: pageData.page || page,
+        pageSize: pageData.pageSize || pageSize,
+        totalPages: pageData.totalPages || 0,
+      };
+    },
+    normalizeKeyword: (value) => value.trim(),
+    allowEmptyKeyword: true,
+    searchOnInput: true,
+    debounceMs: 260,
+  });
+
+  if (result.type !== "resolve" || !result.value) {
+    return;
+  }
+
+  const image = String(result.value.id || "").trim();
+  if (!image) {
+    return;
+  }
+
+  containerImage.value = image;
+  await msg.success(`已选择镜像：${image}`);
+}
+
+onMounted(async () => {
+  await loadModelConnectors();
+  await loadAgentById();
+});
 </script>
 
 <template>
@@ -196,19 +383,66 @@ onMounted(loadAgentById);
           field-name="name"
         />
 
-        <Input
-          v-model="model"
-          label="模型"
-          placeholder="例如：gpt-4.1"
-          field-name="model"
-        />
+        <div class="selector-stack">
+          <label class="selector-label">模型连接器</label>
+          <Selector
+            v-model="modelConnectorId"
+            :items="modelConnectorOptions"
+            placeholder="请选择模型连接器"
+            @change="onModelConnectorChange"
+          >
+            <template #selected>
+              <span
+                class="stretch text-left"
+                :class="
+                  selectedConnectorOption
+                    ? 'text-foreground'
+                    : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
+                "
+              >
+                {{
+                  connectorLoading
+                    ? "模型连接器（加载中...）"
+                    : selectedConnectorOption
+                      ? `模型连接器：${selectedConnectorOption.label}`
+                      : "模型连接器"
+                }}
+              </span>
+            </template>
+          </Selector>
+        </div>
 
-        <Input
-          v-model="modelConnectorId"
-          label="模型连接器 ID"
-          placeholder="例如：1"
-          field-name="modelConnectorId"
-        />
+        <div class="selector-stack">
+          <label class="selector-label">模型</label>
+          <Selector
+            v-model="model"
+            :items="modelOptions"
+            :placeholder="
+              modelConnectorId ? '请从目录中选择模型' : '请先选择模型连接器'
+            "
+          >
+            <template #selected>
+              <span
+                class="stretch text-left"
+                :class="
+                  selectedModelOption
+                    ? 'text-foreground'
+                    : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
+                "
+              >
+                {{
+                  !modelConnectorId
+                    ? "模型（请先选择连接器）"
+                    : modelCatalogLoading
+                      ? "模型（加载中...）"
+                      : selectedModelOption
+                        ? `模型：${selectedModelOption.label}`
+                        : "模型"
+                }}
+              </span>
+            </template>
+          </Selector>
+        </div>
 
         <Textarea
           v-model="description"
@@ -228,12 +462,45 @@ onMounted(loadAgentById);
 
         <div class="sandbox-area">
           <Checkbox v-model="useDockerSandbox" label="启用 Docker 沙箱" />
-          <Input
-            v-model="containerImage"
-            label="容器镜像"
-            placeholder="例如：alpine:latest"
-            field-name="containerImage"
-          />
+          <div class="selector-stack">
+            <label class="selector-label">容器镜像</label>
+            <section
+              class="image-selector-shell rounded-lg"
+              @click="openDockerImageDialog"
+            >
+              <button
+                type="button"
+                class="image-selector-trigger"
+                :disabled="!useDockerSandbox"
+              >
+                <span
+                  class="stretch min-w-0 text-left"
+                  :class="
+                    containerImage
+                      ? 'text-foreground'
+                      : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
+                  "
+                >
+                  {{
+                    containerImage
+                      ? `容器镜像：${containerImage}`
+                      : useDockerSandbox
+                        ? "请选择 Docker 镜像"
+                        : "请先启用 Docker 沙箱"
+                  }}
+                </span>
+                <span class="image-selector-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 16 16"
+                    class="h-full w-full fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]"
+                  >
+                    <path d="M2.5 8h11" />
+                    <path d="m9 4.5 3.5 3.5L9 11.5" />
+                  </svg>
+                </span>
+              </button>
+            </section>
+          </div>
         </div>
       </div>
 
@@ -266,6 +533,17 @@ onMounted(loadAgentById);
   gap: 0.95rem;
 }
 
+.selector-stack {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.selector-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
 .loading-state {
   min-height: 14rem;
   display: grid;
@@ -281,6 +559,46 @@ onMounted(loadAgentById);
   border-radius: 0.8rem;
   background: rgb(0 104 119 / 0.04);
   border: 1px solid rgb(0 104 119 / 0.12);
+}
+
+.sandbox-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.image-selector-shell {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, white);
+  background: transparent;
+  box-shadow: 0 12px 30px rgb(0 104 119 / 0.08);
+}
+
+.image-selector-trigger {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  padding: 0.55rem 0.75rem;
+  color: var(--foreground);
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.image-selector-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.image-selector-icon {
+  display: flex;
+  height: 1.1rem;
+  width: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
 }
 
 .hidden-submit {

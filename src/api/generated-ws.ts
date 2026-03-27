@@ -9,7 +9,9 @@ export interface ServerEventEnvelopeError {
 
 export type WsEventType = "entity_change";
 
-export type EntityType = "agent" | "skill" | "mcp_server";
+export type CommandProgressStatus = "running" | "success" | "failed";
+
+export type EntityType = "agent" | "skill" | "mcp_server" | "command_progress";
 
 export type EntityOperation = "create" | "update" | "delete";
 
@@ -64,13 +66,31 @@ export interface MCPServerEntityRecord {
   builtin: boolean;
 }
 
-export type EntityRecord = AgentEntityRecord | SkillEntityRecord | MCPServerEntityRecord | AgentDeleteTombstone;
+export interface CommandProgressEntityRecord {
+  id: string;
+  companyId: number;
+  commandType: string;
+  title: string;
+  status: CommandProgressStatus;
+  progress: number | unknown;
+  message: string | unknown;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | unknown;
+}
+
+export type EntityRecord =
+  | AgentEntityRecord
+  | SkillEntityRecord
+  | MCPServerEntityRecord
+  | AgentDeleteTombstone
+  | CommandProgressEntityRecord;
 
 export interface EntityChangePayload {
   companyId: number;
   entity: EntityType;
   operation: EntityOperation;
-  entityId: number;
+  entityId: number | string;
   record: EntityRecord;
 }
 
@@ -90,7 +110,7 @@ export interface UnsubscribedEnvelope {
 }
 
 export interface ServerEventEnvelopeEntityChange {
-  event: WsEventType;
+  event: "entity_change";
   data: EntityChangePayload;
 }
 
@@ -109,5 +129,9 @@ export interface UnsubscribeCommand {
 /** Messages sent by the client on the `/events/ws` channel */
 export type EventsWsSend = SubscribeCommand | UnsubscribeCommand;
 /** Messages received by the client on the `/events/ws` channel */
-export type EventsWsReceive = EventsReadyEnvelope | SubscribedEnvelope | UnsubscribedEnvelope | ServerEventEnvelopeEntityChange | ServerEventEnvelopeError;
-
+export type EventsWsReceive =
+  | EventsReadyEnvelope
+  | SubscribedEnvelope
+  | UnsubscribedEnvelope
+  | ServerEventEnvelopeEntityChange
+  | ServerEventEnvelopeError;

@@ -15,13 +15,14 @@ export default defineConfig(({ mode }) => {
 
   const proxy = apiBaseUrl.startsWith("/")
     ? {
-      [apiBaseUrl]: {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        rewrite: (path: string) =>
-          path.replace(new RegExp(`^${apiBaseUrl}`), ""),
-      },
-    }
+        [apiBaseUrl]: {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          ws: true,
+          rewrite: (path: string) =>
+            path.replace(new RegExp(`^${apiBaseUrl}`), ""),
+        },
+      }
     : undefined;
 
   return {
@@ -37,9 +38,11 @@ export default defineConfig(({ mode }) => {
         dts: "src/auto-imports.d.ts",
       }),
       Components({
-        resolvers: [AntDesignVueResolver({
-          importStyle: "css-in-js",
-        })],
+        resolvers: [
+          AntDesignVueResolver({
+            importStyle: "css-in-js",
+          }),
+        ],
         dirs: ["src/components", "src/bizComponents"],
         deep: true,
         dts: "src/components.d.ts",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import Dropdown from "@/components/Dropdown.vue";
 
 export interface SelectorItem {
   id: string | number;
@@ -13,55 +14,50 @@ export interface SelectorItem {
 interface Props {
   modelValue?: string | number | null;
   items: SelectorItem[];
-  title?: string;
   placeholder?: string;
-  expanded?: boolean;
+  emptyText?: string;
   actionText?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: null,
-  title: "请选择",
   placeholder: "选择一个选项",
-  expanded: undefined,
+  emptyText: "暂无可选项",
   actionText: "",
 });
 
 const emit = defineEmits<{
   "update:modelValue": [value: string | number];
   change: [value: string | number, item: SelectorItem];
-  "update:expanded": [value: boolean];
   action: [];
 }>();
 
-const innerExpanded = ref(true);
-
-const isExpanded = computed({
-  get: () =>
-    typeof props.expanded === "boolean" ? props.expanded : innerExpanded.value,
-  set: (value: boolean) => {
-    if (typeof props.expanded !== "boolean") {
-      innerExpanded.value = value;
-    }
-    emit("update:expanded", value);
-  },
-});
+const isExpanded = ref(false);
 
 const selectedItem = computed(
   () => props.items.find((item) => item.id === props.modelValue) ?? null,
 );
 
-function toggleExpanded() {
-  isExpanded.value = !isExpanded.value;
-}
+const hasSelection = computed(() => Boolean(selectedItem.value));
 
-function selectItem(item: SelectorItem) {
+defineSlots<{
+  selected?(props: {
+    selectedItem: SelectorItem | null;
+    placeholder: string;
+    hasSelection: boolean;
+    open: boolean;
+  }): unknown;
+}>();
+
+function selectItem(item: SelectorItem, closeDropdown?: () => void) {
   if (item.disabled) {
     return;
   }
 
   emit("update:modelValue", item.id);
   emit("change", item.id, item);
+  isExpanded.value = false;
+  closeDropdown?.();
 }
 
 function emitAction() {
@@ -70,253 +66,135 @@ function emitAction() {
 </script>
 
 <template>
-  <section class="selector">
-    <button
-      type="button"
-      class="selector-trigger"
-      :aria-expanded="isExpanded"
-      @click="toggleExpanded"
-    >
-      <span class="selector-title">{{ title }}</span>
-      <span
-        class="selector-arrow"
-        :class="{ 'selector-arrow--expanded': isExpanded }"
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3 6.5 8 11l5-4.5" />
-        </svg>
-      </span>
-    </button>
-
-    <transition name="selector-panel">
-      <div v-if="isExpanded" class="selector-panel">
+  <section
+    class="overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--primary)_18%,white)] bg-transparent shadow-[0_12px_30px_rgb(0_104_119/0.08)]"
+  >
+    <Dropdown v-model="isExpanded" class="w-full" placement="bottom">
+      <template #trigger="{ open }">
         <button
-          v-for="item in items"
-          :key="item.id"
           type="button"
-          class="selector-item"
-          :class="{
-            'selector-item--active': selectedItem?.id === item.id,
-            'selector-item--disabled': item.disabled,
-          }"
-          :disabled="item.disabled"
-          @click="selectItem(item)"
+          class="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent p-2 px-3 text-foreground"
+          :aria-expanded="open"
         >
-          <span
-            class="selector-item-icon"
-            :style="item.color ? { backgroundColor: item.color } : undefined"
+          <slot
+            name="selected"
+            :selected-item="selectedItem"
+            :placeholder="placeholder"
+            :has-selection="hasSelection"
+            :open="open"
           >
-            {{ item.icon || "◆" }}
-          </span>
-
-          <span class="selector-item-main">
-            <span class="selector-item-label">
-              {{ item.label }}
+            <span class="stretch min-w-0 text-left">
               <span
-                v-if="selectedItem?.id === item.id"
-                class="selector-item-current"
+                class="block truncate text-[0.95rem] leading-[1.2]"
+                :class="
+                  hasSelection
+                    ? 'font-normal text-foreground'
+                    : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
+                "
               >
-                （当前选中）
+                {{ selectedItem?.label || placeholder }}
+              </span>
+              <span
+                v-if="selectedItem?.description"
+                class="mt-[0.15rem] block truncate text-[0.7rem] font-normal uppercase tracking-[0.03em] text-foreground-muted"
+              >
+                {{ selectedItem.description }}
               </span>
             </span>
-            <span class="selector-item-description">
-              {{ item.description || placeholder }}
-            </span>
-          </span>
-
+          </slot>
           <span
-            class="selector-item-check"
-            :class="{
-              'selector-item-check--show': selectedItem?.id === item.id,
-            }"
+            class="flex h-[1.1rem] w-[1.1rem] items-center justify-center text-primary transition-transform duration-200 ease-crystal"
+            :class="{ 'rotate-180': open }"
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="m3.2 8.4 2.8 2.8 6-6" />
+            <svg
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              class="h-full w-full fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]"
+            >
+              <path d="M3 6.5 8 11l5-4.5" />
             </svg>
           </span>
         </button>
+      </template>
 
-        <button
-          v-if="actionText"
-          type="button"
-          class="selector-action"
-          @click="emitAction"
-        >
-          + {{ actionText }}
-        </button>
-      </div>
-    </transition>
+      <template #default="{ closeDropdown }">
+        <div class="flex flex-col gap-[0.35rem] p-1">
+          <div
+            v-if="items.length === 0"
+            class="mx-1 my-[0.15rem] rounded-xl border border-dashed border-[color-mix(in_srgb,var(--outline-ghost)_78%,white)] bg-[color-mix(in_srgb,var(--surface)_86%,white)] px-3 py-4 text-center"
+          >
+            <div class="text-[1rem] leading-none text-foreground-muted">∅</div>
+            <div
+              class="mt-1.5 text-[0.82rem] font-normal text-foreground-muted"
+            >
+              {{ emptyText }}
+            </div>
+          </div>
+
+          <button
+            v-for="item in items"
+            :key="item.id"
+            type="button"
+            class="grid w-full cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-[0.7rem] text-left text-foreground transition-colors duration-200 ease-crystal hover:bg-[color-mix(in_srgb,var(--secondary-soft)_55%,white)]"
+            :class="{
+              'bg-[color-mix(in_srgb,var(--secondary-soft)_70%,white)]':
+                selectedItem?.id === item.id,
+              'cursor-not-allowed opacity-45 hover:bg-transparent':
+                item.disabled,
+            }"
+            :disabled="item.disabled"
+            @click="selectItem(item, closeDropdown)"
+          >
+            <span
+              class="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-primary to-secondary text-[0.8rem] text-white"
+              :style="item.color ? { backgroundColor: item.color } : undefined"
+            >
+              {{ item.icon || "◆" }}
+            </span>
+
+            <span class="flex min-w-0 flex-col">
+              <span class="leading-[1.2] font-normal">
+                {{ item.label }}
+                <span
+                  v-if="selectedItem?.id === item.id"
+                  class="text-secondary"
+                >
+                  （当前选中）
+                </span>
+              </span>
+              <span
+                class="mt-[0.2rem] text-[0.75rem] font-normal uppercase tracking-[0.02em] text-foreground-muted"
+              >
+                {{ item.description || placeholder }}
+              </span>
+            </span>
+
+            <span
+              class="h-[1.4rem] w-[1.4rem] scale-90 text-[color-mix(in_srgb,var(--secondary)_70%,black)] opacity-0 transition-all duration-200 ease-crystal"
+              :class="{
+                'scale-100 opacity-100': selectedItem?.id === item.id,
+              }"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+                class="h-full w-full fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]"
+              >
+                <path d="m3.2 8.4 2.8 2.8 6-6" />
+              </svg>
+            </span>
+          </button>
+
+          <button
+            v-if="actionText"
+            type="button"
+            class="mt-[0.2rem] cursor-pointer border-0 border-t border-t-outline-ghost bg-transparent px-[0.65rem] pb-[0.45rem] pt-[0.9rem] font-normal tracking-[0.02em] text-primary transition-colors duration-200 ease-crystal hover:text-[color-mix(in_srgb,var(--primary)_68%,black)]"
+            @click="emitAction"
+          >
+            + {{ actionText }}
+          </button>
+        </div>
+      </template>
+    </Dropdown>
   </section>
 </template>
-
-<style scoped>
-.selector {
-  border: 1px solid color-mix(in srgb, var(--primary) 18%, white);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-container-lowest) 88%, white);
-  box-shadow: 0 12px 30px rgb(0 104 119 / 0.08);
-  overflow: hidden;
-}
-
-.selector-trigger {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 1rem 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  color: var(--foreground);
-}
-
-.selector-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
-.selector-arrow {
-  width: 1.1rem;
-  height: 1.1rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  transition: transform var(--duration-gentle) var(--ease-crystal);
-}
-
-.selector-arrow svg,
-.selector-item-check svg {
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.selector-arrow--expanded {
-  transform: rotate(180deg);
-}
-
-.selector-panel {
-  margin: 0.25rem 0.9rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--secondary) 18%, white);
-  border-radius: calc(var(--radius-lg) - 0.25rem);
-  background: color-mix(in srgb, var(--surface) 92%, white);
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.selector-item {
-  border: 0;
-  background: transparent;
-  width: 100%;
-  border-radius: 0.75rem;
-  padding: 0.7rem 0.75rem;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-  text-align: left;
-  color: var(--foreground);
-  cursor: pointer;
-  transition: background-color var(--duration-gentle) var(--ease-crystal);
-}
-
-.selector-item:hover:not(.selector-item--disabled) {
-  background: color-mix(in srgb, var(--secondary-soft) 55%, white);
-}
-
-.selector-item--active {
-  background: color-mix(in srgb, var(--secondary-soft) 70%, white);
-}
-
-.selector-item--disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.selector-item-icon {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 0.8rem;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-}
-
-.selector-item-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.selector-item-label {
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.selector-item-current {
-  color: var(--secondary);
-}
-
-.selector-item-description {
-  margin-top: 0.2rem;
-  font-size: 0.75rem;
-  color: var(--foreground-muted);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.selector-item-check {
-  width: 1.4rem;
-  height: 1.4rem;
-  color: color-mix(in srgb, var(--secondary) 70%, black);
-  opacity: 0;
-  transform: scale(0.9);
-  transition:
-    opacity var(--duration-gentle) var(--ease-crystal),
-    transform var(--duration-gentle) var(--ease-crystal);
-}
-
-.selector-item-check--show {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.selector-action {
-  margin-top: 0.2rem;
-  border: 0;
-  border-top: 1px solid var(--outline-ghost);
-  background: transparent;
-  color: var(--primary);
-  padding: 0.9rem 0.65rem 0.45rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-
-.selector-action:hover {
-  color: color-mix(in srgb, var(--primary) 68%, black);
-}
-
-.selector-panel-enter-active,
-.selector-panel-leave-active {
-  transition:
-    opacity var(--duration-gentle) var(--ease-crystal),
-    transform var(--duration-gentle) var(--ease-crystal);
-}
-
-.selector-panel-enter-from,
-.selector-panel-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-</style>

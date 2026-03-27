@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import {
+  Comment,
+  Fragment,
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  useSlots,
+  watch,
+} from "vue";
 import Tooltip from "./Tooltip.vue";
 import { useFormContext } from "@/composables/useForm";
 import { runValidator } from "@/utils/validators";
@@ -19,6 +28,7 @@ const props = withDefaults(
     label?: string;
     placeholder?: string;
     type?: "text" | "password" | "email";
+    icon?: "auto" | "none" | "copy" | "email" | "password";
     /** RegExp, pattern string (converted via new RegExp), or validator function */
     validate?: RegExp | string | ValidateFn;
     /** Validation throttle interval in milliseconds. Set 0 to disable throttling. */
@@ -29,6 +39,7 @@ const props = withDefaults(
   {
     modelValue: "",
     type: "text",
+    icon: "auto",
     validateThrottleMs: 500,
   },
 );
@@ -38,6 +49,7 @@ const emit = defineEmits<{
 }>();
 
 const form = useFormContext();
+const slots = useSlots();
 const showPassword = ref(false);
 const errorMessage = ref<string | null>(null);
 const isValidating = ref(false);
@@ -51,6 +63,64 @@ const resolvedType = computed(() => {
   }
   return props.type;
 });
+
+function hasRenderableVNode(nodes: unknown): boolean {
+  if (!Array.isArray(nodes)) {
+    return false;
+  }
+
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") {
+      continue;
+    }
+
+    const vnode = node as { type?: unknown; children?: unknown };
+    if (vnode.type === Comment) {
+      continue;
+    }
+
+    if (vnode.type === Fragment) {
+      if (hasRenderableVNode(vnode.children)) {
+        return true;
+      }
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+function hasCustomIconSlot() {
+  const iconNodes = slots.icon?.();
+  return hasRenderableVNode(iconNodes);
+}
+
+const resolvedIconMode = computed<"none" | "copy" | "email" | "password">(
+  () => {
+    if (props.icon !== "auto") {
+      if (props.icon === "none") {
+        return "none";
+      }
+      if (props.icon === "copy") {
+        return "copy";
+      }
+      if (props.icon === "email") {
+        return "email";
+      }
+      return "password";
+    }
+
+    if (props.type === "password") {
+      return "password";
+    }
+    if (props.type === "email") {
+      return "email";
+    }
+    return "copy";
+  },
+);
 
 function runValidation(value: string) {
   // Check if we should use validators from form context
@@ -241,8 +311,15 @@ defineExpose({
         @input="onInput"
       />
 
+      <span
+        v-if="hasCustomIconSlot()"
+        class="input-action non-interactive input-custom-icon"
+      >
+        <slot name="icon" />
+      </span>
+
       <button
-        v-if="type === 'password'"
+        v-else-if="resolvedIconMode === 'password'"
         type="button"
         class="input-action"
         tabindex="-1"
@@ -287,7 +364,10 @@ defineExpose({
       </button>
 
       <!-- email icon -->
-      <span v-else-if="type === 'email'" class="input-action non-interactive">
+      <span
+        v-else-if="resolvedIconMode === 'email'"
+        class="input-action non-interactive"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="15"
@@ -306,7 +386,7 @@ defineExpose({
 
       <!-- copy icon for other types -->
       <button
-        v-else
+        v-else-if="resolvedIconMode === 'copy'"
         type="button"
         class="input-action"
         tabindex="-1"

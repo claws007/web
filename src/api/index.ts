@@ -12,6 +12,7 @@ import {
   type AgentTaskResponse,
   type AIModelConnectorResponse,
   Api,
+  ContentType,
   type ChatHistoryPageResponse,
   type FileListFilePageResponse,
   type FileListFileResponse,
@@ -30,6 +31,56 @@ import {
   type SubAgentPageResponse,
   type SubAgentResponse,
 } from "./generated";
+
+export type DockerAvailabilityResponse = {
+  available: boolean;
+  clientVersion?: string;
+  serverVersion?: string;
+  error?: string;
+};
+
+export type DockerLocalImageResponse = {
+  repository: string;
+  tag: string;
+  imageId: string;
+  digest?: string;
+  createdSince?: string;
+  size?: string;
+  fullName: string;
+};
+
+export type DockerHubImageResponse = {
+  name: string;
+  namespace: string;
+  repositoryType?: string;
+  shortDescription?: string;
+  starCount?: number;
+  pullCount?: number;
+  isOfficial?: boolean;
+};
+
+export type DockerImagePageResponse<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type CommandProgressStatus = "running" | "success" | "failed";
+
+export type CommandProgressItem = {
+  companyId: number;
+  commandId: string;
+  commandType: string;
+  title: string;
+  status: CommandProgressStatus;
+  progress: number | null;
+  message: string | null;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+};
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const loginPath = "/user/login";
@@ -177,6 +228,7 @@ type EnhancedApi = Api<string> & {
       params?: RequestParams,
     ): Promise<HttpResponse<ModelCatalogResponse, unknown>>;
     getModelConnector(
+      query?: { page?: number; pageSize?: number },
       params?: RequestParams,
     ): Promise<HttpResponse<AIModelConnectorPageResponse, unknown>>;
     getModelConnectorById(
@@ -196,6 +248,44 @@ type EnhancedApi = Api<string> & {
       id: number,
       params?: RequestParams,
     ): Promise<HttpResponse<unknown, unknown>>;
+    getDockerAvailability(
+      params?: RequestParams,
+    ): Promise<HttpResponse<DockerAvailabilityResponse, unknown>>;
+    getDockerImages(
+      query?: { page?: number; pageSize?: number; keyword?: string },
+      params?: RequestParams,
+    ): Promise<
+      HttpResponse<DockerImagePageResponse<DockerLocalImageResponse>, unknown>
+    >;
+    pullDockerImage(
+      data: { image: string },
+      params?: RequestParams,
+    ): Promise<
+      HttpResponse<
+        {
+          accepted: true;
+          commandId: string;
+          image: string;
+          status: "running";
+        },
+        unknown
+      >
+    >;
+    getCommandProgress(
+      params?: RequestParams,
+    ): Promise<HttpResponse<{ items: CommandProgressItem[] }, unknown>>;
+    removeDockerImage(
+      data: { image: string; force?: boolean },
+      params?: RequestParams,
+    ): Promise<
+      HttpResponse<{ success: true; image: string; output: string }, unknown>
+    >;
+    searchDockerHub(
+      query: { q: string; page?: number; pageSize?: number },
+      params?: RequestParams,
+    ): Promise<
+      HttpResponse<DockerImagePageResponse<DockerHubImageResponse>, unknown>
+    >;
   };
   mcpServer: {
     getMcpServer(
@@ -444,6 +534,27 @@ function withCompanyScope<TArgs extends unknown[], TResult>(
   return (...args: TArgs) => callback(getRequiredCompanyId(), ...args);
 }
 
+function requestCompanyJson<T>(
+  companyId: number,
+  path: string,
+  method: "GET" | "POST" | "DELETE",
+  options: {
+    query?: Record<string, string | number | boolean | undefined>;
+    body?: unknown;
+    params?: RequestParams;
+  } = {},
+): Promise<HttpResponse<T, unknown>> {
+  return (rawApi as any).request({
+    path: `/company/${companyId}${path}`,
+    method,
+    query: options.query,
+    body: options.body,
+    type: options.body === undefined ? undefined : ContentType.Json,
+    format: "json",
+    ...(options.params ?? {}),
+  });
+}
+
 export const api = Object.assign(rawApi, {
   agent: {
     getAgent: withCompanyScope(
@@ -538,8 +649,15 @@ export const api = Object.assign(rawApi, {
         ),
     ),
     getModelConnector: withCompanyScope(
-      (companyId, params: RequestParams = {}) =>
-        rawApi.company.getCompanyByCompanyIdModelConnector(companyId, params),
+      (
+        companyId,
+        query?: { page?: number; pageSize?: number },
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.getCompanyByCompanyIdModelConnector(companyId, {
+          ...params,
+          query,
+        } as RequestParams),
     ),
     getModelConnectorById: withCompanyScope(
       (companyId, id: number, params: RequestParams = {}) =>
@@ -572,6 +690,75 @@ export const api = Object.assign(rawApi, {
           companyId,
           id,
           params,
+        ),
+    ),
+    getDockerAvailability: withCompanyScope(
+      (companyId, params: RequestParams = {}) =>
+        requestCompanyJson<DockerAvailabilityResponse>(
+          companyId,
+          "/model-connector/docker/availability",
+          "GET",
+          { params },
+        ),
+    ),
+    getDockerImages: withCompanyScope(
+      (
+        companyId,
+        query: { page?: number; pageSize?: number; keyword?: string } = {},
+        params: RequestParams = {},
+      ) =>
+        requestCompanyJson<DockerImagePageResponse<DockerLocalImageResponse>>(
+          companyId,
+          "/model-connector/docker/images",
+          "GET",
+          { query, params },
+        ),
+    ),
+    pullDockerImage: withCompanyScope(
+      (companyId, data: { image: string }, params: RequestParams = {}) =>
+        requestCompanyJson<{
+          accepted: true;
+          commandId: string;
+          image: string;
+          status: "running";
+        }>(companyId, "/model-connector/docker/pull", "POST", {
+          body: data,
+          params,
+        }),
+    ),
+    getCommandProgress: withCompanyScope(
+      (companyId, params: RequestParams = {}) =>
+        requestCompanyJson<{ items: CommandProgressItem[] }>(
+          companyId,
+          "/model-connector/command-progress",
+          "GET",
+          { params },
+        ),
+    ),
+    removeDockerImage: withCompanyScope(
+      (
+        companyId,
+        data: { image: string; force?: boolean },
+        params: RequestParams = {},
+      ) =>
+        requestCompanyJson<{ success: true; image: string; output: string }>(
+          companyId,
+          "/model-connector/docker/images",
+          "DELETE",
+          { body: data, params },
+        ),
+    ),
+    searchDockerHub: withCompanyScope(
+      (
+        companyId,
+        query: { q: string; page?: number; pageSize?: number },
+        params: RequestParams = {},
+      ) =>
+        requestCompanyJson<DockerImagePageResponse<DockerHubImageResponse>>(
+          companyId,
+          "/model-connector/docker/search",
+          "GET",
+          { query, params },
         ),
     ),
   },

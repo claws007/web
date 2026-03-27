@@ -68,10 +68,31 @@ export function useDialogContext<T = void>(): {
 export function createDialogExpose<T = void>(): DialogExposed<T> {
   return {} as DialogExposed<T>;
 }
+
+// ── Global ESC stack ─────────────────────────────────────────────────────────
+// Only the topmost (last-pushed) dialog is closed when Escape is pressed.
+const _escStack: Array<() => void> = [];
+
+if (typeof window !== "undefined") {
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && _escStack.length > 0) {
+      _escStack[_escStack.length - 1]!();
+    }
+  });
+}
+
+export function _pushEscHandler(fn: () => void) {
+  _escStack.push(fn);
+}
+
+export function _removeEscHandler(fn: () => void) {
+  const idx = _escStack.lastIndexOf(fn);
+  if (idx !== -1) _escStack.splice(idx, 1);
+}
 </script>
 
 <script setup lang="ts" generic="TResolve = void">
-import { provide } from "vue";
+import { provide, watch, onUnmounted } from "vue";
 
 const dialogController = inject(dialogControllerKey, undefined) as
   | DialogController<TResolve>
@@ -85,14 +106,32 @@ if (dialogController) {
   provide(dialogRejectKey, dialogController.reject);
 }
 
-defineProps<{
+const props = defineProps<{
   modelValue?: boolean;
   width?: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   "update:modelValue": [value: boolean];
 }>();
+
+function closeThis() {
+  emit("update:modelValue", false);
+}
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) {
+      _pushEscHandler(closeThis);
+    } else {
+      _removeEscHandler(closeThis);
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => _removeEscHandler(closeThis));
 
 const slots = defineSlots<{
   header?(): unknown;
@@ -188,14 +227,14 @@ const slots = defineSlots<{
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1.25rem 1.75rem 1.75rem;
+  padding: 0 1.75rem 1.75rem;
 }
 
 .dialog-gradient-strip {
   position: absolute;
   z-index: 0;
-  left: 0.85rem;
-  right: 0.85rem;
+  left: -0.85rem;
+  right: -0.85rem;
   bottom: 0;
   transform: translateY(45%);
   height: 12px;
@@ -214,6 +253,64 @@ const slots = defineSlots<{
     0 7px 16px rgb(25 28 30 / 0.14);
   filter: blur(1.2px);
   opacity: 0.9;
+  background-size: 220% 100%;
+  animation:
+    dialog-strip-flow 7.2s linear infinite,
+    dialog-strip-pulse 2.8s ease-in-out infinite;
+}
+
+.dialog-gradient-strip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    rgb(255 255 255 / 0) 0%,
+    rgb(255 255 255 / 0.3) 45%,
+    rgb(255 255 255 / 0) 100%
+  );
+  transform: translateX(-115%);
+  animation: dialog-strip-sheen 4.8s ease-in-out infinite;
+}
+
+@keyframes dialog-strip-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 220% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes dialog-strip-pulse {
+  0%,
+  100% {
+    opacity: 0.76;
+  }
+  50% {
+    opacity: 0.98;
+  }
+}
+
+@keyframes dialog-strip-sheen {
+  0% {
+    transform: translateX(-115%);
+  }
+  60%,
+  100% {
+    transform: translateX(115%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-gradient-strip,
+  .dialog-gradient-strip::after {
+    animation: none;
+  }
 }
 
 /* ── Transition ── */

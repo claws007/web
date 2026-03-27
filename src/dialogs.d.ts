@@ -21,6 +21,11 @@ declare module "virtual:dialogs" {
 	export const dialogs: {
 		ConfirmDialog: (...args: _A<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
 		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
+		EditOrCreateModelConnectorDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>;
+		ManageDockerImageDialog: (...args: _A<typeof import("./components/dialog/ManageDockerImageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageDockerImageDialog.vue")["default"]>;
+		ManageModelConnectorDialog: (...args: _A<typeof import("./components/dialog/ManageModelConnectorDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageModelConnectorDialog.vue")["default"]>;
 		MessageDialog: (...args: _A<typeof import("./components/dialog/MessageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/MessageDialog.vue")["default"]>;
+		SelectDockerImageDialog: (...args: _A<typeof import("./components/dialog/SelectDockerImageDialog.vue")["default"]>) => _H<typeof import("./components/dialog/SelectDockerImageDialog.vue")["default"]>;
+		SelectOptionDialog: (...args: _A<typeof import("./components/dialog/SelectOptionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/SelectOptionDialog.vue")["default"]>;
 	};
 }

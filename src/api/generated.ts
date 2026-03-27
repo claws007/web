@@ -67,7 +67,13 @@ export interface CompanyResponse {
 }
 
 export interface ModelTypesResponse {
-  types: string[];
+  types: ModelTypeOptionResponse[];
+}
+
+export interface ModelTypeOptionResponse {
+  code: string;
+  /** Chinese display label for the model connector type */
+  label: string;
 }
 
 export interface ModelCatalogResponse {
@@ -427,6 +433,18 @@ export interface SkillPageResponse {
   totalPages: number;
 }
 
+export interface TaskPageResponse {
+  items: TaskResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
 export interface GenericPageResponse {
   items: Record<string, any>[];
   /** @min 1 */
@@ -570,6 +588,18 @@ export interface SkillResponse {
   } | null;
 }
 
+export interface TaskResponse {
+  id: number;
+  companyId: number;
+  createdByUserId?: number | null;
+  updatedByUserId?: number | null;
+  content: string;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+}
+
 export type GenericObjectResponse = Record<string, any>;
 
 export type GenericArrayResponse = Record<string, any>[];
@@ -612,8 +642,10 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<D extends unknown, E extends unknown = unknown>
-  extends Response {
+export interface HttpResponse<
+  D extends unknown,
+  E extends unknown = unknown,
+> extends Response {
   data: D;
   error: E;
 }
@@ -2864,6 +2896,116 @@ export class Api<
     ) =>
       this.request<SuccessResponse, ErrorResponse>({
         path: `/company/${companyId}/skill/${id}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name GetCompanyByCompanyIdTask
+     * @summary List all tasks
+     * @request GET:/company/{companyId}/task
+     */
+    getCompanyByCompanyIdTask: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<TaskPageResponse, ErrorResponse>({
+        path: `/company/${companyId}/task`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name PostCompanyByCompanyIdTask
+     * @summary Create a new task
+     * @request POST:/company/{companyId}/task
+     */
+    postCompanyByCompanyIdTask: (
+      companyId: number,
+      data: {
+        /** @minLength 1 */
+        content: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<TaskResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/task`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name GetCompanyByCompanyIdTaskById
+     * @summary Get a task by ID
+     * @request GET:/company/{companyId}/task/{id}
+     */
+    getCompanyByCompanyIdTaskById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<TaskResponse, ErrorResponse>({
+        path: `/company/${companyId}/task/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name PutCompanyByCompanyIdTaskById
+     * @summary Update a task
+     * @request PUT:/company/{companyId}/task/{id}
+     */
+    putCompanyByCompanyIdTaskById: (
+      companyId: number,
+      id: number,
+      data: {
+        /** @minLength 1 */
+        content?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<TaskResponse, ErrorResponse>({
+        path: `/company/${companyId}/task/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name DeleteCompanyByCompanyIdTaskById
+     * @summary Delete a task
+     * @request DELETE:/company/{companyId}/task/{id}
+     */
+    deleteCompanyByCompanyIdTaskById: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/company/${companyId}/task/${id}`,
         method: "DELETE",
         format: "json",
         ...params,
