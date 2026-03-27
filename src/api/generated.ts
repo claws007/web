@@ -686,7 +686,9 @@ export class HttpClient<SecurityDataType = unknown> {
 
   protected encodeQueryParam(key: string, value: any) {
     const encodedKey = encodeURIComponent(key);
-    return `${encodedKey}=${encodeURIComponent(typeof value === "number" ? value : `${value}`)}`;
+    return `${encodedKey}=${
+      encodeURIComponent(typeof value === "number" ? value : `${value}`)
+    }`;
   }
 
   protected addQueryParam(query: QueryParamsType, key: string) {
@@ -707,7 +709,7 @@ export class HttpClient<SecurityDataType = unknown> {
       .map((key) =>
         Array.isArray(query[key])
           ? this.addArrayQueryParam(query, key)
-          : this.addQueryParam(query, key),
+          : this.addQueryParam(query, key)
       )
       .join("&");
   }
@@ -742,8 +744,8 @@ export class HttpClient<SecurityDataType = unknown> {
           property instanceof Blob
             ? property
             : typeof property === "object" && property !== null
-              ? JSON.stringify(property)
-              : `${property}`,
+            ? JSON.stringify(property)
+            : `${property}`,
         );
         return formData;
       }, new FormData());
@@ -814,7 +816,9 @@ export class HttpClient<SecurityDataType = unknown> {
     const responseFormat = format || requestParams.format;
 
     return this.customFetch(
-      `${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`,
+      `${baseUrl || this.baseUrl || ""}${path}${
+        queryString ? `?${queryString}` : ""
+      }`,
       {
         ...requestParams,
         headers: {
@@ -827,10 +831,9 @@ export class HttpClient<SecurityDataType = unknown> {
           (cancelToken
             ? this.createAbortSignal(cancelToken)
             : requestParams.signal) || null,
-        body:
-          typeof body === "undefined" || body === null
-            ? null
-            : payloadFormatter(body),
+        body: typeof body === "undefined" || body === null
+          ? null
+          : payloadFormatter(body),
       },
     ).then(async (response) => {
       const r = response as HttpResponse<T, E>;
@@ -838,21 +841,19 @@ export class HttpClient<SecurityDataType = unknown> {
       r.error = null as unknown as E;
 
       const responseToParse = responseFormat ? response.clone() : response;
-      const data = !responseFormat
-        ? r
-        : await responseToParse[responseFormat]()
-            .then((data) => {
-              if (r.ok) {
-                r.data = data;
-              } else {
-                r.error = data;
-              }
-              return r;
-            })
-            .catch((e) => {
-              r.error = e;
-              return r;
-            });
+      const data = !responseFormat ? r : await responseToParse[responseFormat]()
+        .then((data) => {
+          if (r.ok) {
+            r.data = data;
+          } else {
+            r.error = data;
+          }
+          return r;
+        })
+        .catch((e) => {
+          r.error = e;
+          return r;
+        });
 
       if (cancelToken) {
         this.abortControllers.delete(cancelToken);
@@ -1430,31 +1431,31 @@ export class Api<
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: (
           | {
-              /** Notify an agent target. */
-              type: "agent";
-              /**
-               * Target agent ID.
-               * @min 0
-               */
-              agentId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
+            /** Notify an agent target. */
+            type: "agent";
+            /**
+             * Target agent ID.
+             * @min 0
+             */
+            agentId: number;
+            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+            notifyOnSuccessBottomOnly?: boolean | null;
+            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+            notifyOnFailureBottomOnly?: boolean | null;
+          }
           | {
-              /** Notify a user target. */
-              type: "user";
-              /**
-               * Target user ID.
-               * @min 0
-               */
-              userId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
+            /** Notify a user target. */
+            type: "user";
+            /**
+             * Target user ID.
+             * @min 0
+             */
+            userId: number;
+            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+            notifyOnSuccessBottomOnly?: boolean | null;
+            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+            notifyOnFailureBottomOnly?: boolean | null;
+          }
         )[];
       },
       params: RequestParams = {},
@@ -2185,31 +2186,31 @@ export class Api<
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: (
           | {
-              /** Notify an agent target. */
-              type: "agent";
-              /**
-               * Target agent ID.
-               * @min 0
-               */
-              agentId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
+            /** Notify an agent target. */
+            type: "agent";
+            /**
+             * Target agent ID.
+             * @min 0
+             */
+            agentId: number;
+            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+            notifyOnSuccessBottomOnly?: boolean | null;
+            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+            notifyOnFailureBottomOnly?: boolean | null;
+          }
           | {
-              /** Notify a user target. */
-              type: "user";
-              /**
-               * Target user ID.
-               * @min 0
-               */
-              userId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
+            /** Notify a user target. */
+            type: "user";
+            /**
+             * Target user ID.
+             * @min 0
+             */
+            userId: number;
+            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+            notifyOnSuccessBottomOnly?: boolean | null;
+            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+            notifyOnFailureBottomOnly?: boolean | null;
+          }
         )[];
       },
       params: RequestParams = {},
