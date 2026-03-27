@@ -1,10 +1,5 @@
-import { computed, onMounted, onUnmounted, ref, type Ref } from "vue";
+import { onMounted, onUnmounted, type Ref, ref } from "vue";
 import type { SnapEdge } from "../types";
-
-export interface CornerPosition {
-  vertical: "top" | "bottom";
-  horizontal: "left" | "right";
-}
 
 interface DraggableSnapState {
   pos: { x: number; y: number };
@@ -45,62 +40,6 @@ function useOverlayViewportObserver(
   });
 
   return { requestLayout };
-}
-
-export function useFloatingCornerPosition(
-  elementRef: Ref<HTMLElement | null>,
-  positionState: Ref<CornerPosition>,
-) {
-  const positionClasses = computed(() => ({
-    [positionState.value.vertical]: true,
-    [positionState.value.horizontal]: true,
-  }));
-
-  const updatePosition = () => {
-    if (!elementRef.value) return;
-
-    const rect = elementRef.value.getBoundingClientRect();
-    const padding = 1.25 * 16;
-    const bottomOverflow = rect.bottom > window.innerHeight - padding;
-    const topOverflow = rect.top < padding;
-    const rightOverflow = rect.right > window.innerWidth - padding;
-    const leftOverflow = rect.left < padding;
-
-    if (
-      positionState.value.vertical === "bottom" &&
-      bottomOverflow &&
-      !topOverflow
-    ) {
-      positionState.value.vertical = "top";
-    } else if (
-      positionState.value.vertical === "top" &&
-      topOverflow &&
-      !bottomOverflow
-    ) {
-      positionState.value.vertical = "bottom";
-    }
-
-    if (
-      positionState.value.horizontal === "right" &&
-      rightOverflow &&
-      !leftOverflow
-    ) {
-      positionState.value.horizontal = "left";
-    } else if (
-      positionState.value.horizontal === "left" &&
-      leftOverflow &&
-      !rightOverflow
-    ) {
-      positionState.value.horizontal = "right";
-    }
-  };
-
-  useOverlayViewportObserver(elementRef, updatePosition);
-
-  return {
-    positionClasses,
-    updatePosition,
-  };
 }
 
 export function useDraggableSnapOverlay(
@@ -166,7 +105,7 @@ export function useDraggableSnapOverlay(
     ];
 
     const best = candidates.reduce((current, candidate) =>
-      current.dist < candidate.dist ? current : candidate,
+      current.dist < candidate.dist ? current : candidate
     );
 
     state.snapEdge = best.edge;

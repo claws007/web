@@ -1,88 +1,148 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import {
-  progressState,
+  notificationState,
   removeProgressTask,
-  pauseProgressTaskTimer,
-  resumeProgressTaskTimer,
+  dismissToast,
+  pauseTimer,
+  resumeTimer,
+  getPausableIds,
 } from "./store";
+import type { ProgressTask, ToastItem, NotificationEntry } from "./types";
 import { useTimerPause } from "./composables/useTimerPause";
 import { useDraggableSnapOverlay } from "./composables/useFloatingLayer";
 
 const widgetEl = ref<HTMLElement | null>(null);
 const { isDragging, startDrag, pushToSnapEdge } = useDraggableSnapOverlay(
   widgetEl,
-  progressState,
+  notificationState,
 );
 
-async function toggleMinimize() {
-  progressState.minimized = !progressState.minimized;
-  if (progressState.minimized) {
-    await nextTick();
-    pushToSnapEdge();
-  }
-}
+// Sort entries by insertion time
+const sortedEntries = computed(() => {
+  return [...notificationState.entries].sort(
+    (a, b) => a.insertedAt - b.insertedAt,
+  );
+});
 
-function dismissDone() {
-  progressState.tasks
-    .filter((t) => t.status !== "active")
-    .forEach((t) => removeProgressTask(t.id));
-}
-
-const completedTaskIds = computed(() =>
-  progressState.tasks.filter((t) => t.status !== "active").map((t) => t.id),
-);
+// Unified timer pause/resume
+const pausableIds = computed(() => getPausableIds());
 
 const {
   handleMouseEnter: handleWidgetMouseEnter,
   handleMouseLeave: handleWidgetMouseLeave,
 } = useTimerPause({
-  onPause: (ids) => ids.forEach((id) => pauseProgressTaskTimer(id)),
-  onResume: (ids) => ids.forEach((id) => resumeProgressTaskTimer(id)),
-  ids: completedTaskIds,
+  onPause: (ids) => ids.forEach((id) => pauseTimer(id)),
+  onResume: (ids) => ids.forEach((id) => resumeTimer(id)),
+  ids: pausableIds,
 });
 
-const activeTasks = computed(() =>
-  progressState.tasks.filter((t) => t.status === "active"),
+async function toggleMinimize() {
+  notificationState.minimized = !notificationState.minimized;
+  if (notificationState.minimized) {
+    await nextTick();
+    pushToSnapEdge();
+  }
+}
+
+// Summary for minimized state
+const summaryText = computed(() => {
+  const total = notificationState.entries.length;
+  if (total === 0) return "消息";
+
+  const toasts = notificationState.entries.filter(
+    (e) => e.kind === "toast",
+  ).length;
+  const tasks = notificationState.entries.filter(
+    (e) => e.kind === "progress",
+  ).length;
+
+  if (toasts > 0 && tasks > 0) {
+    return `${toasts} 条通知 / ${tasks} 个任务`;
+  }
+  if (toasts > 0) {
+    return `${toasts} 条通知`;
+  }
+  return `${tasks} 个任务`;
+});
+
+const hasTasks = computed(() =>
+  notificationState.entries.some((e) => e.kind === "progress"),
 );
-const hasDone = computed(() =>
-  progressState.tasks.some((t) => t.status !== "active"),
+
+const hasActiveTask = computed(() =>
+  notificationState.entries.some(
+    (e) => e.kind === "progress" && (e as ProgressTask).status === "active",
+  ),
 );
+
+function dismissDone() {
+  notificationState.entries
+    .filter(
+      (e) => e.kind === "progress" && (e as ProgressTask).status !== "active",
+    )
+    .forEach((e) => removeProgressTask(e.id));
+}
+
+function isEntryClosing(entry: NotificationEntry): boolean {
+  return Boolean((entry as any)._closing);
+}
+
+const iconMap = { info: "ℹ", warn: "⚠", success: "✓", error: "✕" } as const;
+const labelMap = {
+  info: "提示",
+  warn: "警告",
+  success: "成功",
+  error: "错误",
+} as const;
+
+function getToastAccentColor(
+  type: "info" | "warn" | "success" | "error",
+): string {
+  const colors: Record<"info" | "warn" | "success" | "error", string> = {
+    info: "var(--primary)",
+    warn: "#d97706",
+    success: "#16a34a",
+    error: "#dc2626",
+  };
+  return colors[type];
+}
 </script>
 
 <template>
   <div
     ref="widgetEl"
-    class="pw"
+    class="nw"
     :class="{
-      'pw--min': progressState.minimized,
-      'pw--dragging': isDragging,
-      [`pw--snap-${progressState.snapEdge}`]: true,
+      'nw--min': notificationState.minimized,
+      'nw--dragging': isDragging,
+      'nw--closing': notificationState.closing,
+      [`nw--snap-${notificationState.snapEdge}`]: true,
     }"
     :style="{
-      left: `${progressState.pos.x}px`,
-      top: `${progressState.pos.y}px`,
+      left: `${notificationState.pos.x}px`,
+      top: `${notificationState.pos.y}px`,
     }"
     @mouseenter="handleWidgetMouseEnter"
     @mouseleave="handleWidgetMouseLeave"
   >
     <!-- ── Header / drag-handle ── -->
-    <div class="pw-header" @mousedown="startDrag">
-      <span class="pw-grip" title="拖动">⠿</span>
+    <div class="nw-header" @mousedown="startDrag">
+      <span class="nw-grip" title="拖动">⠿</span>
 
-      <span class="pw-title">
-        <template v-if="progressState.minimized">
-          <span v-if="activeTasks.length > 0" class="pw-spinner" />
-          {{ progressState.tasks.length }} 个任务
+      <span class="nw-title">
+        <template v-if="notificationState.minimized">
+          <span v-if="hasActiveTask" class="nw-spinner" />
+          {{ summaryText }}
         </template>
-        <template v-else>进度任务</template>
+        <template v-else>消息&通知</template>
       </span>
 
-      <div class="pw-actions" @mousedown.stop>
+      <div class="nw-actions" @mousedown.stop>
         <!-- Clear completed tasks button -->
         <button
-          v-if="!progressState.minimized && hasDone"
-          class="pw-action"
+          v-if="!notificationState.minimized && hasTasks"
+          class="nw-action"
           title="清除已完成"
           @click="dismissDone"
         >
@@ -99,12 +159,12 @@ const hasDone = computed(() =>
 
         <!-- Minimize / restore button -->
         <button
-          class="pw-action"
-          :title="progressState.minimized ? '展开' : '最小化'"
+          class="nw-action"
+          :title="notificationState.minimized ? '展开' : '最小化'"
           @click="toggleMinimize"
         >
           <svg
-            v-if="progressState.minimized"
+            v-if="notificationState.minimized"
             width="12"
             height="12"
             viewBox="0 0 12 12"
@@ -132,28 +192,85 @@ const hasDone = computed(() =>
       </div>
     </div>
 
-    <!-- ── Task list ── -->
-    <div v-show="!progressState.minimized" class="pw-body">
-      <TransitionGroup tag="div" name="pw-task" class="pw-task-list">
+    <!-- ── Body: mixed toast & task list ── -->
+    <div v-show="!notificationState.minimized" class="nw-body">
+      <TransitionGroup tag="div" name="nw-item" class="nw-item-list">
+        <!-- ─ Toast entries ─ -->
         <div
-          v-for="task in progressState.tasks"
-          :key="task.id"
-          class="pw-task"
-          :class="`pw-task--${task.status}`"
+          v-for="entry in sortedEntries"
+          v-show="entry.kind === 'toast'"
+          :key="entry.id"
+          class="nw-toast"
+          :class="[
+            `nw-toast--${(entry as ToastItem).type}`,
+            { 'nw-toast--closing': isEntryClosing(entry) },
+          ]"
         >
-          <div class="pw-task-top">
+          <div class="nw-toast-icon">
+            {{ iconMap[(entry as ToastItem).type] }}
+          </div>
+
+          <div class="nw-toast-body">
+            <div class="nw-toast-label">
+              {{ labelMap[(entry as ToastItem).type] }}
+            </div>
+            <div class="nw-toast-message">
+              {{ (entry as ToastItem).message }}
+            </div>
+          </div>
+
+          <button
+            class="nw-toast-close"
+            :title="`关闭${labelMap[(entry as ToastItem).type]}`"
+            @click="dismissToast(entry.id)"
+          >
+            ✕
+          </button>
+
+          <!-- Countdown bar for auto-dismiss toasts -->
+          <div
+            v-if="(entry as ToastItem).duration > 0"
+            class="nw-toast-timer"
+            :style="
+              {
+                '--toast-duration': `${(entry as ToastItem).duration}ms`,
+                '--toast-accent': getToastAccentColor(
+                  (entry as ToastItem).type,
+                ),
+              } as any
+            "
+          />
+        </div>
+
+        <!-- ─ Progress task entries ─ -->
+        <div
+          v-for="entry in sortedEntries"
+          v-show="entry.kind === 'progress'"
+          :key="entry.id"
+          class="nw-task"
+          :class="[
+            `nw-task--${(entry as ProgressTask).status}`,
+            { 'nw-task--closing': isEntryClosing(entry) },
+          ]"
+        >
+          <div class="nw-task-top">
             <!-- Status indicator -->
-            <span class="pw-task-status-slot">
+            <span class="nw-task-status-slot">
               <span
-                v-if="task.status === 'active' && task.progress === -1"
-                class="pw-spinner pw-spinner--sm"
+                v-if="
+                  (entry as ProgressTask).status === 'active' &&
+                  (entry as ProgressTask).progress === -1
+                "
+                class="nw-spinner nw-spinner--sm"
               />
-              <span v-else-if="task.status === 'active'" class="pw-task-pct"
-                >{{ task.progress }}%</span
+              <span
+                v-else-if="(entry as ProgressTask).status === 'active'"
+                class="nw-task-pct"
+                >{{ (entry as ProgressTask).progress }}%</span
               >
               <span
-                v-else-if="task.status === 'complete'"
-                class="pw-task-badge pw-task-badge--ok"
+                v-else-if="(entry as ProgressTask).status === 'complete'"
+                class="nw-task-badge nw-task-badge--ok"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path
@@ -165,7 +282,7 @@ const hasDone = computed(() =>
                   />
                 </svg>
               </span>
-              <span v-else class="pw-task-badge pw-task-badge--err">
+              <span v-else class="nw-task-badge nw-task-badge--err">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path
                     d="M2 2l6 6M8 2L2 8"
@@ -177,28 +294,42 @@ const hasDone = computed(() =>
               </span>
             </span>
 
-            <span class="pw-task-title">{{ task.title }}</span>
+            <span class="nw-task-title">{{
+              (entry as ProgressTask).title
+            }}</span>
 
             <!-- Dismiss button for errored tasks -->
             <button
-              v-if="task.status === 'error'"
-              class="pw-task-dismiss"
+              v-if="(entry as ProgressTask).status === 'error'"
+              class="nw-task-dismiss"
               title="关闭"
-              @click="removeProgressTask(task.id)"
+              @click="removeProgressTask(entry.id)"
             >
               ✕
             </button>
           </div>
 
           <!-- Optional message -->
-          <p v-if="task.message" class="pw-task-msg">{{ task.message }}</p>
+          <p v-if="(entry as ProgressTask).message" class="nw-task-msg">
+            {{ (entry as ProgressTask).message }}
+          </p>
 
           <!-- Progress bar (active tasks only) -->
-          <div v-if="task.status === 'active'" class="pw-task-bar">
+          <div
+            v-if="(entry as ProgressTask).status === 'active'"
+            class="nw-task-bar"
+          >
             <div
-              class="pw-task-fill"
-              :class="{ 'pw-task-fill--indeterminate': task.progress < 0 }"
-              :style="task.progress >= 0 ? { width: `${task.progress}%` } : {}"
+              class="nw-task-fill"
+              :class="{
+                'nw-task-fill--indeterminate':
+                  (entry as ProgressTask).progress < 0,
+              }"
+              :style="
+                (entry as ProgressTask).progress >= 0
+                  ? { width: `${(entry as ProgressTask).progress}%` }
+                  : {}
+              "
             />
           </div>
         </div>
@@ -209,10 +340,10 @@ const hasDone = computed(() =>
 
 <style scoped>
 /* ── Widget shell ─────────────────────────────────────────────────────────── */
-.pw {
+.nw {
   position: fixed;
   z-index: 10001;
-  width: 300px;
+  width: 340px;
   background: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-float);
@@ -220,16 +351,26 @@ const hasDone = computed(() =>
   overflow: hidden;
   user-select: none;
   pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 4rem);
 
   /* Smooth snap/minimize transitions */
   transition:
     left 0.35s var(--ease-crystal),
     top 0.35s var(--ease-crystal),
-    width 0.3s var(--ease-crystal);
+    width 0.3s var(--ease-crystal),
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nw--closing {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 /* No transition while the user is actively dragging */
-.pw--dragging {
+.nw--dragging {
   transition: none;
   box-shadow:
     var(--shadow-float),
@@ -238,12 +379,12 @@ const hasDone = computed(() =>
 }
 
 /* Compact width when minimized */
-.pw--min {
+.nw--min {
   width: 220px;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
-.pw-header {
+.nw-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -251,24 +392,25 @@ const hasDone = computed(() =>
   background: var(--surface-container-low);
   border-bottom: 1px solid var(--outline-ghost);
   cursor: move;
+  flex-shrink: 0;
 }
 
-.pw--min .pw-header {
+.nw--min .nw-header {
   border-bottom: none;
 }
 
-.pw-grip {
+.nw-grip {
   color: var(--foreground-muted);
   font-size: 0.95rem;
   cursor: grab;
   flex-shrink: 0;
   line-height: 1;
 }
-.pw--dragging .pw-grip {
+.nw--dragging .nw-grip {
   cursor: grabbing;
 }
 
-.pw-title {
+.nw-title {
   flex: 1;
   font-size: 0.8rem;
   font-weight: 600;
@@ -282,13 +424,13 @@ const hasDone = computed(() =>
   text-overflow: ellipsis;
 }
 
-.pw-actions {
+.nw-actions {
   display: flex;
   gap: 0.15rem;
   flex-shrink: 0;
 }
 
-.pw-action {
+.nw-action {
   background: none;
   border: none;
   cursor: pointer;
@@ -302,24 +444,159 @@ const hasDone = computed(() =>
     color 0.15s,
     background 0.15s;
 }
-.pw-action:hover {
+.nw-action:hover {
   color: var(--foreground);
   background: var(--surface-container);
 }
 
 /* ── Body ─────────────────────────────────────────────────────────────────── */
-.pw-body {
+.nw-body {
   padding: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.pw-task-list {
+.nw-item-list {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  flex: 1;
 }
 
-/* ── Task card ───────────────────────────────────────────────────────────── */
-.pw-task {
+/* ────────────────────────────────────────────────────────────────── */
+/* ── Toast styles ────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────── */
+
+.nw-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-sm);
+  background: white;
+  border: 1px solid var(--outline-ghost);
+  border-left: 3px solid var(--nw-toast-accent, var(--primary));
+  position: relative;
+  overflow: hidden;
+
+  transition:
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nw-toast--closing {
+  opacity: 0;
+  transform: translateX(10px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  border-width: 0;
+  overflow: hidden;
+}
+
+/* Toast accent colors */
+.nw-toast--info {
+  --nw-toast-accent: var(--primary);
+}
+.nw-toast--warn {
+  --nw-toast-accent: #d97706;
+}
+.nw-toast--success {
+  --nw-toast-accent: #16a34a;
+}
+.nw-toast--error {
+  --nw-toast-accent: #dc2626;
+}
+
+.nw-toast-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--nw-toast-accent) 12%, transparent);
+  color: var(--nw-toast-accent);
+}
+
+.nw-toast-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nw-toast-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: 0.01em;
+}
+
+.nw-toast-message {
+  font-size: 0.8rem;
+  color: var(--foreground-muted);
+  line-height: 1.4;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.nw-toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--foreground-muted);
+  font-size: 0.6rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.nw-toast-close:hover {
+  color: var(--foreground);
+  background: var(--surface-container);
+}
+
+.nw-toast-timer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--nw-toast-accent);
+  transform-origin: left center;
+  animation: nw-timer-shrink var(--toast-duration) linear forwards;
+}
+
+@keyframes nw-timer-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* ── Task card styles ─────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────── */
+
+.nw-task {
   padding: 0.55rem 0.65rem;
   border-radius: var(--radius-sm);
   background: var(--surface-container-low);
@@ -329,25 +606,42 @@ const hasDone = computed(() =>
   gap: 0.35rem;
   max-height: 150px;
   overflow: auto;
+  transition:
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.pw-task--complete {
+.nw-task--closing {
+  opacity: 0;
+  transform: translateX(10px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  border-width: 0;
+  overflow: hidden;
+}
+
+.nw-task--complete {
   opacity: 0.72;
 }
 
-.pw-task--error {
+.nw-task--error {
   border-color: rgb(220 38 38 / 0.28);
   background: rgb(220 38 38 / 0.04);
 }
 
-/* Task row */
-.pw-task-top {
+.nw-task-top {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.pw-task-status-slot {
+.nw-task-status-slot {
   flex-shrink: 0;
   width: 1.25rem;
   height: 1.25rem;
@@ -355,14 +649,13 @@ const hasDone = computed(() =>
   place-items: center;
 }
 
-.pw-task-pct {
+.nw-task-pct {
   font-size: 0.68rem;
   font-weight: 700;
   color: var(--primary);
 }
 
-/* Status badge (complete / error) */
-.pw-task-badge {
+.nw-task-badge {
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 50%;
@@ -370,18 +663,17 @@ const hasDone = computed(() =>
   place-items: center;
 }
 
-.pw-task-badge--ok {
+.nw-task-badge--ok {
   background: rgb(22 163 74 / 0.12);
   color: #16a34a;
 }
 
-.pw-task-badge--err {
+.nw-task-badge--err {
   background: rgb(220 38 38 / 0.12);
   color: #dc2626;
 }
 
-/* Title */
-.pw-task-title {
+.nw-task-title {
   flex: 1;
   font-size: 0.8rem;
   font-weight: 500;
@@ -392,8 +684,7 @@ const hasDone = computed(() =>
   white-space: nowrap;
 }
 
-/* Dismiss button */
-.pw-task-dismiss {
+.nw-task-dismiss {
   background: none;
   border: none;
   cursor: pointer;
@@ -404,30 +695,30 @@ const hasDone = computed(() =>
   line-height: 1;
   transition: color 0.15s;
 }
-.pw-task-dismiss:hover {
+.nw-task-dismiss:hover {
   color: #dc2626;
 }
 
-/* Optional subtitle */
-.pw-task-msg {
+.nw-task-msg {
   font-size: 0.75rem;
   color: var(--foreground-muted);
   line-height: 1.4;
   padding-left: 1.75rem;
+  margin: 0;
 }
-.pw-task--error .pw-task-msg {
+.nw-task--error .nw-task-msg {
   color: #dc2626;
 }
 
-/* ── Progress bar ─────────────────────────────────────────────────────────── */
-.pw-task-bar {
+/* Progress bar */
+.nw-task-bar {
   height: 4px;
   background: var(--surface-container-high);
   border-radius: 99px;
   overflow: hidden;
 }
 
-.pw-task-fill {
+.nw-task-fill {
   height: 100%;
   background: var(--primary);
   border-radius: 99px;
@@ -435,22 +726,22 @@ const hasDone = computed(() =>
 }
 
 /* Indeterminate shimmer */
-.pw-task-fill--indeterminate {
+.nw-task-fill--indeterminate {
   position: relative;
   width: 100% !important;
   background: var(--surface-container-high);
 }
-.pw-task-fill--indeterminate::after {
+.nw-task-fill--indeterminate::after {
   content: "";
   position: absolute;
   inset: 0;
   width: 40%;
   background: var(--primary);
   border-radius: 99px;
-  animation: indeterminate 1.5s ease-in-out infinite;
+  animation: nw-indeterminate 1.5s ease-in-out infinite;
 }
 
-@keyframes indeterminate {
+@keyframes nw-indeterminate {
   0% {
     left: -40%;
   }
@@ -460,26 +751,50 @@ const hasDone = computed(() =>
 }
 
 /* ── Spinner ──────────────────────────────────────────────────────────────── */
-.pw-spinner {
+.nw-spinner {
   display: inline-block;
   width: 1rem;
   height: 1rem;
   border: 2px solid var(--surface-container-high);
   border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 0.75s linear infinite;
+  animation: nw-spin 0.75s linear infinite;
 }
-.pw-spinner--sm {
+.nw-spinner--sm {
   width: 0.875rem;
   height: 0.875rem;
 }
 
-@keyframes spin {
+@keyframes nw-spin {
   to {
     transform: rotate(360deg);
   }
 }
 </style>
+
+<!--
+  TransitionGroup classes applied to native <div> children — must be unscoped.
+-->
+<style>
+.nw-item-enter-active,
+.nw-item-leave-active {
+  transition:
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nw-item-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.nw-item-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
+}
+.nw-item-move {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+</style>
+} @keyframes spin { to { transform: rotate(360deg); } }
 
 <!--
   TransitionGroup classes applied to native <div> children — must be unscoped.

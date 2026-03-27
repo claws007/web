@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import { progressState } from "./store";
+import { notificationState } from "./store";
 import FloatingPortal from "./FloatingPortal.vue";
-import NotificationContainer from "./NotificationContainer.vue";
-import ProgressWidget from "./ProgressWidget.vue";
+import NotificationWidget from "./ProgressWidget.vue";
 </script>
 
 <template>
-  <NotificationContainer />
   <FloatingPortal
-    :visible="progressState.tasks.length > 0"
-    transition-name="pw-fade"
+    :visible="notificationState.entries.length > 0 || notificationState.closing"
+    transition-name="nw-fade"
   >
-    <ProgressWidget />
+    <NotificationWidget />
   </FloatingPortal>
 </template>
 
 <style>
-/* ProgressWidget fade transition */
-.pw-fade-enter-active,
-.pw-fade-leave-active {
+/* NotificationWidget fade transition */
+.nw-fade-enter-active,
+.nw-fade-leave-active {
   transition: opacity 0.3s ease;
 }
 
-.pw-fade-enter-from,
-.pw-fade-leave-to {
+.nw-fade-enter-from,
+.nw-fade-leave-to {
   opacity: 0;
 }
 </style>

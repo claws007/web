@@ -24,8 +24,8 @@
 import { createApp } from "vue";
 import NotificationHost from "./NotificationHost.vue";
 import {
-  addToast,
   addProgressTask,
+  addToast,
   patchProgressTask,
   removeProgressTask,
 } from "./store";
@@ -127,8 +127,9 @@ export const notify = {
 // Re-export lower-level helpers for advanced use
 export { dismissToast } from "./store";
 export type {
-  ToastItem,
-  ProgressTask,
+  NotificationEntry,
   NotificationType,
+  ProgressTask,
   SnapEdge,
+  ToastItem,
 } from "./types";

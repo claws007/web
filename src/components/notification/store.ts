@@ -1,20 +1,89 @@
 import { reactive } from "vue";
 import type {
-  ToastItem,
-  ProgressTask,
+  NotificationEntry,
   NotificationType,
+  ProgressTask,
   SnapEdge,
+  ToastItem,
 } from "./types";
 
 let _uid = 0;
 const uid = () => `_n${Date.now()}_${++_uid}`;
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// ── Unified Notification State ─────────────────────────────────────────────────
 
-export const toastState = reactive<{ items: ToastItem[] }>({ items: [] });
+export const notificationState = reactive<{
+  entries: (NotificationEntry & { _closing?: boolean })[];
+  pos: { x: number; y: number };
+  snapEdge: SnapEdge;
+  minimized: boolean;
+  closing: boolean;
+}>({
+  entries: [],
+  pos: { x: 0, y: 0 },
+  snapEdge: "right",
+  minimized: false,
+  closing: false,
+});
 
-// Map to track timeout IDs for each toast
-const toastTimers = new Map<string, NodeJS.Timeout>();
+// ── Timer Maps ────────────────────────────────────────────────────────────────
+
+/** Auto-dismiss timers: used for toast items and completed progress tasks. */
+const dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Per-card slide-out animation timers before actual splice. */
+const removingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+function markClosing(id: string): void {
+  const entry = notificationState.entries.find((e) => e.id === id);
+  if (entry) entry._closing = true;
+}
+
+function spliceEntry(id: string): void {
+  const idx = notificationState.entries.findIndex((e) => e.id === id);
+  if (idx !== -1) notificationState.entries.splice(idx, 1);
+}
+
+/**
+ * Remove an entry. If it is the last one, play widget-level closing fade then
+ * splice; otherwise play per-card slide-out then splice.
+ */
+function scheduleRemove(id: string): void {
+  const dt = dismissTimers.get(id);
+  if (dt) {
+    clearTimeout(dt);
+    dismissTimers.delete(id);
+  }
+
+  // Already being removed
+  if (removingTimers.has(id)) return;
+
+  if (notificationState.entries.length === 1) {
+    // Last entry — trigger widget-level fade-out
+    notificationState.closing = true;
+    markClosing(id);
+
+    const t = setTimeout(() => {
+      spliceEntry(id);
+      notificationState.closing = false;
+      removingTimers.delete(id);
+    }, 300);
+    removingTimers.set(id, t);
+    return;
+  }
+
+  // Not last — slide individual card out then splice
+  markClosing(id);
+  const t = setTimeout(() => {
+    spliceEntry(id);
+    removingTimers.delete(id);
+  }, 250);
+  removingTimers.set(id, t);
+}
+
+// ── Toast API ─────────────────────────────────────────────────────────────────
 
 export function addToast(
   type: NotificationType,
@@ -22,73 +91,64 @@ export function addToast(
   duration = 4000,
 ): string {
   const id = uid();
-  toastState.items.push({ id, type, message, duration });
+  notificationState.closing = false;
+  const entry: ToastItem = {
+    kind: "toast",
+    id,
+    type,
+    message,
+    duration,
+    insertedAt: Date.now(),
+  };
+  notificationState.entries.push(entry);
+
   if (duration > 0) {
     const timer = setTimeout(() => dismissToast(id), duration);
-    toastTimers.set(id, timer);
+    dismissTimers.set(id, timer);
   }
   return id;
 }
 
-export function refreshToastTimer(id: string): void {
-  const toast = toastState.items.find((t) => t.id === id);
-  if (!toast || toast.duration <= 0) return;
-
-  // Clear existing timer
-  const existingTimer = toastTimers.get(id);
-  if (existingTimer) clearTimeout(existingTimer);
-
-  // Set new timer
-  const newTimer = setTimeout(() => dismissToast(id), toast.duration);
-  toastTimers.set(id, newTimer);
-}
-
 export function pauseToastTimer(id: string): void {
-  // Clear the timer but keep the toast
-  const existingTimer = toastTimers.get(id);
-  if (existingTimer) clearTimeout(existingTimer);
-  toastTimers.delete(id);
+  const t = dismissTimers.get(id);
+  if (t) {
+    clearTimeout(t);
+    dismissTimers.delete(id);
+  }
 }
 
 export function resumeToastTimer(id: string): void {
-  // Resume the timer if toast still exists
-  const toast = toastState.items.find((t) => t.id === id);
-  if (toast && toast.duration > 0) {
-    const newTimer = setTimeout(() => dismissToast(id), toast.duration);
-    toastTimers.set(id, newTimer);
+  const entry = notificationState.entries.find(
+    (e) => e.id === id && e.kind === "toast",
+  ) as ToastItem | undefined;
+  if (entry && entry.duration > 0) {
+    const timer = setTimeout(() => dismissToast(id), entry.duration);
+    dismissTimers.set(id, timer);
   }
 }
 
 export function dismissToast(id: string): void {
-  const i = toastState.items.findIndex((t) => t.id === id);
-  if (i !== -1) toastState.items.splice(i, 1);
-
-  // Clean up timer
-  const timer = toastTimers.get(id);
-  if (timer) clearTimeout(timer);
-  toastTimers.delete(id);
+  const entry = notificationState.entries.find(
+    (e) => e.id === id && e.kind === "toast",
+  );
+  if (!entry || entry._closing) return;
+  scheduleRemove(id);
 }
 
-// ── Progress ──────────────────────────────────────────────────────────────────
-
-export const progressState = reactive<{
-  tasks: ProgressTask[];
-  pos: { x: number; y: number };
-  snapEdge: SnapEdge;
-  minimized: boolean;
-}>({
-  tasks: [],
-  pos: { x: 0, y: 0 },
-  snapEdge: "right",
-  minimized: false,
-});
-
-// Map to track timeout IDs for each progress task's auto-dismiss
-const progressTimers = new Map<string, NodeJS.Timeout>();
+// ── Progress API ──────────────────────────────────────────────────────────────
 
 export function addProgressTask(title: string): string {
   const id = uid();
-  progressState.tasks.push({ id, title, progress: -1, status: "active" });
+  notificationState.closing = false;
+  const entry: ProgressTask = {
+    kind: "progress",
+    id,
+    title,
+    progress: -1,
+    status: "active",
+    insertedAt: Date.now(),
+  };
+  notificationState.entries.push(entry);
   return id;
 }
 
@@ -98,50 +158,67 @@ export function patchProgressTask(
     Pick<ProgressTask, "progress" | "status" | "message" | "title">
   >,
 ): void {
-  const task = progressState.tasks.find((t) => t.id === id);
+  const task = notificationState.entries.find(
+    (e) => e.id === id && e.kind === "progress",
+  ) as ProgressTask | undefined;
   if (!task) return;
   Object.assign(task, patch);
+
   if (patch.status === "complete") {
     const timer = setTimeout(() => removeProgressTask(id), 3500);
-    progressTimers.set(id, timer);
-  }
-}
-
-export function refreshProgressTaskTimer(id: string): void {
-  // Clear existing timer
-  const existingTimer = progressTimers.get(id);
-  if (existingTimer) clearTimeout(existingTimer);
-
-  // Set new timer if task still exists and is completed
-  const task = progressState.tasks.find((t) => t.id === id);
-  if (task && task.status !== "active") {
-    const newTimer = setTimeout(() => removeProgressTask(id), 3500);
-    progressTimers.set(id, newTimer);
+    dismissTimers.set(id, timer);
   }
 }
 
 export function pauseProgressTaskTimer(id: string): void {
-  // Clear the timer but keep the task
-  const existingTimer = progressTimers.get(id);
-  if (existingTimer) clearTimeout(existingTimer);
-  progressTimers.delete(id);
+  const t = dismissTimers.get(id);
+  if (t) {
+    clearTimeout(t);
+    dismissTimers.delete(id);
+  }
 }
 
 export function resumeProgressTaskTimer(id: string): void {
-  // Resume the timer if task still exists and is completed
-  const task = progressState.tasks.find((t) => t.id === id);
+  const task = notificationState.entries.find(
+    (e) => e.id === id && e.kind === "progress",
+  ) as ProgressTask | undefined;
   if (task && task.status !== "active") {
-    const newTimer = setTimeout(() => removeProgressTask(id), 3500);
-    progressTimers.set(id, newTimer);
+    const timer = setTimeout(() => removeProgressTask(id), 3500);
+    dismissTimers.set(id, timer);
   }
 }
 
 export function removeProgressTask(id: string): void {
-  const i = progressState.tasks.findIndex((t) => t.id === id);
-  if (i !== -1) progressState.tasks.splice(i, 1);
+  const entry = notificationState.entries.find(
+    (e) => e.id === id && e.kind === "progress",
+  );
+  if (!entry || entry._closing) return;
+  scheduleRemove(id);
+}
 
-  // Clean up timer
-  const timer = progressTimers.get(id);
-  if (timer) clearTimeout(timer);
-  progressTimers.delete(id);
+// ── Unified hover-pause helpers ────────────────────────────────────────────────
+
+/** IDs of all entries that should be paused on hover. */
+export function getPausableIds(): string[] {
+  return notificationState.entries
+    .filter((e) => {
+      if (e.kind === "toast") return (e as ToastItem).duration > 0;
+      if (e.kind === "progress") return (e as ProgressTask).status !== "active";
+      return false;
+    })
+    .map((e) => e.id);
+}
+
+export function pauseTimer(id: string): void {
+  const entry = notificationState.entries.find((e) => e.id === id);
+  if (!entry) return;
+  if (entry.kind === "toast") pauseToastTimer(id);
+  else if (entry.kind === "progress") pauseProgressTaskTimer(id);
+}
+
+export function resumeTimer(id: string): void {
+  const entry = notificationState.entries.find((e) => e.id === id);
+  if (!entry) return;
+  if (entry.kind === "toast") resumeToastTimer(id);
+  else if (entry.kind === "progress") resumeProgressTaskTimer(id);
 }

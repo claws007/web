@@ -13,6 +13,7 @@ import Input from "@/components/Input.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { msg } from "@/utils/message";
+import { notify } from "../notification";
 
 const emit = defineEmits<{
   close: [];
@@ -137,7 +138,7 @@ async function pullImage(target?: string) {
   try {
     await api.modelConnector.pullDockerImage({ image });
     pullImageName.value = image;
-    await msg.info(`已开始后台拉取镜像：${image}`);
+    notify.success(`开始拉取镜像：${image}`);
   } catch (error) {
     await msg.error(error instanceof Error ? error.message : "拉取镜像失败");
   } finally {
