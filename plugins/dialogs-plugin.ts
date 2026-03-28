@@ -9,7 +9,7 @@ export interface DialogsPluginOptions {
   dir: string;
   /**
    * RegExp used to identify dialog component files.
-   * Defaults to files whose name ends with `Dialog.vue`.
+   * Defaults to files whose name ends with `Dialog.vue` or `Drawer.vue`.
    */
   pattern?: RegExp;
   /**
@@ -23,7 +23,11 @@ const VIRTUAL_ID = "virtual:dialogs";
 const RESOLVED_VIRTUAL_ID = "\0virtual:dialogs";
 
 export function dialogsPlugin(options: DialogsPluginOptions): Plugin {
-  const { dir, pattern = /Dialog\.vue$/, dts = "src/dialogs.d.ts" } = options;
+  const {
+    dir,
+    pattern = /(Dialog|Drawer)\.vue$/,
+    dts = "src/dialogs.d.ts",
+  } = options;
 
   let config: ResolvedConfig;
 

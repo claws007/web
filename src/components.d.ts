@@ -18,6 +18,7 @@ declare module 'vue' {
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
     DefaultButton: typeof import('./components/DefaultButton.vue')['default']
     Dialog: typeof import('./components/Dialog.vue')['default']
+    Drawer: typeof import('./components/Drawer.vue')['default']
     Dropdown: typeof import('./components/Dropdown.vue')['default']
     DropdownMenu: typeof import('./components/DropdownMenu.vue')['default']
     EditOrCreateAgentDialog: typeof import('./components/dialog/EditOrCreateAgentDialog.vue')['default']
