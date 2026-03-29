@@ -25,6 +25,8 @@ import {
   type MCPServerResponse,
   type ModelCatalogResponse,
   type ModelTypesResponse,
+  type NotificationPageResponse,
+  type NotificationResponse,
   type RequestParams,
   type SkillPageResponse,
   type SkillResponse,
@@ -286,6 +288,22 @@ type EnhancedApi = Api<string> & {
     ): Promise<
       HttpResponse<DockerImagePageResponse<DockerHubImageResponse>, unknown>
     >;
+  };
+  notification: {
+    getNotification(
+      query?: { page?: number; pageSize?: number; pending?: boolean },
+      params?: RequestParams,
+    ): Promise<HttpResponse<NotificationPageResponse, unknown>>;
+    resolveNotification(
+      id: number,
+      data:
+        | { type: "REQUEST_INPUT"; value: string }
+        | { type: "REQUEST_SELECT_SINGLE"; value: string }
+        | { type: "REQUEST_SELECT_MULTI"; value: string[] }
+        | { type: "REQUEST_CONFIRM"; value: boolean }
+        | { type: "AGENT_TASK_RESULT"; value: boolean },
+      params?: RequestParams,
+    ): Promise<HttpResponse<NotificationResponse, unknown>>;
   };
   mcpServer: {
     getMcpServer(
@@ -759,6 +777,39 @@ export const api = Object.assign(rawApi, {
           "/model-connector/docker/search",
           "GET",
           { query, params },
+        ),
+    ),
+  },
+  notification: {
+    getNotification: withCompanyScope(
+      (
+        companyId,
+        query?: { page?: number; pageSize?: number; pending?: boolean },
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.getCompanyByCompanyIdNotification(
+          companyId,
+          query,
+          params,
+        ),
+    ),
+    resolveNotification: withCompanyScope(
+      (
+        companyId,
+        id: number,
+        data:
+          | { type: "REQUEST_INPUT"; value: string }
+          | { type: "REQUEST_SELECT_SINGLE"; value: string }
+          | { type: "REQUEST_SELECT_MULTI"; value: string[] }
+          | { type: "REQUEST_CONFIRM"; value: boolean }
+          | { type: "AGENT_TASK_RESULT"; value: boolean },
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.postCompanyByCompanyIdNotificationByIdResolve(
+          companyId,
+          id,
+          data,
+          params,
         ),
     ),
   },

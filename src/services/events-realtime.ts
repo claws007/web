@@ -43,7 +43,7 @@ const ALL_ENTITY_TYPES: EntityType[] = [
   "chat_history",
   "skill",
   "mcp_server",
-  "command_progress",
+  "notification",
 ];
 
 let activeSocket: WebSocket | null = null;
@@ -75,9 +75,9 @@ function getWsUrl(token: string): string {
   const base = new URL(apiBase, window.location.origin);
   const protocol = base.protocol === "https:" ? "wss:" : "ws:";
   const basePath = base.pathname.replace(/\/$/, "");
-  return `${protocol}//${base.host}${basePath}/events/ws?token=${
-    encodeURIComponent(token)
-  }`;
+  return `${protocol}//${base.host}${basePath}/events/ws?token=${encodeURIComponent(
+    token,
+  )}`;
 }
 
 function dispatchEntityChange(payload: EntityChangePayload) {
@@ -263,8 +263,8 @@ function resyncDemandsOnOpen(companyId: number) {
     }
   }
 
-  const filteredEvents = eventsToSubscribe.filter((event) =>
-    event !== "entity_change"
+  const filteredEvents = eventsToSubscribe.filter(
+    (event) => event !== "entity_change",
   );
 
   if (filteredEvents.length === 0) {

@@ -9,7 +9,15 @@ export interface ServerEventEnvelopeError {
 
 export type WsEventType = "entity_change";
 
-export type CommandProgressStatus = "running" | "success" | "failed";
+export type NotificationState = "PENDING" | "RESOLVE";
+
+export type NotificationType =
+  | "REQUEST_INPUT"
+  | "REQUEST_SELECT_SINGLE"
+  | "REQUEST_SELECT_MULTI"
+  | "REQUEST_CONFIRM"
+  | "COMMAND_PROGRESS"
+  | "AGENT_TASK_RESULT";
 
 export type EntityType =
   | "agent"
@@ -17,7 +25,7 @@ export type EntityType =
   | "chat_history"
   | "skill"
   | "mcp_server"
-  | "command_progress";
+  | "notification";
 
 export type EntityOperation = "create" | "update" | "delete";
 
@@ -109,19 +117,6 @@ export interface MCPServerEntityRecord {
   builtin: boolean;
 }
 
-export interface CommandProgressEntityRecord {
-  id: string;
-  companyId: number;
-  commandType: string;
-  title: string;
-  status: CommandProgressStatus;
-  progress: number | unknown;
-  message: string | unknown;
-  startedAt: string;
-  updatedAt: string;
-  finishedAt: string | unknown;
-}
-
 export type EntityRecord =
   | AgentEntityRecord
   | AgentTaskEntityRecord
@@ -129,7 +124,7 @@ export type EntityRecord =
   | SkillEntityRecord
   | MCPServerEntityRecord
   | AgentDeleteTombstone
-  | CommandProgressEntityRecord;
+  | NotificationEntityRecord;
 
 export interface EntityChangePayload {
   companyId: number;
@@ -137,6 +132,19 @@ export interface EntityChangePayload {
   operation: EntityOperation;
   entityId: number | string;
   record: EntityRecord;
+}
+
+export interface NotificationEntityRecord {
+  id: number;
+  companyId: number;
+  type: NotificationType;
+  title: string | unknown;
+  content: string;
+  extraParams: unknown;
+  state: NotificationState;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | unknown;
 }
 
 export interface EventsReadyEnvelope {
@@ -163,14 +171,12 @@ export interface SubscribeCommand {
   type: SubscribeCommandType;
   companyId: number;
   events: SubscriptionEventList;
-  entities?: EntityType[];
 }
 
 export interface UnsubscribeCommand {
   type: UnsubscribeCommandType;
   companyId: number;
   events: SubscriptionEventList;
-  entities?: EntityType[];
 }
 
 /** Messages sent by the client on the `/events/ws` channel */

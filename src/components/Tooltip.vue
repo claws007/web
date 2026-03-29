@@ -8,15 +8,21 @@ const props = withDefaults(
     placement?: FloatPlacement;
     /** Keep the tooltip always visible regardless of hover state */
     persistent?: boolean;
+    /** Keep tooltip visible when cursor moves from anchor to tooltip body */
+    hoverable?: boolean;
   }>(),
   {
     placement: "top",
     persistent: false,
+    hoverable: true,
   },
 );
 
 const hovered = ref(false);
-const visible = computed(() => props.persistent || hovered.value);
+const bubbleHovered = ref(false);
+const visible = computed(
+  () => props.persistent || hovered.value || (props.hoverable && bubbleHovered.value),
+);
 
 const anchorRef = ref<HTMLElement | null>(null);
 const bubbleRef = ref<HTMLElement | null>(null);
@@ -63,10 +69,16 @@ watch([() => props.content, () => props.placement], () => update(), {
         <div
           v-if="visible && content"
           ref="bubbleRef"
-          :class="['tooltip-bubble', `tooltip-bubble--${placement}`]"
+          :class="[
+            'tooltip-bubble',
+            `tooltip-bubble--${placement}`,
+            { 'tooltip-bubble--hoverable': props.hoverable },
+          ]"
           role="tooltip"
+          @mouseenter="bubbleHovered = true"
+          @mouseleave="bubbleHovered = false"
         >
-          {{ content }}
+          <div class="tooltip-content">{{ content }}</div>
           <div :class="['tooltip-arrow', `tooltip-arrow--${placement}`]" />
         </div>
       </Transition>
@@ -81,6 +93,8 @@ watch([() => props.content, () => props.placement], () => update(), {
 
 /* ── Bubble ─────────────────────────────────────────────── */
 .tooltip-bubble {
+  --tooltip-viewport-gap: 12px;
+
   position: fixed;
   z-index: 9999;
   width: max-content;
@@ -90,8 +104,6 @@ watch([() => props.content, () => props.placement], () => update(), {
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--foreground);
-  white-space: pre-wrap;
-  word-break: break-word;
   pointer-events: none;
 
   /* Frosted glass */
@@ -103,6 +115,18 @@ watch([() => props.content, () => props.placement], () => update(), {
     0 4px 16px rgb(0 104 119 / 0.1),
     0 1px 4px rgb(0 0 0 / 0.06),
     inset 0 1px 0 rgb(255 255 255 / 0.7);
+}
+
+.tooltip-bubble--hoverable {
+  pointer-events: auto;
+}
+
+.tooltip-content {
+  max-height: calc(100vh - var(--tooltip-viewport-gap) * 2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ── Arrow ──────────────────────────────────────────────── */

@@ -2,6 +2,7 @@
 
 <template>
   <RouterView />
+  <NotificationHost />
 </template>
 
 <style scoped></style>

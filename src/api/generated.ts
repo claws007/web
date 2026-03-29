@@ -81,6 +81,63 @@ export interface ModelCatalogResponse {
   models: string[];
 }
 
+export interface DockerAvailabilityResponse {
+  available: boolean;
+  clientVersion?: string;
+  serverVersion?: string;
+  error?: string;
+}
+
+export interface DockerLocalImageResponse {
+  repository: string;
+  tag: string;
+  imageId: string;
+  digest?: string;
+  createdSince?: string;
+  size?: string;
+  fullName: string;
+}
+
+export interface DockerLocalImagePageResponse {
+  items: DockerLocalImageResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface DockerPullResponse {
+  success: true;
+  image: string;
+  output: string;
+}
+
+export interface DockerHubImageResponse {
+  name: string;
+  namespace: string;
+  repositoryType?: string;
+  shortDescription?: string;
+  starCount?: number;
+  pullCount?: number;
+  isOfficial?: boolean;
+}
+
+export interface DockerHubImagePageResponse {
+  items: DockerHubImageResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
 export interface AIModelConnectorResponse {
   id: number;
   name: string;
@@ -601,6 +658,42 @@ export interface TaskResponse {
   agentTasks?: AgentTaskResponse[];
 }
 
+export interface NotificationResponse {
+  /** @min 1 */
+  id: number;
+  /** @min 1 */
+  companyId: number;
+  type:
+    | "REQUEST_INPUT"
+    | "REQUEST_SELECT_SINGLE"
+    | "REQUEST_SELECT_MULTI"
+    | "REQUEST_CONFIRM"
+    | "COMMAND_PROGRESS"
+    | "AGENT_TASK_RESULT";
+  title?: string | null;
+  content: string;
+  extraParams?: Record<string, any>;
+  state: "PENDING" | "RESOLVE";
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+  /** @format date-time */
+  resolvedAt?: string | null;
+}
+
+export interface NotificationPageResponse {
+  items: NotificationResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
 export type GenericObjectResponse = Record<string, any>;
 
 export type GenericArrayResponse = Record<string, any>[];
@@ -686,9 +779,7 @@ export class HttpClient<SecurityDataType = unknown> {
 
   protected encodeQueryParam(key: string, value: any) {
     const encodedKey = encodeURIComponent(key);
-    return `${encodedKey}=${
-      encodeURIComponent(typeof value === "number" ? value : `${value}`)
-    }`;
+    return `${encodedKey}=${encodeURIComponent(typeof value === "number" ? value : `${value}`)}`;
   }
 
   protected addQueryParam(query: QueryParamsType, key: string) {
@@ -709,7 +800,7 @@ export class HttpClient<SecurityDataType = unknown> {
       .map((key) =>
         Array.isArray(query[key])
           ? this.addArrayQueryParam(query, key)
-          : this.addQueryParam(query, key)
+          : this.addQueryParam(query, key),
       )
       .join("&");
   }
@@ -744,8 +835,8 @@ export class HttpClient<SecurityDataType = unknown> {
           property instanceof Blob
             ? property
             : typeof property === "object" && property !== null
-            ? JSON.stringify(property)
-            : `${property}`,
+              ? JSON.stringify(property)
+              : `${property}`,
         );
         return formData;
       }, new FormData());
@@ -816,9 +907,7 @@ export class HttpClient<SecurityDataType = unknown> {
     const responseFormat = format || requestParams.format;
 
     return this.customFetch(
-      `${baseUrl || this.baseUrl || ""}${path}${
-        queryString ? `?${queryString}` : ""
-      }`,
+      `${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`,
       {
         ...requestParams,
         headers: {
@@ -831,9 +920,10 @@ export class HttpClient<SecurityDataType = unknown> {
           (cancelToken
             ? this.createAbortSignal(cancelToken)
             : requestParams.signal) || null,
-        body: typeof body === "undefined" || body === null
-          ? null
-          : payloadFormatter(body),
+        body:
+          typeof body === "undefined" || body === null
+            ? null
+            : payloadFormatter(body),
       },
     ).then(async (response) => {
       const r = response as HttpResponse<T, E>;
@@ -841,19 +931,21 @@ export class HttpClient<SecurityDataType = unknown> {
       r.error = null as unknown as E;
 
       const responseToParse = responseFormat ? response.clone() : response;
-      const data = !responseFormat ? r : await responseToParse[responseFormat]()
-        .then((data) => {
-          if (r.ok) {
-            r.data = data;
-          } else {
-            r.error = data;
-          }
-          return r;
-        })
-        .catch((e) => {
-          r.error = e;
-          return r;
-        });
+      const data = !responseFormat
+        ? r
+        : await responseToParse[responseFormat]()
+            .then((data) => {
+              if (r.ok) {
+                r.data = data;
+              } else {
+                r.error = data;
+              }
+              return r;
+            })
+            .catch((e) => {
+              r.error = e;
+              return r;
+            });
 
       if (cancelToken) {
         this.abortControllers.delete(cancelToken);
@@ -1417,6 +1509,8 @@ export class Api<
       companyId: number,
       id: number,
       data: {
+        /** @min 0 */
+        taskId?: number | null;
         /** @minLength 1 */
         content: string;
         /** @minLength 1 */
@@ -1427,35 +1521,36 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
+          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: (
           | {
-            /** Notify an agent target. */
-            type: "agent";
-            /**
-             * Target agent ID.
-             * @min 0
-             */
-            agentId: number;
-            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-            notifyOnSuccessBottomOnly?: boolean | null;
-            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-            notifyOnFailureBottomOnly?: boolean | null;
-          }
+              /** Notify an agent target. */
+              type: "agent";
+              /**
+               * Target agent ID.
+               * @min 0
+               */
+              agentId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
           | {
-            /** Notify a user target. */
-            type: "user";
-            /**
-             * Target user ID.
-             * @min 0
-             */
-            userId: number;
-            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-            notifyOnSuccessBottomOnly?: boolean | null;
-            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-            notifyOnFailureBottomOnly?: boolean | null;
-          }
+              /** Notify a user target. */
+              type: "user";
+              /**
+               * Target user ID.
+               * @min 0
+               */
+              userId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
         )[];
       },
       params: RequestParams = {},
@@ -1505,6 +1600,122 @@ export class Api<
       this.request<AgentRunResponse, ValidationErrorResponse | ErrorResponse>({
         path: `/company/${companyId}/agent/${id}/run`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name GetCompanyByCompanyIdModelConnectorDockerAvailability
+     * @summary Check whether Docker is available
+     * @request GET:/company/{companyId}/model-connector/docker/availability
+     */
+    getCompanyByCompanyIdModelConnectorDockerAvailability: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAvailabilityResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/docker/availability`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name GetCompanyByCompanyIdModelConnectorDockerImages
+     * @summary List local Docker images with pagination
+     * @request GET:/company/{companyId}/model-connector/docker/images
+     */
+    getCompanyByCompanyIdModelConnectorDockerImages: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerLocalImagePageResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/docker/images`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name DeleteCompanyByCompanyIdModelConnectorDockerImages
+     * @summary Delete a local Docker image
+     * @request DELETE:/company/{companyId}/model-connector/docker/images
+     */
+    deleteCompanyByCompanyIdModelConnectorDockerImages: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerPullResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/docker/images`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name PostCompanyByCompanyIdModelConnectorDockerPull
+     * @summary Pull a Docker image
+     * @request POST:/company/{companyId}/model-connector/docker/pull
+     */
+    postCompanyByCompanyIdModelConnectorDockerPull: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerPullResponse, ValidationErrorResponse | ErrorResponse>(
+        {
+          path: `/company/${companyId}/model-connector/docker/pull`,
+          method: "POST",
+          format: "json",
+          ...params,
+        },
+      ),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name GetCompanyByCompanyIdModelConnectorCommandProgress
+     * @summary GET /company/{companyId}/model-connector/command-progress
+     * @request GET:/company/{companyId}/model-connector/command-progress
+     */
+    getCompanyByCompanyIdModelConnectorCommandProgress: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<AIModelConnectorResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/command-progress`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Model Connector
+     * @name GetCompanyByCompanyIdModelConnectorDockerSearch
+     * @summary Search Docker Hub images
+     * @request GET:/company/{companyId}/model-connector/docker/search
+     */
+    getCompanyByCompanyIdModelConnectorDockerSearch: (
+      companyId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerHubImagePageResponse, ErrorResponse>({
+        path: `/company/${companyId}/model-connector/docker/search`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -2182,35 +2393,36 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
+          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: (
           | {
-            /** Notify an agent target. */
-            type: "agent";
-            /**
-             * Target agent ID.
-             * @min 0
-             */
-            agentId: number;
-            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-            notifyOnSuccessBottomOnly?: boolean | null;
-            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-            notifyOnFailureBottomOnly?: boolean | null;
-          }
+              /** Notify an agent target. */
+              type: "agent";
+              /**
+               * Target agent ID.
+               * @min 0
+               */
+              agentId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
           | {
-            /** Notify a user target. */
-            type: "user";
-            /**
-             * Target user ID.
-             * @min 0
-             */
-            userId: number;
-            /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-            notifyOnSuccessBottomOnly?: boolean | null;
-            /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-            notifyOnFailureBottomOnly?: boolean | null;
-          }
+              /** Notify a user target. */
+              type: "user";
+              /**
+               * Target user ID.
+               * @min 0
+               */
+              userId: number;
+              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+              notifyOnSuccessBottomOnly?: boolean | null;
+              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+              notifyOnFailureBottomOnly?: boolean | null;
+            }
         )[];
       },
       params: RequestParams = {},
@@ -3118,6 +3330,90 @@ export class Api<
       this.request<SuccessResponse, ErrorResponse>({
         path: `/company/${companyId}/agent-skill-relation/${id}`,
         method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notification
+     * @name GetCompanyByCompanyIdNotification
+     * @summary List notifications with pagination and pending filter
+     * @request GET:/company/{companyId}/notification
+     */
+    getCompanyByCompanyIdNotification: (
+      companyId: number,
+      query?: {
+        /**
+         * 1-based page number.
+         * @min 1
+         * @default 1
+         */
+        page?: number;
+        /**
+         * Number of records returned per page.
+         * @min 1
+         * @default 20
+         */
+        pageSize?: number;
+        /** Filter by pending state. true returns only pending notifications, false returns only non-pending notifications. */
+        pending?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<NotificationPageResponse, ErrorResponse>({
+        path: `/company/${companyId}/notification`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notification
+     * @name PostCompanyByCompanyIdNotificationByIdResolve
+     * @summary POST /company/{companyId}/notification/{id}/resolve
+     * @request POST:/company/{companyId}/notification/{id}/resolve
+     */
+    postCompanyByCompanyIdNotificationByIdResolve: (
+      companyId: number,
+      id: number,
+      data:
+        | {
+            type: "REQUEST_INPUT";
+            /** @minLength 1 */
+            value: string;
+          }
+        | {
+            type: "REQUEST_SELECT_SINGLE";
+            /** @minLength 1 */
+            value: string;
+          }
+        | {
+            type: "REQUEST_SELECT_MULTI";
+            value: string[];
+          }
+        | {
+            type: "REQUEST_CONFIRM";
+            value: boolean;
+          }
+        | {
+            type: "AGENT_TASK_RESULT";
+            value: boolean;
+          },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        NotificationResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/notification/${id}/resolve`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

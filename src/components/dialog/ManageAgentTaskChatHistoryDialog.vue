@@ -7,6 +7,7 @@ import Dialog, {
   createDialogExpose,
   useDialogContext,
 } from "@/components/Dialog.vue";
+import ChatHistoryItemCard from "@/components/dialog/ChatHistoryItemCard.vue";
 import Button from "@/components/dialog/Button.vue";
 import {
   isEventSubscriptionLive,
@@ -111,26 +112,6 @@ function formatDateTime(value: string | null | undefined): string {
   return new Date(ts).toLocaleString("zh-CN", {
     hour12: false,
   });
-}
-
-function roleText(role: ChatHistoryResponse["role"]): string {
-  if (role === "SYSTEM") {
-    return "系统";
-  }
-  if (role === "USER") {
-    return "用户";
-  }
-  return "助手";
-}
-
-function roleClass(role: ChatHistoryResponse["role"]): string {
-  if (role === "SYSTEM") {
-    return "role-chip role-chip--system";
-  }
-  if (role === "USER") {
-    return "role-chip role-chip--user";
-  }
-  return "role-chip role-chip--assistant";
 }
 
 function clearWsReloadTimer() {
@@ -429,27 +410,11 @@ onUnmounted(() => {
       暂无对话历史
     </div>
     <div v-else class="history-list">
-      <article
+      <ChatHistoryItemCard
         v-for="item in sortedHistories"
         :key="item.id"
-        class="history-card"
-      >
-        <header class="history-head">
-          <span :class="roleClass(item.role)">{{ roleText(item.role) }}</span>
-          <span v-if="item.eventType" class="event-chip">{{
-            item.eventType
-          }}</span>
-          <span
-            v-if="item.durationMs !== null && item.durationMs !== undefined"
-            class="event-chip"
-          >
-            {{ item.durationMs }}ms
-          </span>
-          <time class="history-time">{{ formatDateTime(item.createdAt) }}</time>
-        </header>
-
-        <pre class="history-content">{{ item.content }}</pre>
-      </article>
+        :item="item"
+      />
     </div>
 
     <template #footer>
@@ -547,72 +512,6 @@ onUnmounted(() => {
   padding-right: 0.25rem;
 }
 
-.history-card {
-  border: 1px solid rgb(34 211 238 / 0.22);
-  border-radius: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  background: rgb(255 255 255 / 0.86);
-}
-
-.history-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.45rem;
-}
-
-.role-chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.role-chip--system {
-  color: rgb(146 64 14);
-  background: rgb(254 243 199 / 0.7);
-}
-
-.role-chip--user {
-  color: rgb(22 101 52);
-  background: rgb(220 252 231 / 0.7);
-}
-
-.role-chip--assistant {
-  color: rgb(30 64 175);
-  background: rgb(219 234 254 / 0.7);
-}
-
-.event-chip {
-  border-radius: 999px;
-  border: 1px solid rgb(34 211 238 / 0.3);
-  color: rgb(14 116 144);
-  background: rgb(34 211 238 / 0.1);
-  padding: 0.1rem 0.45rem;
-  font-size: 0.7rem;
-}
-
-.history-time {
-  margin-left: auto;
-  color: var(--on-surface-variant);
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-
-.history-content {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: var(--on-surface);
-}
-
 @media (max-width: 720px) {
   .header-wrap {
     flex-direction: column;
@@ -621,18 +520,6 @@ onUnmounted(() => {
 
   .history-list {
     max-height: 68vh;
-  }
-
-  .history-card {
-    padding: 0.6rem;
-  }
-
-  .history-head {
-    flex-wrap: wrap;
-  }
-
-  .history-time {
-    margin-left: 0;
   }
 }
 </style>
