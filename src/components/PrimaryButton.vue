@@ -6,7 +6,7 @@ const props = withDefaults(
   defineProps<{
     disabled?: boolean;
     loading?: boolean;
-    size?: "default" | "medium";
+    size?: "default" | "medium" | "small";
   }>(),
   {
     size: "default",
@@ -129,6 +129,11 @@ onUnmounted(() => {
 .primary-btn--medium {
   padding: 0.875rem 2rem;
   font-size: 1rem;
+}
+
+.primary-btn--small {
+  padding: 0.4rem 1.25rem;
+  font-size: 0.75rem;
 }
 
 .primary-btn:hover:not(:disabled) {

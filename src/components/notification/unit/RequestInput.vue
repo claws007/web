@@ -262,10 +262,18 @@ async function onConfirm() {
 
     <template v-else>
       <div class="nw-request-actions">
-        <PrimaryButton type="button" :disabled="submitting" @click="onConfirm"
+        <PrimaryButton
+          size="small"
+          type="button"
+          :disabled="submitting"
+          @click="onConfirm"
           >确认</PrimaryButton
         >
-        <DefaultButton type="button" :disabled="submitting" @click="onReject"
+        <DefaultButton
+          size="small"
+          type="button"
+          :disabled="submitting"
+          @click="onReject"
           >取消</DefaultButton
         >
       </div>
@@ -345,6 +353,7 @@ async function onConfirm() {
 
 .nw-request-actions {
   display: flex;
+  justify-content: end;
   flex-wrap: wrap;
   gap: 0.4rem;
 }

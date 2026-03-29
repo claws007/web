@@ -736,10 +736,8 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<
-  D extends unknown,
-  E extends unknown = unknown,
-> extends Response {
+export interface HttpResponse<D extends unknown, E extends unknown = unknown>
+  extends Response {
   data: D;
   error: E;
 }
@@ -1524,34 +1522,19 @@ export class Api<
           | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
-        notifies?: (
-          | {
-              /** Notify an agent target. */
-              type: "agent";
-              /**
-               * Target agent ID.
-               * @min 0
-               */
-              agentId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
-          | {
-              /** Notify a user target. */
-              type: "user";
-              /**
-               * Target user ID.
-               * @min 0
-               */
-              userId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
-        )[];
+        notifies?: {
+          /** Notify an agent target. */
+          type: "agent";
+          /**
+           * Target agent ID.
+           * @min 0
+           */
+          agentId: number;
+          /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+          notifyOnSuccessBottomOnly?: boolean | null;
+          /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+          notifyOnFailureBottomOnly?: boolean | null;
+        }[];
       },
       params: RequestParams = {},
     ) =>
@@ -2396,34 +2379,19 @@ export class Api<
           | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
-        notifies?: (
-          | {
-              /** Notify an agent target. */
-              type: "agent";
-              /**
-               * Target agent ID.
-               * @min 0
-               */
-              agentId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
-          | {
-              /** Notify a user target. */
-              type: "user";
-              /**
-               * Target user ID.
-               * @min 0
-               */
-              userId: number;
-              /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
-              notifyOnSuccessBottomOnly?: boolean | null;
-              /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
-              notifyOnFailureBottomOnly?: boolean | null;
-            }
-        )[];
+        notifies?: {
+          /** Notify an agent target. */
+          type: "agent";
+          /**
+           * Target agent ID.
+           * @min 0
+           */
+          agentId: number;
+          /** Only effective when this notify entry is at the stack bottom. If true, a successful submission creates a notify task. */
+          notifyOnSuccessBottomOnly?: boolean | null;
+          /** Only effective when this notify entry is at the stack bottom. If true, a failed submission creates a notify task. */
+          notifyOnFailureBottomOnly?: boolean | null;
+        }[];
       },
       params: RequestParams = {},
     ) =>
