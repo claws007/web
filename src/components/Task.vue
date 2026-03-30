@@ -4,7 +4,7 @@
     :class="
       selected
         ? 'border-cyan-500/40 bg-primary/5'
-        : 'border-transparent bg-white/50'"
+        : 'border-black/8 bg-white/50'"
     "
     role="region"
     :aria-label="`任务 #${task.id}`"

@@ -118,15 +118,19 @@
         >
           {{ summaryText }}
         </div>
-        <div
+        <!-- Chat Histories for Latest Task -->
+        <ChatHistoryContainer
           v-if="isLatest && showChatHistories"
-          class="max-h-72 overflow-y-auto py-3 bg-primary/5"
-        >
-          <!-- Chat Histories for Latest Task -->
-          <ChatHistoryDisplay :agent-task-id="agentTask.id" :max-items="10" />
-        </div>
+          :agent-task-id="agentTask.id"
+          class="max-h-72 py-3 bg-primary/5"
+        />
+        <!-- :max-items="10" -->
         <!-- placeholder -->
-        <div v-else class="h-1.5"></div>
+        <div v-else class="pb-2">
+          <Button size="small" @click="openTaskChatHistoryDialog"
+            >查看详情</Button
+          >
+        </div>
       </div>
     </div>
   </div>
@@ -135,8 +139,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { AgentResponse, AgentTaskResponse } from "@/api";
-import ChatHistoryDisplay from "@/components/ChatHistoryDisplay.vue";
+import ChatHistoryContainer from "@/components/ChatHistoryContainer.vue";
 import TimeDisplay from "@/components/TimeDisplay.vue";
+import { dialogs } from "virtual:dialogs";
 
 const props = defineProps<{
   agentTask: AgentTaskResponse;
@@ -144,6 +149,12 @@ const props = defineProps<{
   isLatest?: boolean;
   showChatHistories?: boolean;
 }>();
+
+function openTaskChatHistoryDialog() {
+  void dialogs.AgentTaskChatHistoryDialog({
+    agentTaskId: props.agentTask.id,
+  });
+}
 
 function getTaskStateText(state: string): string {
   const normalized = state.toUpperCase();

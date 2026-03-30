@@ -1,5 +1,5 @@
 <template>
-  <div class="">
+  <div>
     <div
       v-if="loading"
       class="flex items-center justify-center py-3 text-sm text-gray-500"
@@ -10,14 +10,14 @@
       加载中...
     </div>
     <div
-      v-else-if="visibleChatHistories.length === 0"
+      v-else-if="renderedChatHistories.length === 0"
       class="text-xs text-gray-500 text-center py-2"
     >
       暂无聊天记录
     </div>
     <div v-else class="v gap-2 items-start">
       <div
-        v-for="history in visibleChatHistories"
+        v-for="history in renderedChatHistories"
         :key="history.id"
         class="text-xs p-3 rounded-md break-all"
         :class="
@@ -96,7 +96,7 @@ type DisplayChatHistory = Omit<ChatHistoryResponse, "role"> & {
   isStreaming?: boolean;
 };
 
-const DEFAULT_MAX_ITEMS = 10;
+const DEFAULT_MAX_ITEMS = 9999;
 
 const userStore = useUserStore();
 const chatHistories = ref<DisplayChatHistory[]>([]);
@@ -122,6 +122,10 @@ const visibleChatHistories = computed(() => {
     : chatHistories.value;
 
   return items.slice(0, maxHistoryItems.value);
+});
+
+const renderedChatHistories = computed(() => {
+  return [...visibleChatHistories.value].reverse();
 });
 
 function normalizeHistory(item: ChatHistoryResponse): DisplayChatHistory {
@@ -204,6 +208,7 @@ async function loadChatHistories(serial = syncSerial) {
     {
       page: 1,
       pageSize: maxHistoryItems.value,
+      reverse: true,
     },
   );
 

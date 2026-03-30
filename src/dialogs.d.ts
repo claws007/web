@@ -19,6 +19,7 @@ declare module "virtual:dialogs" {
 		reject(callback: (reason: _RN) => void): _H<T>;
 	};
 	export const dialogs: {
+		AgentTaskChatHistoryDialog: (...args: _A<typeof import("./components/dialog/AgentTaskChatHistoryDialog.vue")["default"]>) => _H<typeof import("./components/dialog/AgentTaskChatHistoryDialog.vue")["default"]>;
 		ConfirmDialog: (...args: _A<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
 		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
 		EditOrCreateAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>;

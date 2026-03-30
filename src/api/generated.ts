@@ -2043,7 +2043,7 @@ export class Api<
       }),
 
     /**
-     * @description Returns paginated chat history for a task over plain HTTP pagination. Pagination: - `page` defaults to 1. - `pageSize` defaults to 20. - Results are ordered by `createdAt` ascending.
+     * @description Returns paginated chat history for a task over plain HTTP pagination. Pagination: - `page` defaults to 1. - `pageSize` defaults to 20. - `reverse` defaults to false. - When `reverse=true`, results are ordered by `createdAt` descending. - When `reverse=false`, results are ordered by `createdAt` ascending.
      *
      * @tags Chat History
      * @name GetCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId
@@ -2066,6 +2066,11 @@ export class Api<
          * @default 20
          */
         pageSize?: number;
+        /**
+         * When true, returns newest records first.
+         * @default false
+         */
+        reverse?: boolean;
       },
       params: RequestParams = {},
     ) =>

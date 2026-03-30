@@ -396,7 +396,7 @@ type EnhancedApi = Api<string> & {
   chatHistory: {
     getChatHistoryAgentTaskByAgentTaskId(
       agentTaskId: number,
-      query?: { page?: number; pageSize?: number },
+      query?: { page?: number; pageSize?: number; reverse?: boolean },
       params?: RequestParams,
     ): Promise<HttpResponse<ChatHistoryPageResponse, unknown>>;
   };
@@ -977,7 +977,7 @@ export const api = Object.assign(rawApi, {
       (
         companyId,
         agentTaskId: number,
-        query?: { page?: number; pageSize?: number },
+        query?: { page?: number; pageSize?: number; reverse?: boolean },
         params: RequestParams = {},
       ) =>
         rawApi.company.getCompanyByCompanyIdChatHistoryAgentTaskByAgentTaskId(
