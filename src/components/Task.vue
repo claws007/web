@@ -1,26 +1,28 @@
 <template>
-  <article class="task-card" role="region" :aria-label="`任务 #${task.id}`">
-    <div class="task-main">
-      <div class="task-content">
-        <h3 class="task-title">任务 #{{ task.id }}</h3>
-
+  <article
+    class="group flex flex-col gap-3.5 rounded-sm p-4 backdrop-blur-xl shadow-sm transition-shadow duration-150 hover:shadow-md focus-within:shadow-md outline-none bg-white/50"
+    role="region"
+    :aria-label="`任务 #${task.id}`"
+  >
+    <div class="flex items-start justify-between gap-2.4 min-w-0">
+      <div class="min-w-0 flex-1 flex flex-col gap-1.8">
         <template v-if="isEditing">
-          <div class="task-edit-wrap">
+          <div class="grid gap-2.2">
             <textarea
               :value="editContent"
-              class="task-textarea"
+              class="min-h-20 resize-vertical rounded-md border border-cyan-500/24 bg-white/95 p-2.6 text-sm text-black outline-none transition-[border-color,box-shadow] focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/15"
               @input="onEditInput"
             />
-            <div class="task-edit-actions">
+            <div class="flex justify-end gap-1.8">
               <button
-                class="action-pill"
+                class="h-8 rounded-full border border-cyan-500/25 bg-transparent px-3.2 text-xs text-black cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed transition-opacity duration-150"
                 :disabled="saving"
                 @click="$emit('cancel-edit')"
               >
                 取消
               </button>
               <button
-                class="action-pill action-pill--primary"
+                class="h-8 rounded-full border-transparent bg-cyan-700 px-3.2 text-xs text-white font-semibold cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed transition-opacity duration-150"
                 :disabled="saving"
                 @click="$emit('save', task.id)"
               >
@@ -30,19 +32,23 @@
           </div>
         </template>
         <template v-else>
-          <p class="task-text" :title="task.content">
-            {{ task.content }}
-          </p>
+          <h3
+            class="m-0 text-base font-bold text-black leading-tight break-all"
+          >
+            {{ localTask.content }}
+          </h3>
         </template>
       </div>
 
-      <div class="task-actions">
+      <div
+        class="flex gap-1.2 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+      >
         <button
-          class="action-btn"
+          class="inline-flex items-center justify-center w-7 h-7 rounded border border-transparent bg-transparent cursor-pointer text-gray-600 transition-all duration-120 hover:bg-cyan-500/12 hover:border-cyan-500/30 hover:text-cyan-700 disabled:opacity-45 disabled:cursor-not-allowed"
           title="编辑"
           aria-label="编辑任务"
           :disabled="saving"
-          @click="$emit('edit', task)"
+          @click="$emit('edit', localTask)"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -63,7 +69,7 @@
           </svg>
         </button>
         <button
-          class="action-btn action-btn--danger"
+          class="inline-flex items-center justify-center w-7 h-7 rounded border border-transparent bg-transparent cursor-pointer text-gray-600 transition-all duration-120 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-600 disabled:opacity-45 disabled:cursor-not-allowed"
           title="删除"
           aria-label="删除任务"
           :disabled="saving"
@@ -91,55 +97,178 @@
       </div>
     </div>
 
-    <div class="task-footer">
-      <div class="task-meta">
-        <span class="meta-chip">ID: {{ task.id }}</span>
-        <span class="meta-chip">更新时间: {{ task.updatedAt }}</span>
-      </div>
-
-      <button
-        class="action-pill action-pill--primary"
+    <div class="flex items-center justify-between gap-2">
+      <Button
+        size="small"
         :disabled="saving"
-        @click="$emit('assign', task)"
+        @click="$emit('assign', localTask)"
       >
-        分配给Agent
-      </button>
+        {{ agentTasks.length > 0 ? "重新分配给员工" : "分配给员工" }}
+      </Button>
     </div>
-
-    <div class="agent-task-wrap">
-      <div v-if="agentTasks.length === 0" class="agent-task-empty">
-        暂未分配 Agent
-      </div>
-      <div v-else class="agent-task-list">
+    <template
+      v-if="agentTasks.length > 0 && agentTasks[0]?.state !== 'FINISHED'"
+    >
+      <div class="border-t border-dashed border-cyan-500/25"></div>
+      <div class="v gap-5">
         <div
           v-for="agentTask in agentTasks"
           :key="agentTask.id"
-          class="agent-task-item"
+          class="v items-start gap-2 min-w-0 text-gray-600 overflow-hidden"
         >
-          <span class="agent-task-agent">
-            {{ agentTask.agent?.name || `Agent #${agentTask.agentId}` }}
-          </span>
-          <span class="agent-task-state">{{
-            getTaskStateText(agentTask.state)
-          }}</span>
+          <div
+            class="flex items-center gap-2 text-gray-900 rounded-full text-sm"
+          >
+            <div
+              class="size-9 rounded-md overflow-hidden shrink-0 inline-flex items-center justify-center border border-teal-700/20"
+              aria-hidden="true"
+            >
+              <img
+                v-if="getAgentAvatarUrl(agentTask)"
+                class="w-full h-full object-cover block"
+                :src="getAgentAvatarUrl(agentTask)"
+                :alt="''"
+              />
+              <span v-else class="text-teal-700 font-bold leading-none">
+                {{ getAgentAvatarText(agentTask) }}
+              </span>
+            </div>
+            <div class="v gap-1 items-start">
+              <div class="font-semibold">
+                {{ getAgentName(agentTask) }}
+              </div>
+              <TimeDisplay
+                :timestamp="agentTask.assignedAt"
+                class="text-xs text-foreground-muted"
+              />
+            </div>
+          </div>
+          <div
+            class="inline-flex items-center gap-1.5 text-xs leading-tight min-w-0"
+          >
+            <svg
+              v-if="getAgentTaskVisualState(agentTask) === 'running'"
+              class="size-3.5 shrink-0 animate-spin text-secondary"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <svg
+              v-else-if="getAgentTaskVisualState(agentTask) === 'success'"
+              class="size-3.5 shrink-0 text-primary"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <svg
+              v-else-if="getAgentTaskVisualState(agentTask) === 'failed'"
+              class="size-3.5 shrink-0 text-red-600"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <svg
+              v-else
+              class="size-3.5 shrink-0 text-foreground-muted"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+            <span :class="getAgentTaskStatusTextClass(agentTask)">
+              {{ getAgentTaskStatusText(agentTask) }}
+            </span>
+          </div>
           <button
-            class="agent-task-chat-link"
+            class="relative border border-cyan-500/30 rounded-full bg-cyan-500/8 text-teal-700 text-xs leading-none px-2 py-0.72 cursor-pointer transition-colors hover:bg-cyan-500/16"
             type="button"
             @click="openAgentTaskChatHistory(agentTask.id)"
           >
             对话
+            <span
+              v-if="newChatAgentTaskIds.includes(agentTask.id)"
+              class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-secondary"
+            />
           </button>
-          <span class="agent-task-time">{{ agentTask.assignedAt }}</span>
         </div>
       </div>
+    </template>
+    <div
+      v-else-if="
+        agentTasks.length > 0 &&
+        getAgentTaskVisualState(agentTasks[0]!) === 'success'
+      "
+      class="bg-black/2 shadow p-5 rounded-sm overflow-y-auto max-h-60 text-full"
+    >
+      <MarkdownPreviewer
+        class="text-xs!"
+        :content="agentTasks[0]?.result?.submission?.output ?? ''"
+      ></MarkdownPreviewer>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { type AgentTaskResponse, type TaskResponse } from "@/api";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  getImageUrlByFileId,
+  readStoredActiveCompanyId,
+  type AgentTaskResponse,
+  type AgentTaskResult,
+  type TaskResponse,
+} from "@/api";
+import { useUserStore } from "@/store/user";
+import {
+  registerEntityChangeHandler,
+  requestRealtimeSubscription,
+} from "@/services/events-realtime";
+import type {
+  AgentDeleteTombstone,
+  AgentTaskEntityRecord,
+  ChatHistoryEntityRecord,
+  EntityChangePayload,
+  EntityOperation,
+  TaskEntityRecord,
+} from "@/api/generated-ws";
 import { dialogs } from "virtual:dialogs";
+import TimeDisplay from "@/components/TimeDisplay.vue";
 
 const props = defineProps<{
   task: TaskResponse;
@@ -148,6 +277,8 @@ const props = defineProps<{
   saving: boolean;
 }>();
 
+type TaskChainStatus = "completed" | "incompleteOrFailed";
+
 const emit = defineEmits<{
   edit: [task: TaskResponse];
   delete: [taskId: number];
@@ -155,7 +286,169 @@ const emit = defineEmits<{
   "cancel-edit": [];
   "update:edit-content": [content: string];
   save: [taskId: number];
+  "realtime-deleted": [taskId: number];
+  "realtime-agent-task-state": [
+    payload: {
+      taskId: number;
+      agentTaskId: number;
+      operation: EntityOperation | "delete";
+      state: string;
+      taskChainStatus: TaskChainStatus;
+    },
+  ];
 }>();
+
+const userStore = useUserStore();
+
+const localTask = ref<TaskResponse>({ ...props.task });
+const localAgentTasks = ref<AgentTaskResponse[]>([
+  ...(props.task.agentTasks ?? []),
+]);
+const newChatAgentTaskIds = ref<number[]>([]);
+
+watch(
+  () => props.task,
+  (next) => {
+    localTask.value = { ...next };
+    localAgentTasks.value = [...(next.agentTasks ?? [])];
+  },
+  { deep: true },
+);
+
+let unsubscribeEntityChange: (() => void) | null = null;
+let releaseSubscriptionDemand: (() => void) | null = null;
+
+function computeTaskChainStatus(): TaskChainStatus {
+  const finishedStates = new Set(["FINISHED", "CANCELLED", "TRANSFERRED"]);
+  const allDone =
+    localAgentTasks.value.length > 0 &&
+    localAgentTasks.value.every((at) =>
+      finishedStates.has((at.state ?? "").toUpperCase()),
+    );
+  return allDone ? "completed" : "incompleteOrFailed";
+}
+
+function handleEntityChange(payload: EntityChangePayload) {
+  const taskId = localTask.value.id;
+  if (!taskId) return;
+
+  const entity = String(payload.entity);
+
+  if (entity === "task") {
+    if (Number(payload.entityId) !== taskId) return;
+    if (payload.operation === "delete") {
+      emit("realtime-deleted", taskId);
+      return;
+    }
+    const rec = payload.record as TaskEntityRecord;
+    localTask.value = { ...localTask.value, content: rec.content };
+    return;
+  }
+
+  if (entity === "agent_task") {
+    if (payload.operation === "delete") {
+      const tombstone = payload.record as AgentDeleteTombstone;
+      const idx = localAgentTasks.value.findIndex(
+        (at) => at.id === tombstone.id,
+      );
+      if (idx === -1) return;
+      const deletedAt = localAgentTasks.value[idx]!;
+      const deletedId = deletedAt.id;
+      localAgentTasks.value.splice(idx, 1);
+      newChatAgentTaskIds.value = newChatAgentTaskIds.value.filter(
+        (id) => id !== deletedId,
+      );
+      emit("realtime-agent-task-state", {
+        taskId,
+        agentTaskId: deletedId,
+        operation: "delete",
+        state: "deleted",
+        taskChainStatus: computeTaskChainStatus(),
+      });
+      return;
+    }
+
+    const rec = payload.record as AgentTaskEntityRecord;
+    if (rec.taskId !== taskId) return;
+
+    if (payload.operation === "create") {
+      const newAt: AgentTaskResponse = {
+        id: rec.id,
+        agentId: rec.agentId,
+        content: rec.content,
+        ac: rec.ac as string | null,
+        state: rec.state,
+        queueOrder: rec.queueOrder,
+        assignedAt: rec.assignedAt,
+        startedAt: (rec.startedAt as string | null) ?? null,
+        finishedAt: (rec.finishedAt as string | null) ?? null,
+        updatedAt: rec.updatedAt,
+      };
+      localAgentTasks.value.push(newAt);
+    } else {
+      const idx = localAgentTasks.value.findIndex((at) => at.id === rec.id);
+      if (idx !== -1) {
+        const existing = localAgentTasks.value[idx]!;
+        localAgentTasks.value[idx] = {
+          ...existing,
+          state: rec.state,
+          content: rec.content,
+          updatedAt: rec.updatedAt,
+          startedAt: (rec.startedAt as string | null) ?? existing.startedAt,
+          finishedAt: (rec.finishedAt as string | null) ?? existing.finishedAt,
+        };
+      }
+    }
+
+    emit("realtime-agent-task-state", {
+      taskId,
+      agentTaskId: rec.id,
+      operation: payload.operation,
+      state: rec.state,
+      taskChainStatus: computeTaskChainStatus(),
+    });
+    return;
+  }
+
+  if (entity === "chat_history") {
+    if (payload.operation !== "create") return;
+    const rec = payload.record as ChatHistoryEntityRecord;
+    const matchedAt = localAgentTasks.value.find(
+      (at) => at.id === rec.agentTaskId,
+    );
+    if (!matchedAt) return;
+    if (!newChatAgentTaskIds.value.includes(rec.agentTaskId)) {
+      newChatAgentTaskIds.value.push(rec.agentTaskId);
+    }
+  }
+}
+
+function startRealtime() {
+  const token = userStore.token?.trim() || null;
+  const companyId = readStoredActiveCompanyId();
+  if (!token || !companyId) return;
+
+  releaseSubscriptionDemand ??= requestRealtimeSubscription({
+    token,
+    companyId,
+    events: ["entity_change"],
+    entities: ["task", "agent_task", "chat_history"],
+  });
+
+  unsubscribeEntityChange ??= registerEntityChangeHandler(handleEntityChange, {
+    entities: ["task", "agent_task", "chat_history"],
+  });
+}
+
+function stopRealtime() {
+  unsubscribeEntityChange?.();
+  unsubscribeEntityChange = null;
+  releaseSubscriptionDemand?.();
+  releaseSubscriptionDemand = null;
+}
+
+onMounted(startRealtime);
+onBeforeUnmount(stopRealtime);
 
 function onEditInput(event: Event) {
   const target = event.target as HTMLTextAreaElement;
@@ -173,10 +466,94 @@ function getTaskStateText(state: string) {
   return state;
 }
 
+function getAgentTaskVisualState(agentTask: AgentTaskResponse) {
+  const normalized = (agentTask.state || "").toUpperCase();
+  if (normalized === "ACTIVE" || normalized === "PENDING") {
+    return "running" as const;
+  }
+  if (normalized === "FINISHED" || normalized === "TRANSFERRED") {
+    return "success" as const;
+  }
+  if (normalized === "FAILED") {
+    return "failed" as const;
+  }
+  return "default" as const;
+}
+
+function getAgentTaskResultText(result?: AgentTaskResult | null) {
+  const candidates = [
+    result?.submission?.summary,
+    result?.submission?.output,
+    result?.failure?.message,
+    result?.validation?.stderr,
+    result?.validation?.stdout,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+}
+
+function getAgentTaskStatusText(agentTask: AgentTaskResponse) {
+  const visualState = getAgentTaskVisualState(agentTask);
+  if (visualState === "running") {
+    return "进行中";
+  }
+
+  if (visualState === "success" || visualState === "failed") {
+    return (
+      getAgentTaskResultText(agentTask.result) ||
+      getTaskStateText(agentTask.state)
+    );
+  }
+
+  return getTaskStateText(agentTask.state);
+}
+
+function getAgentTaskStatusTextClass(agentTask: AgentTaskResponse) {
+  const visualState = getAgentTaskVisualState(agentTask);
+  if (visualState === "success") {
+    return "text-primary";
+  }
+  if (visualState === "failed") {
+    return "text-red-600";
+  }
+  if (visualState === "running") {
+    return "text-secondary";
+  }
+  return "text-foreground-muted";
+}
+
+function getAgentName(agentTask: AgentTaskResponse) {
+  return agentTask.agent?.name || `Agent #${agentTask.agentId}`;
+}
+
+function getAgentAvatarText(agentTask: AgentTaskResponse) {
+  const name = getAgentName(agentTask).trim();
+  if (!name) {
+    return "A";
+  }
+  return name.slice(0, 1).toUpperCase();
+}
+
+function getAgentAvatarUrl(agentTask: AgentTaskResponse) {
+  return (
+    getImageUrlByFileId(agentTask.agent?.avatarFileId ?? null) ?? undefined
+  );
+}
+
 function openAgentTaskChatHistory(agentTaskId: number) {
   if (!Number.isInteger(agentTaskId) || agentTaskId <= 0) {
     return;
   }
+
+  newChatAgentTaskIds.value = newChatAgentTaskIds.value.filter(
+    (id) => id !== agentTaskId,
+  );
 
   const dialogMap = dialogs as unknown as {
     ManageAgentTaskChatHistoryDialog?: (props: {
@@ -193,269 +570,10 @@ function openAgentTaskChatHistory(agentTaskId: number) {
 }
 
 const agentTasks = computed<AgentTaskResponse[]>(() =>
-  [...(props.task.agentTasks ?? [])].sort((a, b) => b.id - a.id)
+  [...localAgentTasks.value].sort((a, b) => b.id - a.id),
 );
 </script>
 
 <style scoped>
-.task-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  border-radius: 1rem;
-  padding: 1rem;
-  background: linear-gradient(
-    160deg,
-    rgb(255 255 255 / 0.9),
-    rgb(242 250 252 / 0.88)
-  );
-  border: 1px solid rgb(34 211 238 / 0.2);
-  box-shadow: 0 14px 36px -26px rgb(0 104 119 / 0.55);
-  backdrop-filter: blur(8px);
-}
-
-.task-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.6rem;
-  min-width: 0;
-}
-
-.task-content {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.task-title {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: var(--on-surface);
-  line-height: 1.3;
-}
-
-.task-text {
-  margin: 0;
-  color: var(--on-surface-variant);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow: hidden;
-  display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.task-edit-wrap {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.task-textarea {
-  min-height: 5.1rem;
-  resize: vertical;
-  border-radius: 0.7rem;
-  border: 1px solid rgb(34 211 238 / 0.24);
-  background: rgb(255 255 255 / 0.95);
-  padding: 0.65rem 0.7rem;
-  font-size: 0.88rem;
-  color: var(--on-surface);
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.task-textarea:focus {
-  border-color: rgb(34 211 238 / 0.52);
-  box-shadow: 0 0 0 3px rgb(34 211 238 / 0.15);
-}
-
-.task-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.45rem;
-}
-
-.action-pill {
-  height: 1.95rem;
-  border-radius: 999px;
-  border: 1px solid rgb(34 211 238 / 0.25);
-  background: transparent;
-  padding: 0 0.8rem;
-  font-size: 0.75rem;
-  color: var(--on-surface);
-  cursor: pointer;
-}
-
-.action-pill--primary {
-  border-color: transparent;
-  background: var(--primary);
-  color: white;
-  font-weight: 600;
-}
-
-.action-pill:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.task-actions {
-  display: flex;
-  gap: 0.3rem;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.task-card:hover .task-actions,
-.task-card:focus-within .task-actions {
-  opacity: 1;
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.4rem;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  color: var(--on-surface-variant);
-  transition:
-    background 0.12s ease,
-    color 0.12s ease,
-    border-color 0.12s ease,
-    opacity 0.12s ease;
-}
-
-.action-btn:hover {
-  background: rgb(34 211 238 / 0.12);
-  border-color: rgb(34 211 238 / 0.3);
-  color: var(--primary);
-}
-
-.action-btn--danger:hover {
-  background: rgb(220 38 38 / 0.1);
-  border-color: rgb(220 38 38 / 0.3);
-  color: rgb(220 38 38);
-}
-
-.action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.task-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.task-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  border-radius: 999px;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.72rem;
-  color: rgb(16 67 77);
-  background: rgb(224 248 253 / 0.95);
-  border: 1px solid rgb(164 48 115 / 0.2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.agent-task-wrap {
-  display: grid;
-  gap: 0.4rem;
-  border-top: 1px dashed rgb(34 211 238 / 0.25);
-  padding-top: 0.55rem;
-}
-
-.agent-task-empty {
-  font-size: 0.78rem;
-  color: var(--on-surface-variant);
-}
-
-.agent-task-empty--error {
-  color: rgb(220 38 38);
-}
-
-.agent-task-list {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.agent-task-item {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-  font-size: 0.76rem;
-  color: var(--on-surface-variant);
-}
-
-.agent-task-agent {
-  color: var(--on-surface);
-  font-weight: 600;
-  border-radius: 999px;
-  background: rgb(204 251 241 / 0.5);
-  padding: 0.15rem 0.5rem;
-}
-
-.agent-task-state {
-  border-radius: 999px;
-  background: rgb(34 211 238 / 0.12);
-  color: rgb(14 116 144);
-  padding: 0.15rem 0.45rem;
-}
-
-.agent-task-time {
-  margin-left: auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.agent-task-chat-link {
-  border: 1px solid rgb(34 211 238 / 0.3);
-  border-radius: 999px;
-  background: rgb(34 211 238 / 0.08);
-  color: rgb(14 116 144);
-  font-size: 0.72rem;
-  line-height: 1;
-  padding: 0.18rem 0.5rem;
-  cursor: pointer;
-}
-
-.agent-task-chat-link:hover {
-  background: rgb(34 211 238 / 0.16);
-}
-
-@media (max-width: 640px) {
-  .task-card {
-    padding: 0.9rem;
-  }
-
-  .task-actions {
-    opacity: 1;
-  }
-}
+/* All styles migrated to Tailwind CSS utility classes */
 </style>

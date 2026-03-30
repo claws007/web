@@ -1,18 +1,21 @@
 import type {
   EntityChangePayload,
   EventsReadyEnvelope,
+  EventsWsSend,
   EventsWsReceive,
   ServerEventEnvelopeError,
   SubscribedEnvelope,
   UnsubscribedEnvelope,
 } from "@/api/generated-ws";
-import type { EntityType, EventsWsSend, WsEventType } from "@/api/generated-ws";
+import type { EntityType, WsEventType } from "@/api/generated-ws";
+
+export type RealtimeEntityType = EntityType;
 
 type EntityChangeHandler = (payload: EntityChangePayload) => void;
 
 type EntityChangeRegistration = {
   handler: EntityChangeHandler;
-  entities: Set<EntityType> | null;
+  entities: Set<RealtimeEntityType> | null;
 };
 
 export type WsCommandDispatchPayload = {
@@ -37,8 +40,9 @@ const wsServerEventHandlers = new Set<
 const subscriptionDemand = new Map<string, number>();
 const entityChangeDemand = new Map<string, number>();
 
-const ALL_ENTITY_TYPES: EntityType[] = [
+const DEFAULT_ENTITY_TYPES: RealtimeEntityType[] = [
   "agent",
+  "task",
   "agent_task",
   "chat_history",
   "skill",
@@ -60,7 +64,10 @@ function buildDemandKey(event: WsEventType, companyId: number): string {
   return `${event}:${companyId}`;
 }
 
-function buildEntityDemandKey(companyId: number, entity: EntityType): string {
+function buildEntityDemandKey(
+  companyId: number,
+  entity: RealtimeEntityType,
+): string {
   return `${companyId}:${entity}`;
 }
 
@@ -113,16 +120,24 @@ function sendWsCommand(
   dispatchWsCommand({ command, source });
 }
 
-function listDemandedEntities(companyId: number): EntityType[] {
-  const entities: EntityType[] = [];
-  for (const entity of ALL_ENTITY_TYPES) {
-    if (
-      (entityChangeDemand.get(buildEntityDemandKey(companyId, entity)) ?? 0) > 0
-    ) {
-      entities.push(entity);
+function listDemandedEntities(companyId: number): RealtimeEntityType[] {
+  const entities = new Set<RealtimeEntityType>();
+  const companyPrefix = `${companyId}:`;
+
+  for (const [key, demand] of entityChangeDemand.entries()) {
+    if (demand <= 0 || !key.startsWith(companyPrefix)) {
+      continue;
     }
+
+    const entity = key.slice(companyPrefix.length).trim();
+    if (!entity) {
+      continue;
+    }
+
+    entities.add(entity as RealtimeEntityType);
   }
-  return entities;
+
+  return Array.from(entities);
 }
 
 function syncEntityChangeSubscription(
@@ -157,10 +172,11 @@ function syncEntityChangeSubscription(
 
 function applyEntityDemandChange(
   companyId: number,
-  entities: EntityType[],
+  entities: RealtimeEntityType[],
   delta: 1 | -1,
 ) {
-  const normalizedEntities = entities.length > 0 ? entities : ALL_ENTITY_TYPES;
+  const normalizedEntities =
+    entities.length > 0 ? entities : DEFAULT_ENTITY_TYPES;
 
   for (const entity of normalizedEntities) {
     const key = buildEntityDemandKey(companyId, entity);
@@ -185,10 +201,10 @@ function applyDemandChange(
   companyId: number,
   event: WsEventType,
   delta: 1 | -1,
-  entities?: EntityType[],
+  entities?: RealtimeEntityType[],
 ) {
   if (event === "entity_change") {
-    applyEntityDemandChange(companyId, entities ?? ALL_ENTITY_TYPES, delta);
+    applyEntityDemandChange(companyId, entities ?? DEFAULT_ENTITY_TYPES, delta);
     return;
   }
 
@@ -373,7 +389,7 @@ function connectSocket(token: string, companyId: number) {
 export function registerEntityChangeHandler(
   handler: EntityChangeHandler,
   options?: {
-    entities?: EntityType[];
+    entities?: RealtimeEntityType[];
   },
 ): () => void {
   const entities = options?.entities?.length ? new Set(options.entities) : null;
@@ -410,14 +426,14 @@ export function requestRealtimeSubscription(options: {
   token: string | null | undefined;
   companyId: number | null | undefined;
   events: WsEventType[];
-  entities?: EntityType[];
+  entities?: RealtimeEntityType[];
 }): () => void {
   const token = options.token?.trim() || null;
   const companyId = normalizeCompanyId(options.companyId);
   const events = Array.from(new Set(options.events));
   const entities = options.entities?.length
     ? Array.from(new Set(options.entities))
-    : ALL_ENTITY_TYPES;
+    : DEFAULT_ENTITY_TYPES;
 
   if (!token || !companyId || events.length === 0) {
     return () => {};

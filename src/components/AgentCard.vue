@@ -20,6 +20,8 @@ import type {
   AgentTaskEntityRecord,
   AgentDeleteTombstone,
   EntityChangePayload,
+  EntityOperation,
+  TaskEntityRecord,
 } from "@/api/generated-ws";
 
 const props = defineProps<{
@@ -30,6 +32,14 @@ const emit = defineEmits<{
   edit: [agent: AgentResponse];
   delete: [agent: AgentResponse];
   removeById: [agentId: number];
+  "task-change": [
+    payload: {
+      taskId: number;
+      operation: EntityOperation;
+      source: "task" | "agent_task";
+      content: string | null;
+    },
+  ];
 }>();
 
 const avatarLoadFailed = ref(false);
@@ -38,7 +48,10 @@ const userStore = useUserStore();
 type LatestTaskSummary = {
   id: number;
   agentId: number;
+  taskId: number | null;
   state: string;
+  content: string | null;
+  taskContent: string | null;
   updatedAt: string | null;
 };
 
@@ -46,6 +59,35 @@ const liveAgent = ref<AgentResponse>(props.agent);
 const latestTask = ref<LatestTaskSummary | null>(null);
 let unsubscribeEntityChange: (() => void) | null = null;
 let releaseSubscriptionDemand: (() => void) | null = null;
+
+function asPositiveInt(value: unknown): number | null {
+  const num = Number(value);
+  if (!Number.isInteger(num) || num <= 0) {
+    return null;
+  }
+  return num;
+}
+
+function getTaskContentFromAgentTask(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const data = value as {
+    taskContent?: unknown;
+    task?: { content?: unknown };
+  };
+
+  if (typeof data.taskContent === "string") {
+    return data.taskContent;
+  }
+
+  if (typeof data.task?.content === "string") {
+    return data.task.content;
+  }
+
+  return null;
+}
 
 function toTimestamp(value: string | null | undefined): number {
   if (!value) {
@@ -58,13 +100,19 @@ function toTimestamp(value: string | null | undefined): number {
 function toLatestTaskSummary(task: {
   id: number;
   agentId: number;
+  taskId?: number | null;
   state: string;
+  content?: string | null;
+  taskContent?: string | null;
   updatedAt?: string | null;
 }): LatestTaskSummary {
   return {
     id: task.id,
     agentId: task.agentId,
+    taskId: task.taskId ?? null,
     state: task.state,
+    content: task.content ?? null,
+    taskContent: task.taskContent ?? null,
     updatedAt: task.updatedAt ?? null,
   };
 }
@@ -112,7 +160,21 @@ async function refreshLatestTask() {
           ).data.items ?? []);
 
     const newest = targetItems[0];
-    latestTask.value = newest ? toLatestTaskSummary(newest) : null;
+    if (!newest) {
+      latestTask.value = null;
+      return;
+    }
+
+    const nextLatestTask = toLatestTaskSummary({
+      id: newest.id,
+      agentId: newest.agentId,
+      taskId: asPositiveInt((newest as { taskId?: unknown }).taskId),
+      state: newest.state,
+      content: newest.content ?? null,
+      taskContent: getTaskContentFromAgentTask(newest),
+      updatedAt: newest.updatedAt ?? null,
+    });
+    latestTask.value = nextLatestTask;
   } catch {
     // Ignore transient errors for per-card status refresh.
   }
@@ -148,7 +210,9 @@ function handleEntityChange(payload: EntityChangePayload) {
     return;
   }
 
-  if (payload.entity === "agent") {
+  const entity = String(payload.entity);
+
+  if (entity === "agent") {
     if (Number(payload.entityId) !== agentId) {
       return;
     }
@@ -162,12 +226,50 @@ function handleEntityChange(payload: EntityChangePayload) {
     return;
   }
 
-  if (payload.entity !== "agent_task") {
+  if (entity === "task") {
+    const changedTaskId =
+      asPositiveInt(payload.entityId) ??
+      asPositiveInt((payload.record as { id?: unknown }).id);
+    if (!changedTaskId || latestTask.value?.taskId !== changedTaskId) {
+      return;
+    }
+
+    if (payload.operation === "delete") {
+      latestTask.value = {
+        ...latestTask.value,
+        taskContent: null,
+      };
+      emit("task-change", {
+        taskId: changedTaskId,
+        operation: payload.operation,
+        source: "task",
+        content: null,
+      });
+      return;
+    }
+
+    const taskRecord = payload.record as TaskEntityRecord;
+    const taskContent = taskRecord.content;
+    latestTask.value = {
+      ...latestTask.value,
+      taskContent,
+    };
+    emit("task-change", {
+      taskId: changedTaskId,
+      operation: payload.operation,
+      source: "task",
+      content: taskContent,
+    });
+    return;
+  }
+
+  if (entity !== "agent_task") {
     return;
   }
 
   const record = payload.record as AgentTaskEntityRecord;
   const recordAgentId = Number(record?.agentId);
+  const recordTaskId = asPositiveInt(record.taskId);
   if (recordAgentId !== agentId) {
     return;
   }
@@ -175,7 +277,16 @@ function handleEntityChange(payload: EntityChangePayload) {
   if (payload.operation === "delete") {
     const deletedTask = payload.record as AgentDeleteTombstone;
     if (latestTask.value && latestTask.value.id === deletedTask.id) {
+      const deletedTaskId = latestTask.value.taskId;
       latestTask.value = null;
+      if (deletedTaskId) {
+        emit("task-change", {
+          taskId: deletedTaskId,
+          operation: "update",
+          source: "agent_task",
+          content: null,
+        });
+      }
     }
     return;
   }
@@ -183,12 +294,28 @@ function handleEntityChange(payload: EntityChangePayload) {
   const incoming = toLatestTaskSummary({
     id: Number(payload.entityId),
     agentId: recordAgentId,
+    taskId: recordTaskId,
     state: record.state,
+    content: (record as any).content ?? null,
+    taskContent:
+      getTaskContentFromAgentTask(record) ??
+      (latestTask.value?.taskId === recordTaskId
+        ? latestTask.value.taskContent
+        : null),
     updatedAt: record.updatedAt,
   });
 
   if (shouldReplaceLatestTask(incoming)) {
     latestTask.value = incoming;
+  }
+
+  if (recordTaskId) {
+    emit("task-change", {
+      taskId: recordTaskId,
+      operation: payload.operation,
+      source: "agent_task",
+      content: getTaskContentFromAgentTask(record),
+    });
   }
 }
 
@@ -204,13 +331,13 @@ async function startCardRealtime() {
       token,
       companyId,
       events: ["entity_change"],
-      entities: ["agent", "agent_task"],
+      entities: ["agent", "agent_task", "task"],
     });
   }
 
   if (!unsubscribeEntityChange) {
     unsubscribeEntityChange = registerEntityChangeHandler(handleEntityChange, {
-      entities: ["agent", "agent_task"],
+      entities: ["agent", "agent_task", "task"],
     });
   }
 }
@@ -257,12 +384,15 @@ const abilityIntro = computed(() => {
   );
 });
 
-const modelName = computed(() => {
+const modelConnectorName = computed(() => {
   return (
     liveAgent.value.modelConnector?.name?.trim() ||
     liveAgent.value.model?.trim() ||
     "-"
   );
+});
+const modelName = computed(() => {
+  return liveAgent.value.model?.trim() || "-";
 });
 
 const sandboxLabel = computed(() => {
@@ -326,33 +456,92 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
   }
 }
 
-const latestTaskStateText = computed(() => {
+const latestTaskStateInfo = computed(() => {
   const state = latestTask.value?.state;
+  const content = latestTask.value?.content;
+  // Helper function to get truncated content summary
+  const getContentSummary = () => {
+    if (!content || !content.trim()) {
+      return null;
+    }
+    // Try to parse JSON if it's a JSON string
+    try {
+      const parsed = JSON.parse(content);
+      const text =
+        parsed.text ||
+        parsed.content ||
+        parsed.message ||
+        JSON.stringify(parsed).substring(0, 1024);
+      return typeof text === "string" ? text.substring(0, 1024) : null;
+    } catch {
+      // If not JSON, just return the content
+      return content.substring(0, 1024);
+    }
+  };
+
   if (!state) {
-    return "最近任务: 暂无";
+    return {
+      text: "暂无任务",
+      icon: "none",
+      color: "task-state-muted",
+    };
   }
 
   const normalized = state.toUpperCase();
+  const contentSummary = getContentSummary();
+
   if (normalized === "PENDING") {
-    return "最近任务: 排队中";
+    return {
+      text: contentSummary || "排队中",
+      icon: "pending",
+      color: "task-state-secondary",
+    };
   }
   if (normalized === "ACTIVE") {
-    return "最近任务: 执行中";
+    return {
+      text: contentSummary || "执行中",
+      icon: "loading",
+      color: "task-state-secondary",
+    };
   }
   if (normalized === "FINISHED") {
-    return "最近任务: 已完成";
+    return {
+      text: contentSummary || "已完成",
+      icon: "check",
+      color: "task-state-primary",
+    };
   }
   if (normalized === "FAILED") {
-    return "最近任务: 失败";
+    return {
+      text: contentSummary || "失败",
+      icon: "error",
+      color: "task-state-danger",
+    };
   }
   if (normalized === "CANCELLED") {
-    return "最近任务: 已取消";
+    return {
+      text: contentSummary || "已取消",
+      icon: "cancelled",
+      color: "task-state-muted",
+    };
   }
   if (normalized === "TRANSFERRED") {
-    return "最近任务: 已转移";
+    return {
+      text: contentSummary || "已转移",
+      icon: "transfer",
+      color: "task-state-secondary",
+    };
   }
 
-  return `最近任务: ${state}`;
+  return {
+    text: contentSummary || state,
+    icon: "default",
+    color: "task-state-muted",
+  };
+});
+
+const shouldShowLatestTaskInfo = computed(() => {
+  return (latestTask.value?.state || "").toUpperCase() === "ACTIVE";
 });
 
 onMounted(async () => {
@@ -374,288 +563,305 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <article class="agent-card" role="region" :aria-label="agentName">
-    <div class="agent-main">
-      <div class="agent-avatar-wrap">
+  <article
+    class="flex flex-col gap-3.5 rounded-lg p-4 sm:p-3.5 bg-linear-to-br from-surface-container-lowest to-surface-container border border-primary/10 shadow-ambient backdrop-blur-xl"
+    role="region"
+    :aria-label="agentName"
+  >
+    <div class="flex items-start gap-3 min-w-0">
+      <div class="shrink-0 w-12 h-12">
         <img
           v-if="avatarUrl"
-          class="agent-avatar-image"
+          class="w-full h-full rounded-md block object-cover border border-primary/15"
           :src="avatarUrl"
           :alt="`${agentName} 头像`"
           @error="avatarLoadFailed = true"
         />
-        <div v-else class="agent-avatar" aria-hidden="true">
+        <div
+          v-else
+          class="w-full h-full rounded-md flex items-center justify-center font-bold text-sm tracking-wide text-white avatar-gradient"
+          aria-hidden="true"
+        >
           {{ avatarText }}
         </div>
       </div>
 
-      <div class="agent-content">
-        <h3 class="agent-name" :title="agentName">{{ agentName }}</h3>
-        <p class="agent-intro" :title="abilityIntro">{{ abilityIntro }}</p>
+      <div class="min-w-0 flex flex-col gap-3 items-start">
+        <div class="v items-start gap-1">
+          <h3
+            class="text-base break-all font-bold text-on-surface leading-relaxed"
+            :title="agentName"
+          >
+            {{ agentName }}
+          </h3>
+          <div class="h items-center gap-2">
+            <span
+              class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs truncate chip-primary"
+              :title="`${modelConnectorName} ${modelName}`"
+            >
+              {{ modelConnectorName }} : {{ modelName }}
+            </span>
+            <span
+              class="inline-flex items-center max-w-full rounded-full px-2.5 py-0.5 text-xs truncate chip-tertiary"
+            >
+              {{ sandboxLabel }}
+            </span>
+          </div>
+          <p
+            class="text-on-surface-variant text-xs leading-relaxed overflow-hidden line-clamp-2"
+            :title="abilityIntro"
+          >
+            {{ abilityIntro }}
+          </p>
+        </div>
+        <span
+          v-if="shouldShowLatestTaskInfo"
+          class="v gap-1 max-w-full text-xs break-all items-start"
+          :class="latestTaskStateInfo.color"
+          :title="latestTask?.content || latestTaskStateInfo.text"
+        >
+          <div class="h items-center gap-1 text-foreground">
+            <svg
+              class="w-3.5 h-3.5 shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 11l3 3L22 4" />
+              <path
+                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+              />
+            </svg>
+            <div>
+              {{ latestTask?.taskContent || "暂无关联任务内容" }}
+            </div>
+          </div>
+          <div class="h items-start gap-1 pl-4">
+            <!-- Loading icon for ACTIVE -->
+            <svg
+              v-if="latestTaskStateInfo.icon === 'loading'"
+              class="w-3.5 h-3.5 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <!-- Check icon for FINISHED -->
+            <svg
+              v-else-if="latestTaskStateInfo.icon === 'check'"
+              class="w-3.5 h-3.5 shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <!-- Error icon for FAILED -->
+            <svg
+              v-else-if="latestTaskStateInfo.icon === 'error'"
+              class="w-3.5 h-3.5 shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            {{ latestTaskStateInfo.text }}
+          </div>
+        </span>
       </div>
     </div>
 
-    <div class="agent-footer">
-      <div class="agent-meta">
-        <span class="meta-chip" :title="`模型: ${modelName}`"
-          >模型: {{ modelName }}</span
+    <div
+      class="flex gap-1 shrink-0 action-button-group bg-white rounded-md shadow-md p-1 absolute right-2 top-2"
+    >
+      <button
+        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 hover:bg-primary/10 hover:border-primary/30 hover:text-primary"
+        title="编辑"
+        aria-label="编辑 Agent"
+        @click.stop="emit('edit', liveAgent)"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
         >
-        <span class="meta-chip">{{ latestTaskStateText }}</span>
-        <span class="meta-chip">{{ sandboxLabel }}</span>
-      </div>
-
-      <div class="agent-actions">
-        <DropdownMenu
-          placement="bottom"
-          :menus="settingMenus"
-          @select="handleSettingMenuSelect"
-        >
-          <template #trigger="{ open }">
-            <button
-              class="action-btn"
-              title="设置"
-              aria-label="设置 Agent"
-              :aria-expanded="open"
+          <path
+            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+          />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </button>
+      <DropdownMenu
+        placement="bottom"
+        :menus="settingMenus"
+        @select="handleSettingMenuSelect"
+      >
+        <template #trigger="{ open }">
+          <button
+            class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 hover:bg-primary/10 hover:border-primary/30 hover:text-primary"
+            title="设置"
+            aria-label="设置 Agent"
+            :aria-expanded="open"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              class="transition-transform duration-200"
+              :class="{ 'rotate-90': open }"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                class="transition-transform duration-200"
-                :class="{ 'rotate-90': open }"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path
-                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 7.2a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.25V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-                />
-              </svg>
-            </button>
-          </template>
-        </DropdownMenu>
-        <button
-          class="action-btn"
-          title="编辑"
-          aria-label="编辑 Agent"
-          @click.stop="emit('edit', liveAgent)"
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 7.2a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.25V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </button>
+        </template>
+      </DropdownMenu>
+
+      <button
+        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 danger-btn"
+        title="删除"
+        aria-label="删除 Agent"
+        @click.stop="emit('delete', liveAgent)"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path
-              d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-            />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button
-          class="action-btn action-btn--danger"
-          title="删除"
-          aria-label="删除 Agent"
-          @click.stop="emit('delete', liveAgent)"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </button>
-      </div>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M10 11v6" />
+          <path d="M14 11v6" />
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        </svg>
+      </button>
     </div>
   </article>
 </template>
 
 <style scoped>
-.agent-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  border-radius: 1rem;
-  padding: 1rem;
-  background: linear-gradient(
-    160deg,
-    rgb(255 255 255 / 0.9),
-    rgb(242 250 252 / 0.88)
-  );
-  border: 1px solid rgb(34 211 238 / 0.2);
-  box-shadow: 0 14px 36px -26px rgb(0 104 119 / 0.55);
-  backdrop-filter: blur(8px);
+:root {
+  --primary: #006877;
+  --secondary: #7825ea;
+  --tertiary: #a43073;
+  --primary-soft: #a2eeff;
+  --tertiary-soft: #ffd7eb;
+  --foreground-muted: #5a666d;
+  --on-surface: rgb(16, 16, 16);
+  --on-surface-variant: rgb(70, 70, 70);
 }
 
-.agent-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.8rem;
-  min-width: 0;
-}
-
-.agent-avatar-wrap {
-  flex-shrink: 0;
-  width: 2.7rem;
-  height: 2.7rem;
-}
-
-.agent-avatar,
-.agent-avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 999px;
-}
-
-.agent-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  color: white;
+/* Avatar gradient using theme colors */
+.avatar-gradient {
   background: linear-gradient(135deg, var(--primary), var(--secondary));
 }
 
-.agent-avatar-image {
-  display: block;
-  object-fit: cover;
-  border: 1px solid rgb(34 211 238 / 0.25);
+/* Chip styles using theme colors */
+.chip-primary {
+  color: var(--primary);
+  background-color: rgb(162 238 255 / 0.2);
+  border: 1px solid rgb(0 104 119 / 0.2);
 }
 
-.agent-content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.agent-name {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--on-surface);
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.agent-intro {
-  margin: 0;
-  color: var(--on-surface-variant);
-  font-size: 0.86rem;
-  line-height: 1.5;
-  overflow: hidden;
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.agent-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.agent-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  border-radius: 999px;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.72rem;
-  color: rgb(16 67 77);
-  background: rgb(224 248 253 / 0.95);
+.chip-tertiary {
+  color: var(--tertiary);
+  background-color: rgb(255 215 235 / 0.2);
   border: 1px solid rgb(164 48 115 / 0.2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-@media (max-width: 640px) {
-  .agent-card {
-    padding: 0.9rem;
-  }
-
-  .agent-avatar-wrap {
-    width: 2.4rem;
-    height: 2.4rem;
-  }
-}
-
-.agent-actions {
-  display: flex;
-  gap: 0.3rem;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.agent-card:hover .agent-actions,
-.agent-card:focus-within .agent-actions {
-  opacity: 1;
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.4rem;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  color: var(--on-surface-variant);
-  transition:
-    background 0.12s ease,
-    color 0.12s ease,
-    border-color 0.12s ease;
-}
-
-.action-btn:hover {
-  background: rgb(34 211 238 / 0.12);
-  border-color: rgb(34 211 238 / 0.3);
+/* Task state color utilities */
+.task-state-primary {
   color: var(--primary);
 }
 
-.action-btn--danger:hover {
-  background: rgb(220 38 38 / 0.1);
-  border-color: rgb(220 38 38 / 0.3);
-  color: rgb(220 38 38);
+.task-state-secondary {
+  color: var(--secondary);
+}
+
+.task-state-tertiary {
+  color: var(--tertiary);
+}
+
+.task-state-danger {
+  color: #d32f2f;
+}
+
+.task-state-muted {
+  color: var(--foreground-muted);
+}
+
+/* Button hover states with primary color */
+button:hover {
+  background-color: rgb(0 104 119 / 0.1);
+  border-color: rgb(0 104 119 / 0.3);
+  color: var(--primary);
+}
+
+button.danger-btn:hover {
+  background-color: rgb(211 47 47 / 0.1);
+  border-color: rgb(211 47 47 / 0.3);
+  color: #d32f2f;
+}
+
+article:hover .action-button-group,
+article:focus-within .action-button-group {
+  opacity: 1;
+}
+
+.action-button-group {
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 </style>

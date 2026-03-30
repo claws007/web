@@ -13,7 +13,7 @@ export type NotificationState = "PENDING" | "RESOLVE";
 
 export type NotificationType = "REQUEST_INPUT" | "REQUEST_SELECT_SINGLE" | "REQUEST_SELECT_MULTI" | "REQUEST_CONFIRM" | "COMMAND_PROGRESS";
 
-export type EntityType = "agent" | "agent_task" | "chat_history" | "skill" | "mcp_server" | "notification";
+export type EntityType = "agent" | "task" | "agent_task" | "chat_history" | "skill" | "mcp_server" | "notification";
 
 export type EntityOperation = "create" | "update" | "delete";
 
@@ -60,6 +60,16 @@ export interface AgentTaskEntityRecord {
   updatedAt: string;
 }
 
+export interface TaskEntityRecord {
+  id: number;
+  companyId: number;
+  createdByUserId: number | unknown;
+  updatedByUserId: number | unknown;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ChatHistoryEntityRecord {
   id: number;
   companyId: number;
@@ -99,7 +109,7 @@ export interface MCPServerEntityRecord {
   builtin: boolean;
 }
 
-export type EntityRecord = AgentEntityRecord | AgentTaskEntityRecord | ChatHistoryEntityRecord | SkillEntityRecord | MCPServerEntityRecord | AgentDeleteTombstone | NotificationEntityRecord;
+export type EntityRecord = AgentEntityRecord | TaskEntityRecord | AgentTaskEntityRecord | ChatHistoryEntityRecord | SkillEntityRecord | MCPServerEntityRecord | AgentDeleteTombstone | NotificationEntityRecord;
 
 export interface EntityChangePayload {
   companyId: number;
@@ -146,6 +156,7 @@ export interface SubscribeCommand {
   type: SubscribeCommandType;
   companyId: number;
   events: SubscriptionEventList;
+  entities?: EntityType[];
 }
 
 export interface UnsubscribeCommand {

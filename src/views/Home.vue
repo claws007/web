@@ -1,7 +1,7 @@
 <template>
-  <div class="h-full overflow-y-auto p-10 h items-stretch gap-10">
+  <div class="p-10 h size-full items-stretch gap-10">
     <!-- 头部：标题 + 新建按钮 -->
-    <section class="flex flex-col gap-6 flex-2">
+    <section class="flex flex-col gap-6 flex-2 sticky top-0">
       <div class="flex items-center justify-between">
         <div class="v gap-1">
           <div class="text-xl font-bold">员工列表</div>
@@ -82,7 +82,7 @@
       </div>
     </section>
 
-    <section class="flex-5 min-w-0 v gap-10">
+    <section class="h-full flex-5 min-w-0 v gap-5">
       <div class="mt-5 grid gap-3">
         <Textarea
           v-model="newTaskContent"
@@ -114,7 +114,7 @@
         暂无任务，先创建一个吧
       </div>
 
-      <div v-else class="mt-4 grid max-h-[58vh] gap-3 overflow-y-auto pr-1">
+      <div v-else class="v gap-5">
         <Task
           v-for="task in tasks"
           :key="task.id"
@@ -128,6 +128,8 @@
           @cancel-edit="cancelEditTask"
           @save="handleSaveTask"
           @update:edit-content="editTaskContent = $event"
+          @realtime-deleted="handleTaskRealtimeDeleted"
+          @realtime-agent-task-state="handleTaskRealtimeAgentTaskState"
         />
       </div>
     </section>
@@ -167,6 +169,7 @@ const newTaskContent = ref("");
 
 const editingTaskId = ref<number | null>(null);
 const editTaskContent = ref("");
+type TaskChainStatus = "completed" | "incompleteOrFailed";
 
 async function fetchAgents() {
   loading.value = true;
@@ -445,6 +448,22 @@ async function handleDelete(agent: AgentResponse) {
 
 function handleRemoveById(agentId: number) {
   agents.value = agents.value.filter((agent) => agent.id !== agentId);
+}
+
+function handleTaskRealtimeDeleted(taskId: number) {
+  tasks.value = tasks.value.filter((t) => t.id !== taskId);
+  if (editingTaskId.value === taskId) {
+    cancelEditTask();
+  }
+}
+
+function handleTaskRealtimeAgentTaskState(payload: {
+  taskId: number;
+  taskChainStatus: TaskChainStatus;
+}) {
+  if (payload.taskChainStatus !== activeTaskTab.value) {
+    tasks.value = tasks.value.filter((t) => t.id !== payload.taskId);
+  }
 }
 
 watch(activeTaskTab, async () => {

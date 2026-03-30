@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { api } from "@/api";
 import { msg } from "@/utils/message";
+import { setNotificationResolved } from "@/services/notification-realtime";
 import { ref } from "vue";
 import type { RequestInputItem } from "../types";
 
@@ -82,6 +83,7 @@ async function onReject() {
       type: "REQUEST_CONFIRM",
       value: false,
     });
+    setNotificationResolved(props.entry.notificationId);
     await msg.info("请求已取消");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "操作失败，请重试");
@@ -103,6 +105,7 @@ async function onSubmitInput() {
       type: "REQUEST_INPUT",
       value,
     });
+    setNotificationResolved(props.entry.notificationId);
     await msg.info("输入请求已提交");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "提交失败，请重试");
@@ -127,6 +130,7 @@ async function onSubmitSingle() {
       type: "REQUEST_SELECT_SINGLE",
       value,
     });
+    setNotificationResolved(props.entry.notificationId);
     await msg.info("单选请求已提交");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "提交失败，请重试");
@@ -147,6 +151,7 @@ async function onSubmitMulti() {
       type: "REQUEST_SELECT_MULTI",
       value: multiDraft.value,
     });
+    setNotificationResolved(props.entry.notificationId);
     await msg.info("多选请求已提交");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "提交失败，请重试");
@@ -162,6 +167,7 @@ async function onConfirm() {
       type: "REQUEST_CONFIRM",
       value: true,
     });
+    setNotificationResolved(props.entry.notificationId);
     await msg.info("确认请求已通过");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "操作失败，请重试");

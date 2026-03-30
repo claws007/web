@@ -102,6 +102,22 @@ function removeItem(id: number) {
   }
 }
 
+/**
+ * Optimistically mark a notification as resolved in the local reactive state.
+ * Called immediately after a successful resolve API call so the UI updates
+ * without waiting for the WS entity_change event to arrive.
+ */
+export function setNotificationResolved(id: number): void {
+  const idx = state.items.findIndex((item) => item.id === id);
+  if (idx >= 0) {
+    state.items[idx] = {
+      ...state.items[idx],
+      state: "RESOLVE",
+      resolvedAt: new Date().toISOString(),
+    };
+  }
+}
+
 function handleEntityChange(payload: EntityChangePayload): void {
   if (payload.entity !== "notification") return;
 

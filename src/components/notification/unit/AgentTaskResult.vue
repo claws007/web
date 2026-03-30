@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { api, type NotificationResponse } from "@/api";
 import { msg } from "@/utils/message";
+import { setNotificationResolved } from "@/services/notification-realtime";
 import { ref } from "vue";
 
 const props = defineProps<{
@@ -42,6 +43,7 @@ async function confirmResult() {
       type: "AGENT_TASK_RESULT",
       value: true,
     });
+    setNotificationResolved(props.entry.id);
     await msg.success("已确认");
   } catch (err: unknown) {
     msg.error(err instanceof Error ? err.message : "确认失败，请稍后再试");

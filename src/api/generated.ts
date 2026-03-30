@@ -670,16 +670,16 @@ export interface NotificationResponse {
     | "REQUEST_CONFIRM"
     | "COMMAND_PROGRESS"
     | "AGENT_TASK_RESULT";
-  title?: string | null;
+  title: string | null;
   content: string;
-  extraParams?: Record<string, any>;
+  extraParams: Record<string, any>;
   state: "PENDING" | "RESOLVE";
   /** @format date-time */
   createdAt: string;
   /** @format date-time */
   updatedAt: string;
   /** @format date-time */
-  resolvedAt?: string | null;
+  resolvedAt: string | null;
 }
 
 export interface NotificationPageResponse {

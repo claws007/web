@@ -2,15 +2,20 @@
 withDefaults(
   defineProps<{
     type?: "primary" | "ghost" | "danger";
+    size?: "default" | "medium" | "small";
   }>(),
   {
     type: "ghost",
+    size: "default",
   },
 );
 </script>
 
 <template>
-  <button class="dialog-btn" :class="`dialog-btn--${type}`">
+  <button
+    class="dialog-btn"
+    :class="[`dialog-btn--${type}`, `dialog-btn--${size}`]"
+  >
     <slot />
   </button>
 </template>
@@ -26,6 +31,16 @@ withDefaults(
   font-weight: 600;
   cursor: pointer;
   transition: opacity 150ms;
+}
+
+.dialog-btn--medium {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+}
+
+.dialog-btn--small {
+  padding: 0.4rem 1.25rem;
+  font-size: 0.75rem;
 }
 
 .dialog-btn:hover {
