@@ -1,7 +1,7 @@
 <template>
-  <div class="p-10 h size-full items-stretch gap-10">
+  <div class="px-10 p-5 h size-full items-stretch gap-5">
     <!-- 头部：标题 + 新建按钮 -->
-    <section class="flex flex-col gap-6 flex-2 sticky top-0">
+    <section class="flex flex-col gap-6 flex-1 shrink">
       <div class="flex items-center justify-between">
         <div class="v gap-1">
           <div class="text-xl font-bold">员工列表</div>
@@ -82,7 +82,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-2 min-w-0 v gap-5">
+    <section class="h-full flex-[1.5] min-w-0 v gap-5">
       <div
         v-if="taskError"
         class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
@@ -114,6 +114,9 @@
           :is-editing="editingTaskId === task.id"
           :edit-content="editTaskContent"
           :saving="taskSaving"
+          :selected="selectedTaskId === task.id"
+          class="cursor-pointer"
+          @click="handleTaskClick(task)"
           @edit="startEditTask"
           @delete="handleDeleteTask"
           @assign="handleAssignTask"
@@ -130,7 +133,16 @@
         @enter="handleCreateTask"
       />
     </section>
-    <div class="flex-5">hello world</div>
+    <div
+      v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
+      class="flex-5 shrink flex flex-col min-w-0"
+    >
+      <AgentTaskBubbles
+        :task="tasks.find((t) => t.id === selectedTaskId)!"
+        :all-agents="agents"
+        @close="selectedTaskId = null"
+      />
+    </div>
   </div>
 </template>
 
@@ -144,6 +156,7 @@ import {
 } from "@/api";
 import AgentCard from "@/components/AgentCard.vue";
 import Task from "@/components/Task.vue";
+import AgentTaskBubbles from "@/components/AgentTaskBubbles.vue";
 import Tabs from "@/components/Tabs.vue";
 import { dialogs } from "virtual:dialogs";
 
@@ -167,6 +180,7 @@ const newTaskContent = ref("");
 
 const editingTaskId = ref<number | null>(null);
 const editTaskContent = ref("");
+const selectedTaskId = ref<number | null>(null);
 type TaskChainStatus = "completed" | "incompleteOrFailed";
 
 async function fetchAgents() {
@@ -446,6 +460,10 @@ async function handleDelete(agent: AgentResponse) {
 
 function handleRemoveById(agentId: number) {
   agents.value = agents.value.filter((agent) => agent.id !== agentId);
+}
+
+function handleTaskClick(task: TaskResponse) {
+  selectedTaskId.value = task.id;
 }
 
 function handleTaskRealtimeDeleted(taskId: number) {

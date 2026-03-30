@@ -3,6 +3,7 @@ import type {
   EventsReadyEnvelope,
   EventsWsSend,
   EventsWsReceive,
+  ModelStreamPayload,
   ServerEventEnvelopeError,
   SubscribedEnvelope,
   UnsubscribedEnvelope,
@@ -12,6 +13,7 @@ import type { EntityType, WsEventType } from "@/api/generated-ws";
 export type RealtimeEntityType = EntityType;
 
 type EntityChangeHandler = (payload: EntityChangePayload) => void;
+type ModelStreamHandler = (payload: ModelStreamPayload) => void;
 
 type EntityChangeRegistration = {
   handler: EntityChangeHandler;
@@ -30,6 +32,7 @@ export type WsServerEventPayload =
   | ServerEventEnvelopeError;
 
 const handlers = new Set<EntityChangeRegistration>();
+const modelStreamHandlers = new Set<ModelStreamHandler>();
 const wsCommandDispatchHandlers = new Set<
   (payload: WsCommandDispatchPayload) => void
 >();
@@ -39,6 +42,7 @@ const wsServerEventHandlers = new Set<
 
 const subscriptionDemand = new Map<string, number>();
 const entityChangeDemand = new Map<string, number>();
+const taskSubscriptionDemand = new Map<string, number>();
 
 const DEFAULT_ENTITY_TYPES: RealtimeEntityType[] = [
   "agent",
@@ -71,10 +75,22 @@ function buildEntityDemandKey(
   return `${companyId}:${entity}`;
 }
 
+function buildTaskDemandKey(event: WsEventType, agentTaskId: number): string {
+  return `${event}:${agentTaskId}`;
+}
+
 function normalizeCompanyId(
   companyId: number | null | undefined,
 ): number | null {
   return typeof companyId === "number" && companyId > 0 ? companyId : null;
+}
+
+function normalizeAgentTaskId(
+  agentTaskId: number | null | undefined,
+): number | null {
+  return typeof agentTaskId === "number" && agentTaskId > 0
+    ? agentTaskId
+    : null;
 }
 
 function getWsUrl(token: string): string {
@@ -93,6 +109,12 @@ function dispatchEntityChange(payload: EntityChangePayload) {
       continue;
     }
     registration.handler(payload);
+  }
+}
+
+function dispatchModelStream(payload: ModelStreamPayload) {
+  for (const handler of modelStreamHandlers) {
+    handler(payload);
   }
 }
 
@@ -250,15 +272,85 @@ function applyDemandChange(
   }
 }
 
-function resyncDemandsOnOpen(companyId: number) {
-  const entityChangeEntities = listDemandedEntities(companyId);
-  if (entityChangeEntities.length > 0) {
+function applyTaskDemandChange(
+  agentTaskId: number,
+  event: WsEventType,
+  delta: 1 | -1,
+) {
+  const key = buildTaskDemandKey(event, agentTaskId);
+  const currentCount = taskSubscriptionDemand.get(key) ?? 0;
+  const nextCount = Math.max(0, currentCount + delta);
+
+  if (nextCount === currentCount) {
+    return;
+  }
+
+  if (nextCount === 0) {
+    taskSubscriptionDemand.delete(key);
+  } else {
+    taskSubscriptionDemand.set(key, nextCount);
+  }
+
+  if (!running) {
+    return;
+  }
+
+  if (currentCount === 0 && nextCount > 0) {
     sendWsCommand(
       {
         type: "subscribe",
-        companyId,
-        events: ["entity_change"],
-        entities: entityChangeEntities,
+        agentTaskId,
+        events: [event],
+      },
+      "demand",
+    );
+    return;
+  }
+
+  if (currentCount > 0 && nextCount === 0) {
+    sendWsCommand(
+      {
+        type: "unsubscribe",
+        agentTaskId,
+        events: [event],
+      },
+      "demand",
+    );
+  }
+}
+
+function resyncDemandsOnOpen(companyId: number | null) {
+  if (companyId) {
+    const entityChangeEntities = listDemandedEntities(companyId);
+    if (entityChangeEntities.length > 0) {
+      sendWsCommand(
+        {
+          type: "subscribe",
+          companyId,
+          events: ["entity_change"],
+          entities: entityChangeEntities,
+        },
+        "socket_open_resync",
+      );
+    }
+  }
+
+  for (const [key, count] of taskSubscriptionDemand.entries()) {
+    if (count <= 0) {
+      continue;
+    }
+
+    const [event, agentTaskIdRaw] = key.split(":");
+    const agentTaskId = Number(agentTaskIdRaw);
+    if (!agentTaskId) {
+      continue;
+    }
+
+    sendWsCommand(
+      {
+        type: "subscribe",
+        agentTaskId,
+        events: [event as WsEventType],
       },
       "socket_open_resync",
     );
@@ -313,7 +405,7 @@ function closeActiveSocket() {
 }
 
 function scheduleReconnect() {
-  if (!running || reconnectTimer !== null || !lastToken || !lastCompanyId) {
+  if (!running || reconnectTimer !== null || !lastToken) {
     return;
   }
 
@@ -327,14 +419,14 @@ function scheduleReconnect() {
     reconnectTimer = null;
     const token = lastToken;
     const companyId = lastCompanyId;
-    if (!token || !companyId) {
+    if (!token) {
       return;
     }
     connectSocket(token, companyId);
   }, delay);
 }
 
-function connectSocket(token: string, companyId: number) {
+function connectSocket(token: string, companyId: number | null) {
   if (!running) {
     return;
   }
@@ -361,6 +453,11 @@ function connectSocket(token: string, companyId: number) {
 
     if (payload.event === "entity_change") {
       dispatchEntityChange(payload.data as EntityChangePayload);
+      return;
+    }
+
+    if (payload.event === "model_stream") {
+      dispatchModelStream(payload.data as ModelStreamPayload);
       return;
     }
 
@@ -404,6 +501,15 @@ export function registerEntityChangeHandler(
   };
 }
 
+export function registerModelStreamHandler(
+  handler: ModelStreamHandler,
+): () => void {
+  modelStreamHandlers.add(handler);
+  return () => {
+    modelStreamHandlers.delete(handler);
+  };
+}
+
 export function registerWsCommandDispatchHandler(
   handler: (payload: WsCommandDispatchPayload) => void,
 ): () => void {
@@ -425,23 +531,40 @@ export function registerWsServerEventHandler(
 export function requestRealtimeSubscription(options: {
   token: string | null | undefined;
   companyId: number | null | undefined;
+  agentTaskId?: number | null | undefined;
   events: WsEventType[];
   entities?: RealtimeEntityType[];
 }): () => void {
   const token = options.token?.trim() || null;
   const companyId = normalizeCompanyId(options.companyId);
+  const agentTaskId = normalizeAgentTaskId(options.agentTaskId);
   const events = Array.from(new Set(options.events));
   const entities = options.entities?.length
     ? Array.from(new Set(options.entities))
     : DEFAULT_ENTITY_TYPES;
+  const companyScopedEvents = events.filter(
+    (event) => event !== "model_stream",
+  );
+  const taskScopedEvents = events.filter((event) => event === "model_stream");
 
-  if (!token || !companyId || events.length === 0) {
+  if (
+    !token ||
+    events.length === 0 ||
+    (companyScopedEvents.length > 0 && !companyId) ||
+    (taskScopedEvents.length > 0 && !agentTaskId)
+  ) {
     return () => {};
   }
 
+  const resolvedCompanyId = companyId as number;
+  const resolvedAgentTaskId = agentTaskId as number;
+
   startEventsRealtime({ token, companyId });
-  for (const event of events) {
-    applyDemandChange(companyId, event, 1, entities);
+  for (const event of companyScopedEvents) {
+    applyDemandChange(resolvedCompanyId, event, 1, entities);
+  }
+  for (const event of taskScopedEvents) {
+    applyTaskDemandChange(resolvedAgentTaskId, event, 1);
   }
 
   let released = false;
@@ -450,8 +573,11 @@ export function requestRealtimeSubscription(options: {
       return;
     }
     released = true;
-    for (const event of events) {
-      applyDemandChange(companyId, event, -1, entities);
+    for (const event of companyScopedEvents) {
+      applyDemandChange(resolvedCompanyId, event, -1, entities);
+    }
+    for (const event of taskScopedEvents) {
+      applyTaskDemandChange(resolvedAgentTaskId, event, -1);
     }
   };
 }
@@ -463,7 +589,7 @@ export function startEventsRealtime(options: {
   const token = options.token?.trim() || null;
   const companyId = normalizeCompanyId(options.companyId);
 
-  if (!token || !companyId) {
+  if (!token) {
     return;
   }
 
@@ -508,4 +634,16 @@ export function isEventSubscriptionLive(
 
   const key = buildDemandKey(event, companyId);
   return (subscriptionDemand.get(key) ?? 0) > 0;
+}
+
+export function isTaskEventSubscriptionLive(
+  agentTaskId: number,
+  event: WsEventType,
+): boolean {
+  if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+
+  const key = buildTaskDemandKey(event, agentTaskId);
+  return (taskSubscriptionDemand.get(key) ?? 0) > 0;
 }

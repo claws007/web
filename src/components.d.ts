@@ -12,9 +12,12 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AgentCard: typeof import('./components/AgentCard.vue')['default']
+    AgentTaskBubble: typeof import('./components/AgentTaskBubble.vue')['default']
+    AgentTaskBubbles: typeof import('./components/AgentTaskBubbles.vue')['default']
     AgentTaskResult: typeof import('./components/notification/unit/AgentTaskResult.vue')['default']
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
     Button: typeof import('./components/dialog/Button.vue')['default']
+    ChatHistoryDisplay: typeof import('./components/ChatHistoryDisplay.vue')['default']
     ChatHistoryItemCard: typeof import('./components/dialog/ChatHistoryItemCard.vue')['default']
     Checkbox: typeof import('./components/Checkbox.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']

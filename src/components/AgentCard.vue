@@ -564,7 +564,7 @@ onBeforeUnmount(() => {
 
 <template>
   <article
-    class="flex flex-col gap-3.5 rounded-lg p-4 sm:p-3.5 bg-linear-to-br from-surface-container-lowest to-surface-container border border-primary/10 shadow-ambient backdrop-blur-xl"
+    class="flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow-ambient backdrop-blur-xl"
     role="region"
     :aria-label="agentName"
   >
@@ -588,25 +588,23 @@ onBeforeUnmount(() => {
 
       <div class="min-w-0 flex flex-col gap-3 items-start">
         <div class="v items-start gap-1">
+          <div class="h items-center gap-2">
+            <span
+              class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-xs bg-primary/10 shadow"
+              :title="`${modelConnectorName} ${modelName}`"
+            >
+              <span class="text-foreground-muted">
+                {{ modelConnectorName }}
+              </span>
+              <span class="text-foreground"> : {{ modelName }} </span>
+            </span>
+          </div>
           <h3
             class="text-base break-all font-bold text-on-surface leading-relaxed"
             :title="agentName"
           >
             {{ agentName }}
           </h3>
-          <div class="h items-center gap-2">
-            <span
-              class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs truncate chip-primary"
-              :title="`${modelConnectorName} ${modelName}`"
-            >
-              {{ modelConnectorName }} : {{ modelName }}
-            </span>
-            <span
-              class="inline-flex items-center max-w-full rounded-full px-2.5 py-0.5 text-xs truncate chip-tertiary"
-            >
-              {{ sandboxLabel }}
-            </span>
-          </div>
           <p
             class="text-on-surface-variant text-xs leading-relaxed overflow-hidden line-clamp-2"
             :title="abilityIntro"

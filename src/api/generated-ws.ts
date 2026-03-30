@@ -7,7 +7,7 @@ export interface ServerEventEnvelopeError {
   data: { code: string; message: string };
 }
 
-export type WsEventType = "entity_change";
+export type WsEventType = "entity_change" | "model_stream";
 
 export type NotificationState = "PENDING" | "RESOLVE";
 
@@ -51,6 +51,7 @@ export interface AgentTaskEntityRecord {
   taskId: number;
   agentId: number;
   content: string;
+  taskContent: string | unknown;
   ac: string | unknown;
   state: string;
   queueOrder: number;
@@ -139,12 +140,12 @@ export interface EventsReadyEnvelope {
 
 export interface SubscribedEnvelope {
   event: "subscribed";
-  data: { companyId: number; events: SubscriptionEventList };
+  data: { companyId?: number; agentTaskId?: number; events: SubscriptionEventList };
 }
 
 export interface UnsubscribedEnvelope {
   event: "unsubscribed";
-  data: { companyId: number; events: SubscriptionEventList };
+  data: { companyId?: number; agentTaskId?: number; events: SubscriptionEventList };
 }
 
 export interface ServerEventEnvelopeEntityChange {
@@ -152,21 +153,34 @@ export interface ServerEventEnvelopeEntityChange {
   data: EntityChangePayload;
 }
 
+export interface ModelStreamPayload {
+  agentTaskId: number;
+  delta: string;
+  finishReason?: string;
+}
+
+export interface ServerEventEnvelopeModelStream {
+  event: "model_stream";
+  data: ModelStreamPayload;
+}
+
 export interface SubscribeCommand {
   type: SubscribeCommandType;
-  companyId: number;
+  companyId?: number;
+  agentTaskId?: number;
   events: SubscriptionEventList;
   entities?: EntityType[];
 }
 
 export interface UnsubscribeCommand {
   type: UnsubscribeCommandType;
-  companyId: number;
+  companyId?: number;
+  agentTaskId?: number;
   events: SubscriptionEventList;
 }
 
 /** Messages sent by the client on the `/events/ws` channel */
 export type EventsWsSend = SubscribeCommand | UnsubscribeCommand;
 /** Messages received by the client on the `/events/ws` channel */
-export type EventsWsReceive = EventsReadyEnvelope | SubscribedEnvelope | UnsubscribedEnvelope | ServerEventEnvelopeEntityChange | ServerEventEnvelopeError;
+export type EventsWsReceive = EventsReadyEnvelope | SubscribedEnvelope | UnsubscribedEnvelope | ServerEventEnvelopeEntityChange | ServerEventEnvelopeModelStream | ServerEventEnvelopeError;
 
