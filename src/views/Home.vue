@@ -82,7 +82,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-3 min-w-0 v gap-5">
+    <section class="h-full flex-2 min-w-0 v gap-5">
       <div
         v-if="taskError"
         class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
