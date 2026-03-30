@@ -36,151 +36,51 @@ const handleTabClick = (tab: TabItem) => {
     activeId.value = tab.id;
   }
 };
+
+const isIconVariant = computed(() => props.variant === "icon");
+
+const getTabClass = (tab: TabItem) => {
+  const isActive = activeId.value === tab.id;
+
+  return [
+    "group relative -mb-px inline-flex items-center justify-center gap-2 rounded-t-sm border border-transparent bg-transparent text-sm font-medium text-foreground-muted transition-all duration-300 ease-crystal outline-none",
+    isIconVariant.value ? "flex-col gap-1 px-4 py-2" : "px-5 py-2",
+    tab.disabled
+      ? "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-foreground-muted"
+      : "cursor-pointer hover:bg-primary/10 hover:text-primary",
+    isActive
+      ? "bg-surface-container-lowest text-primary shadow-[inset_0_-2px_0_var(--primary)]"
+      : "",
+  ];
+};
 </script>
 
 <template>
-  <div class="tabs" :class="`tabs--${variant}`">
-    <div class="tabs-list">
+  <div class="flex flex-col gap-4">
+    <div class="flex gap-2 border-b border-outline-ghost">
       <button
         v-for="tab in items"
         :key="tab.id"
-        class="tab"
-        :class="{
-          'tab--active': activeId === tab.id,
-          'tab--disabled': tab.disabled,
-        }"
+        type="button"
+        :class="getTabClass(tab)"
         :disabled="tab.disabled"
         @click="handleTabClick(tab)"
       >
-        <span v-if="tab.icon" class="tab-icon">{{ tab.icon }}</span>
-        <span v-if="variant === 'default'" class="tab-label">{{
+        <span
+          v-if="tab.icon"
+          class="inline-flex items-center justify-center text-[1.25rem]"
+        >
+          {{ tab.icon }}
+        </span>
+        <span v-if="variant === 'default'" class="whitespace-nowrap">{{
           tab.label
         }}</span>
-        <span v-if="variant === 'icon'" class="tab-label-tooltip">{{
-          tab.label
-        }}</span>
+        <span
+          v-if="variant === 'icon'"
+          class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-sm bg-surface-container-low px-3 py-2 text-xs text-foreground opacity-0 shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-opacity duration-200 group-hover:opacity-100"
+          >{{ tab.label }}</span
+        >
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.tabs-list {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--outline-ghost);
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  background: transparent;
-  color: var(--foreground-muted);
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s ease;
-  border-radius: var(--radius-md, 0.75rem) var(--radius-md, 0.75rem) 0 0;
-  outline: none;
-
-  /* Ghost border for accessibility */
-  border: 1px solid transparent;
-  margin-bottom: -1px;
-}
-
-.tab:hover:not(.tab--disabled) {
-  color: var(--primary);
-  background-color: var(--primary-soft);
-}
-
-.tab--active {
-  color: var(--primary);
-  background-color: var(--surface-container-lowest);
-  border-color: transparent;
-  box-shadow: inset 0 -2px 0 var(--primary);
-
-  /* Rainbow edge effect on active tab */
-  border-image: linear-gradient(
-      90deg,
-      transparent,
-      rgb(34 211 238 / 0.3) 50%,
-      transparent
-    )
-    1;
-}
-
-.tab--disabled {
-  color: var(--foreground-muted);
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tab--disabled:hover {
-  background-color: transparent;
-  color: var(--foreground-muted);
-}
-
-.tab-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.tab-label {
-  white-space: nowrap;
-}
-
-.tab-label-tooltip {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 0.75rem;
-  background: var(--surface-container-low);
-  color: var(--foreground);
-  font-size: 0.75rem;
-  border-radius: var(--radius-sm, 0.5rem);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.tabs--icon .tab:hover:not(.tab--disabled) .tab-label-tooltip {
-  opacity: 1;
-}
-
-.tabs--default {
-  /* Default style for standard tab layout */
-}
-
-.tabs--icon {
-  /* Icon-based tab layout */
-}
-
-.tabs--icon .tab {
-  padding: 0.75rem 1rem;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.tabs--icon .tab-label-tooltip {
-  display: block;
-}
-</style>

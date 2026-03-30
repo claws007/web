@@ -10,7 +10,7 @@ import Input from "@/components/Input.vue";
 import Selector, { type SelectorItem } from "@/components/Selector.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { minLength, required, type Validator } from "@/utils/validators";
 
 const props = defineProps<{
@@ -104,7 +104,7 @@ async function loadTypeOptions() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "获取连接器类型失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     typeLoading.value = false;
   }
@@ -130,7 +130,7 @@ async function loadModelConnectorById() {
       error instanceof Error
         ? error.message
         : "获取 Model Connector 详情失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     bootLoading.value = false;
   }
@@ -167,19 +167,19 @@ function triggerSubmit() {
 async function handleFormSubmit() {
   const typeValue = type.value.trim();
   if (!typeValue) {
-    await msg.error("请选择连接器类型");
+    notify.error("请选择连接器类型");
     return;
   }
 
   const apiKeyValue = apiKey.value.trim();
   if (!apiKeyValue) {
-    await msg.error("请输入 API Key");
+    notify.error("请输入 API Key");
     return;
   }
 
   const concurrencyValue = Number(concurrency.value);
   if (!Number.isInteger(concurrencyValue) || concurrencyValue <= 0) {
-    await msg.error("并发数必须是大于 0 的整数");
+    notify.error("并发数必须是大于 0 的整数");
     return;
   }
 
@@ -206,7 +206,7 @@ async function handleFormSubmit() {
       error instanceof Error
         ? error.message
         : "保存 Model Connector 失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     saving.value = false;
   }

@@ -205,17 +205,31 @@ defineExpose({
 </script>
 
 <template>
-  <div class="textarea-root">
+  <div class="flex flex-col gap-1.5">
     <label v-if="label" class="form-label">{{ label }}</label>
     <div
-      :class="['textarea-wrapper', { 'textarea-wrapper--error': errorMessage }]"
-      style="position: relative"
+      :class="[
+        'relative flex items-start rounded-sm border-[1.5px] bg-surface-container-lowest',
+        'transition-[border-color,box-shadow] duration-[var(--duration-gentle)] ease-[var(--ease-crystal)]',
+        errorMessage
+          ? [
+              'border-[#e5484d]',
+              'shadow-[0_0_0_3px_rgb(229_72_77/0.1),0_1px_4px_0_rgb(0_0_0/0.06)]',
+              'focus-within:shadow-[0_0_0_3px_rgb(229_72_77/0.15),0_1px_4px_0_rgb(0_0_0/0.06)]',
+            ]
+          : [
+              'border-outline-ghost',
+              'shadow-[0_1px_4px_0_rgb(0_0_0/0.06),0_0.5px_1.5px_0_rgb(0_0_0/0.04)]',
+              'focus-within:border-primary',
+              'focus-within:shadow-[0_0_0_3px_rgb(0_104_119/0.12),0_1px_4px_0_rgb(0_0_0/0.06)]',
+            ],
+      ]"
     >
       <textarea
         :rows="rows"
         :placeholder="placeholder"
         :value="modelValue"
-        class="textarea-field"
+        class="flex-1 min-w-0 resize-y border-0 bg-transparent outline-none px-3 py-2.5 text-[0.9375rem] font-sans text-foreground leading-[1.6] placeholder:text-foreground-muted/45 focus:shadow-none"
         @input="onInput"
         @keydown.enter="onEnter"
       />
@@ -224,7 +238,7 @@ defineExpose({
         :content="errorMessage ?? undefined"
         placement="top"
         :persistent="true"
-        class="textarea-error-icon"
+        class="absolute bottom-2 right-2.5 text-[#e5484d] cursor-default opacity-[0.85] hover:opacity-100 transition-opacity duration-[var(--duration-gentle)]"
       >
         <span v-show="errorMessage" aria-label="校验错误">
           <svg
@@ -247,66 +261,3 @@ defineExpose({
     </div>
   </div>
 </template>
-
-<style scoped>
-.textarea-root {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.textarea-wrapper {
-  display: flex;
-  align-items: flex-start;
-  border-bottom: 1.5px solid var(--outline-ghost);
-  transition: border-color var(--duration-gentle) var(--ease-crystal);
-}
-
-.textarea-wrapper:focus-within {
-  border-color: var(--primary);
-}
-
-.textarea-field {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 0.625rem 0;
-  font-size: 0.9375rem;
-  font-family: var(--font-sans);
-  color: var(--foreground);
-  line-height: var(--leading-body);
-  resize: vertical;
-}
-
-.textarea-field:focus {
-  box-shadow: none;
-}
-
-.textarea-field::placeholder {
-  color: rgb(90 102 109 / 0.45);
-}
-
-.textarea-wrapper--error {
-  border-color: #e5484d;
-}
-
-.textarea-wrapper--error:focus-within {
-  border-color: #e5484d;
-}
-
-.textarea-error-icon {
-  position: absolute;
-  bottom: 0.375rem;
-  right: 0.25rem;
-  color: #e5484d;
-  cursor: default;
-  opacity: 0.85;
-  transition: opacity var(--duration-gentle);
-}
-
-.textarea-error-icon:hover {
-  opacity: 1;
-}
-</style>

@@ -6,7 +6,7 @@ import Input from "@/components/Input.vue";
 import KeepLoginCheckbox from "@/components/Checkbox.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { useUserStore } from "@/store/user";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import TextButton from "@/components/TextButton.vue";
 import DefaultButton from "@/components/DefaultButton.vue";
 import { required, email as emailValidator } from "@/utils/validators";
@@ -45,7 +45,7 @@ async function handleSubmit() {
     await userStore.login(email.value, password.value, keepLoggedIn.value);
     router.push(resolvePostLoginPath());
   } catch {
-    msg.error("登录失败，请检查您的账号和密码");
+    notify.error("登录失败，请检查您的账号和密码");
   } finally {
     loading.value = false;
   }

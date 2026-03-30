@@ -293,7 +293,7 @@ onUnmounted(() => {
           <div class="flex flex-col gap-1 p-1">
             <div
               v-if="!loading && items.length === 0"
-              class="rounded-xl border border-dashed border-[color-mix(in_srgb,var(--outline-ghost)_78%,white)] bg-[color-mix(in_srgb,var(--surface)_86%,white)] px-3 py-4 text-center text-sm text-foreground-muted"
+              class="rounded-md border border-dashed border-[color-mix(in_srgb,var(--outline-ghost)_78%,white)] bg-[color-mix(in_srgb,var(--surface)_86%,white)] px-3 py-4 text-center text-sm text-foreground-muted"
             >
               {{ emptyText }}
             </div>
@@ -302,7 +302,7 @@ onUnmounted(() => {
               v-for="item in items"
               :key="item.id"
               type="button"
-              class="grid w-full grid-cols-[1fr_auto] items-center gap-2 rounded-xl border-0 bg-transparent px-3 py-2 text-left transition-colors duration-200 ease-crystal hover:bg-[color-mix(in_srgb,var(--secondary-soft)_55%,white)]"
+              class="grid w-full grid-cols-[1fr_auto] items-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 text-left transition-colors duration-200 ease-crystal hover:bg-black/5"
               :class="{
                 'bg-[color-mix(in_srgb,var(--secondary-soft)_70%,white)]':
                   selectedItem?.id === item.id,

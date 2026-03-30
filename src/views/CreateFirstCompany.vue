@@ -10,7 +10,7 @@ import FlowPrimaryText from "@/components/FlowPrimaryText.vue";
 import { RouteName } from "@/router/route-name";
 import { useUserStore } from "@/store/user";
 import { required, minLength, optional } from "@/utils/validators";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -78,7 +78,7 @@ async function handleCreate() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "创建公司失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     loading.value = false;
   }

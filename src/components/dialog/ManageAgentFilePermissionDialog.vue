@@ -10,6 +10,7 @@ import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { dialogs } from "virtual:dialogs";
 import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const props = defineProps<{
   agentId: number;
@@ -152,10 +153,10 @@ async function handleDelete(item: AgentFilePermissionResponse) {
   try {
     await api.agentFilePermission.deleteAgentFilePermissionById(item.id);
     await loadData(true);
-    await msg.success("文件权限已删除");
+    notify.success("文件权限已删除");
   } catch (err) {
     const message = err instanceof Error ? err.message : "删除失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     deletingId.value = null;
   }

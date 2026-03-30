@@ -62,7 +62,7 @@ import DropdownMenu, {
 import { api, readStoredActiveCompanyId } from "@/api";
 import { useUserStore } from "@/store/user";
 import { RouteName } from "@/router/route-name";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { dialogs } from "virtual:dialogs";
 
 const router = useRouter();
@@ -115,7 +115,7 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
 
   if (menu.key === "docker-image") {
     if (!dockerAvailable.value) {
-      await msg.info(dockerUnavailableReason.value || "Docker 不可用");
+      notify.info(dockerUnavailableReason.value || "Docker 不可用");
       return;
     }
 
@@ -128,7 +128,7 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
     return;
   }
 
-  await msg.info(`${menu.label} 功能开发中`);
+  notify.info(`${menu.label} 功能开发中`);
 }
 
 async function detectDockerAvailability() {

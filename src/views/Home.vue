@@ -82,15 +82,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-5 min-w-0 v gap-5">
-      <div class="mt-5 grid gap-3">
-        <Textarea
-          v-model="newTaskContent"
-          placeholder="创建任务"
-          @enter="handleCreateTask"
-        />
-      </div>
-
+    <section class="h-full flex-3 min-w-0 v gap-5">
       <div
         v-if="taskError"
         class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
@@ -102,19 +94,19 @@
 
       <div
         v-if="taskLoading"
-        class="mt-4 flex min-h-36 items-center justify-center text-sm text-(--on-surface-variant)"
+        class="stretch mt-4 flex min-h-36 items-center justify-center text-sm text-(--on-surface-variant)"
       >
         正在加载任务...
       </div>
 
       <div
         v-else-if="tasks.length === 0"
-        class="mt-4 flex min-h-36 items-center justify-center rounded-xl border border-dashed border-[rgb(0_104_119/0.2)] text-sm text-(--on-surface-variant)"
+        class="stretch mt-4 flex min-h-36 items-center justify-center rounded-md border border-dashed border-[rgb(0_104_119/0.2)] text-sm text-(--on-surface-variant)"
       >
         暂无任务，先创建一个吧
       </div>
 
-      <div v-else class="v gap-5">
+      <div v-else class="v gap-5 stretch overflow-y-auto">
         <Task
           v-for="task in tasks"
           :key="task.id"
@@ -132,7 +124,13 @@
           @realtime-agent-task-state="handleTaskRealtimeAgentTaskState"
         />
       </div>
+      <Textarea
+        v-model="newTaskContent"
+        placeholder="创建任务"
+        @enter="handleCreateTask"
+      />
     </section>
+    <div class="flex-5">hello world</div>
   </div>
 </template>
 

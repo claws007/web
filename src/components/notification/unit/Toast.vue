@@ -2,7 +2,7 @@
 import { dismissToast } from "../store";
 import type { ToastItem } from "../types";
 
-const props = defineProps<{
+defineProps<{
   entry: ToastItem;
   closing: boolean;
 }>();
@@ -15,39 +15,51 @@ const labelMap = {
   error: "错误",
 } as const;
 
-function getToastAccentColor(
-  type: "info" | "warn" | "success" | "error",
-): string {
-  const colors: Record<"info" | "warn" | "success" | "error", string> = {
-    info: "var(--primary)",
-    warn: "#d97706",
-    success: "#16a34a",
-    error: "#dc2626",
-  };
-  return colors[type];
-}
+// Accent color values for timer bar inline style
+const accentColorMap: Record<string, string> = {
+  info: "var(--color-primary)",
+  warn: "#d97706",
+  success: "#16a34a",
+  error: "#dc2626",
+};
+
+// Tailwind classes per type for icon circle
+const iconBgMap: Record<string, string> = {
+  info: "bg-primary/10 text-primary",
+  warn: "bg-amber-600/10 text-amber-600",
+  success: "bg-green-600/10 text-green-600",
+  error: "bg-red-600/10 text-red-600",
+};
 </script>
 
 <template>
   <div
-    class="nw-toast"
-    :class="[`nw-toast--${entry.type}`, { 'nw-toast--closing': closing }]"
+    class="toast-base flex items-start gap-3 px-3.5 py-3 rounded-sm bg-black/5 relative overflow-hidden"
+    :class="{ 'toast-closing': closing }"
   >
-    <div class="nw-toast-icon">
+    <!-- Type icon -->
+    <div
+      class="size-[1.4rem] rounded-full grid place-items-center text-[0.7rem] font-bold shrink-0"
+      :class="iconBgMap[entry.type]"
+    >
       {{ iconMap[entry.type] }}
     </div>
 
-    <div class="nw-toast-body">
-      <div class="nw-toast-label">
+    <!-- Body -->
+    <div class="flex-1 min-w-0 flex flex-col gap-[0.2rem]">
+      <div class="text-xs font-bold text-foreground tracking-[0.01em]">
         {{ labelMap[entry.type] }}
       </div>
-      <div class="nw-toast-message">
+      <div
+        class="text-[0.8rem] text-foreground-muted leading-[1.4] break-words max-h-[100px] overflow-y-auto"
+      >
         {{ entry.message }}
       </div>
     </div>
 
+    <!-- Close button -->
     <button
-      class="nw-toast-close"
+      class="shrink-0 bg-transparent border-0 cursor-pointer text-foreground-muted text-[0.6rem] p-1 rounded-sm leading-none transition-[color,background] duration-150 hover:text-foreground hover:bg-surface-container"
       :title="`关闭${labelMap[entry.type]}`"
       @click="dismissToast(entry.id)"
     >
@@ -57,11 +69,11 @@ function getToastAccentColor(
     <!-- Countdown bar for auto-dismiss toasts -->
     <div
       v-if="entry.duration > 0"
-      class="nw-toast-timer"
+      class="absolute bottom-0 left-0 right-0 h-0.5 origin-left"
       :style="
         {
-          '--toast-duration': `${entry.duration}ms`,
-          '--toast-accent': getToastAccentColor(entry.type),
+          background: accentColorMap[entry.type],
+          animation: `toast-timer-shrink ${entry.duration}ms linear forwards`,
         } as any
       "
     />
@@ -69,18 +81,7 @@ function getToastAccentColor(
 </template>
 
 <style scoped>
-.nw-toast {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 0.875rem;
-  border-radius: var(--radius-sm);
-  background: white;
-  border: 1px solid var(--outline-ghost);
-  border-left: 3px solid var(--nw-toast-accent, var(--primary));
-  position: relative;
-  overflow: hidden;
-
+.toast-base {
   transition:
     opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
@@ -90,7 +91,7 @@ function getToastAccentColor(
     border-width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nw-toast--closing {
+.toast-closing {
   opacity: 0;
   transform: translateX(10px);
   max-height: 0;
@@ -100,89 +101,11 @@ function getToastAccentColor(
   border-width: 0;
   overflow: hidden;
 }
+</style>
 
-/* Toast accent colors */
-.nw-toast--info {
-  --nw-toast-accent: var(--primary);
-}
-.nw-toast--warn {
-  --nw-toast-accent: #d97706;
-}
-.nw-toast--success {
-  --nw-toast-accent: #16a34a;
-}
-.nw-toast--error {
-  --nw-toast-accent: #dc2626;
-}
-
-.nw-toast-icon {
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--nw-toast-accent) 12%, transparent);
-  color: var(--nw-toast-accent);
-}
-
-.nw-toast-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.nw-toast-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--foreground);
-  letter-spacing: 0.01em;
-}
-
-.nw-toast-message {
-  font-size: 0.8rem;
-  color: var(--foreground-muted);
-  line-height: 1.4;
-  word-break: break-word;
-  max-height: 100px;
-  overflow-y: auto;
-}
-
-.nw-toast-close {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--foreground-muted);
-  font-size: 0.6rem;
-  padding: 0.25rem;
-  border-radius: var(--radius-sm);
-  line-height: 1;
-  transition:
-    color 0.15s,
-    background 0.15s;
-}
-.nw-toast-close:hover {
-  color: var(--foreground);
-  background: var(--surface-container);
-}
-
-.nw-toast-timer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--nw-toast-accent);
-  transform-origin: left center;
-  animation: nw-timer-shrink var(--toast-duration) linear forwards;
-}
-
-@keyframes nw-timer-shrink {
+<!-- Global keyframe so inline-style animation references can resolve the name -->
+<style>
+@keyframes toast-timer-shrink {
   from {
     transform: scaleX(1);
   }

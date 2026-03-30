@@ -9,7 +9,7 @@ import Input from "@/components/Input.vue";
 import Switch from "@/components/Switch.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const props = defineProps<{
   agentId: number;
@@ -59,12 +59,12 @@ async function handleSave() {
   const mountPath = mountPathText.value.trim();
 
   if (!path) {
-    await msg.error("请输入宿主机路径");
+    notify.error("请输入宿主机路径");
     return;
   }
 
   if (!mountPath) {
-    await msg.error("请输入容器挂载路径");
+    notify.error("请输入容器挂载路径");
     return;
   }
 
@@ -80,7 +80,7 @@ async function handleSave() {
           writable: canWrite.value,
         },
       );
-      await msg.success("文件权限已更新");
+      notify.success("文件权限已更新");
     } else {
       await api.agentFilePermission.postAgentFilePermission({
         agentId: props.agentId,
@@ -89,13 +89,13 @@ async function handleSave() {
         enabled: canRead.value,
         writable: canWrite.value,
       });
-      await msg.success("文件权限已添加");
+      notify.success("文件权限已添加");
     }
 
     close(() => resolve());
   } catch (err) {
     const message = err instanceof Error ? err.message : "保存失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     saving.value = false;
   }

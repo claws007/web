@@ -18,7 +18,7 @@ import Selector, { type SelectorItem } from "@/components/Selector.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { dialogs } from "virtual:dialogs";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { minLength, required, type Validator } from "@/utils/validators";
 
 const props = defineProps<{
@@ -36,7 +36,7 @@ const name = ref("");
 const description = ref("");
 const capacity = ref("");
 const model = ref("");
-const modelConnectorId = ref("");
+const modelConnectorId = ref<number>();
 const useDockerSandbox = ref(false);
 const containerImage = ref("");
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
@@ -163,7 +163,7 @@ async function loadModelConnectors() {
       error instanceof Error
         ? error.message
         : "获取模型连接器列表失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     connectorLoading.value = false;
   }
@@ -213,14 +213,14 @@ async function loadModelCatalogByConnectorId(
     model.value = "";
     const message =
       error instanceof Error ? error.message : "获取模型目录失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     modelCatalogLoading.value = false;
   }
 }
 
 async function onModelConnectorChange(value: string | number) {
-  modelConnectorId.value = String(value);
+  modelConnectorId.value = value ? Number(value) : undefined;
   model.value = "";
   await loadModelCatalogByConnectorId(modelConnectorId.value);
 }
@@ -259,7 +259,7 @@ async function loadAgentById() {
       error instanceof Error
         ? error.message
         : "获取 Agent 详情失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     bootLoading.value = false;
   }
@@ -294,17 +294,17 @@ function triggerSubmit() {
 async function handleFormSubmit() {
   const connectorId = Number(modelConnectorId.value);
   if (!Number.isInteger(connectorId) || connectorId <= 0) {
-    await msg.error("请选择模型连接器");
+    notify.error("请选择模型连接器");
     return;
   }
 
   if (!model.value.trim()) {
-    await msg.error("请选择模型");
+    notify.error("请选择模型");
     return;
   }
 
   if (useDockerSandbox.value && !containerImage.value.trim()) {
-    await msg.error("启用 Docker 沙箱时必须选择镜像");
+    notify.error("启用 Docker 沙箋时必须选择镜像");
     return;
   }
 
@@ -334,7 +334,7 @@ async function handleFormSubmit() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "保存 Agent 失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     saving.value = false;
   }
@@ -342,7 +342,7 @@ async function handleFormSubmit() {
 
 async function openDockerImageDialog() {
   if (!useDockerSandbox.value) {
-    await msg.info("请先启用 Docker 沙箱");
+    notify.info("请先启用 Docker 沙箋");
     return;
   }
 
@@ -391,7 +391,7 @@ async function openDockerImageDialog() {
   }
 
   containerImage.value = image;
-  await msg.success(`已选择镜像：${image}`);
+  notify.success(`已选择镜像：${image}`);
 }
 
 onMounted(async () => {
@@ -459,24 +459,6 @@ onMounted(async () => {
               placeholder="请选择模型连接器"
               @change="onModelConnectorChange"
             >
-              <template #selected>
-                <span
-                  class="stretch text-left"
-                  :class="
-                    selectedConnectorOption
-                      ? 'text-foreground'
-                      : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
-                  "
-                >
-                  {{
-                    connectorLoading
-                      ? "模型连接器（加载中...）"
-                      : selectedConnectorOption
-                        ? `模型连接器：${selectedConnectorOption.label}`
-                        : "模型连接器"
-                  }}
-                </span>
-              </template>
             </Selector>
           </div>
 
@@ -489,26 +471,6 @@ onMounted(async () => {
                 modelConnectorId ? '请从目录中选择模型' : '请先选择模型连接器'
               "
             >
-              <template #selected>
-                <span
-                  class="stretch text-left"
-                  :class="
-                    selectedModelOption
-                      ? 'text-foreground'
-                      : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
-                  "
-                >
-                  {{
-                    !modelConnectorId
-                      ? "模型（请先选择连接器）"
-                      : modelCatalogLoading
-                        ? "模型（加载中...）"
-                        : selectedModelOption
-                          ? `模型：${selectedModelOption.label}`
-                          : "模型"
-                  }}
-                </span>
-              </template>
             </Selector>
           </div>
 
@@ -626,8 +588,9 @@ onMounted(async () => {
   gap: 0.6rem;
   padding: 0.7rem 0.85rem;
   border-radius: 0.8rem;
-  background: rgb(0 104 119 / 0.04);
-  border: 1px solid rgb(0 104 119 / 0.12);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  box-shadow: 0 12px 30px rgb(0 104 119 / 0.08);
 }
 
 .sandbox-actions {

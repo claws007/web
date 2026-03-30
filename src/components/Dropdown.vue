@@ -255,13 +255,13 @@ onUnmounted(() => {
   border: 1px solid rgb(255 255 255 / 0.46);
   background: linear-gradient(
     170deg,
-    rgb(255 255 255 / 0.3),
-    rgb(255 255 255 / 0.16)
+    rgb(255 255 255 / 0.1),
+    rgb(255 255 255 / 0.04)
   );
   box-shadow:
     0 16px 36px rgb(0 104 119 / 0.16),
     0 2px 8px rgb(0 0 0 / 0.08),
-    inset 0 1px 0 rgb(255 255 255 / 0.4);
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
   backdrop-filter: blur(14px) saturate(165%);
   -webkit-backdrop-filter: blur(14px) saturate(165%);
   padding: 0.45rem;

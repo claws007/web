@@ -300,20 +300,25 @@ defineExpose({
 </script>
 
 <template>
-  <div class="input-root">
+  <div class="flex flex-col gap-1.5">
     <label v-if="label" class="form-label">{{ label }}</label>
-    <div :class="['input-wrapper', { 'input-wrapper--error': errorMessage }]">
+    <div
+      :class="[
+        'flex p-2 px-4 h-10 items-center bg-surface-container-lowest border rounded-md border-outline-ghost transition-colors duration-(--duration-gentle) ease-crystal focus-within:border-primary',
+        { 'border-[#e5484d] focus-within:border-[#e5484d]': errorMessage },
+      ]"
+    >
       <input
         :type="resolvedType"
         :placeholder="placeholder"
         :value="modelValue"
-        class="input-field"
+        class="min-w-0 flex-1 border-none bg-transparent text-sm leading-(--leading-body) text-foreground outline-none focus:shadow-none placeholder:text-[rgb(90_102_109/0.45)]"
         @input="onInput"
       />
 
       <span
         v-if="hasCustomIconSlot()"
-        class="input-action non-interactive input-custom-icon"
+        class="flex shrink-0 items-center justify-center bg-transparent p-1 text-foreground-muted opacity-60 transition-opacity duration-(--duration-gentle) pointer-events-none"
       >
         <slot name="icon" />
       </span>
@@ -321,7 +326,7 @@ defineExpose({
       <button
         v-else-if="resolvedIconMode === 'password'"
         type="button"
-        class="input-action"
+        class="flex shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-1 text-foreground-muted opacity-60 transition-opacity duration-(--duration-gentle) hover:opacity-100"
         tabindex="-1"
         @click="togglePassword"
       >
@@ -366,7 +371,7 @@ defineExpose({
       <!-- email icon -->
       <span
         v-else-if="resolvedIconMode === 'email'"
-        class="input-action non-interactive"
+        class="flex shrink-0 items-center justify-center bg-transparent p-1 text-foreground-muted opacity-60 transition-opacity duration-(--duration-gentle) pointer-events-none"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -388,7 +393,7 @@ defineExpose({
       <button
         v-else-if="resolvedIconMode === 'copy'"
         type="button"
-        class="input-action"
+        class="flex shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-1 text-foreground-muted opacity-60 transition-opacity duration-(--duration-gentle) hover:opacity-100"
         tabindex="-1"
         @click="copyValue"
       >
@@ -416,7 +421,7 @@ defineExpose({
       >
         <span
           v-show="errorMessage"
-          class="input-error-icon"
+          class="flex shrink-0 cursor-default items-center justify-center p-1 text-[#e5484d] opacity-85 transition-opacity duration-(--duration-gentle) hover:opacity-100"
           aria-label="校验错误"
         >
           <svg
@@ -439,88 +444,3 @@ defineExpose({
     </div>
   </div>
 </template>
-
-<style scoped>
-.input-root {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.input-wrapper {
-  display: flex;
-  align-items: center;
-  border-bottom: 1.5px solid var(--outline-ghost);
-  transition: border-color var(--duration-gentle) var(--ease-crystal);
-}
-
-.input-wrapper:focus-within {
-  border-color: var(--primary);
-}
-
-.input-field {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 0.625rem 0;
-  font-size: 0.9375rem;
-  font-family: var(--font-sans);
-  color: var(--foreground);
-  line-height: var(--leading-body);
-}
-.input-field:focus {
-  box-shadow: none;
-}
-
-.input-field::placeholder {
-  color: rgb(90 102 109 / 0.45);
-}
-
-.input-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  color: var(--foreground-muted);
-  opacity: 0.6;
-  transition: opacity var(--duration-gentle);
-  flex-shrink: 0;
-}
-
-.input-action:hover {
-  opacity: 1;
-}
-
-.input-action.non-interactive {
-  pointer-events: none;
-}
-
-.input-wrapper--error {
-  border-color: #e5484d;
-}
-
-.input-wrapper--error:focus-within {
-  border-color: #e5484d;
-}
-
-.input-error-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 0.25rem;
-  color: #e5484d;
-  cursor: default;
-  opacity: 0.85;
-  transition: opacity var(--duration-gentle);
-}
-
-.input-error-icon:hover {
-  opacity: 1;
-}
-</style>

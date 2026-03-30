@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { api, type NotificationResponse } from "@/api";
-import { msg } from "@/utils/message";
 import { setNotificationResolved } from "@/services/notification-realtime";
 import { ref } from "vue";
 
@@ -44,9 +43,8 @@ async function confirmResult() {
       value: true,
     });
     setNotificationResolved(props.entry.id);
-    await msg.success("已确认");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "确认失败，请稍后再试");
+    notify.error(err instanceof Error ? err.message : "确认失败，请稍后再试");
   } finally {
     confirming.value = false;
   }
@@ -55,16 +53,16 @@ async function confirmResult() {
 async function retryTask() {
   const agentTaskId = extractAgentTaskId(props.entry);
   if (!agentTaskId) {
-    await msg.error("无法重试：缺少 AgentTaskId");
+    notify.error("无法重试：缺少 AgentTaskId");
     return;
   }
 
   retrying.value = true;
   try {
     await api.agentTask.postAgentTaskByIdRetry(agentTaskId);
-    await msg.success("已发起重试");
+    notify.success("已发起重试");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "重试失败，请稍后再试");
+    notify.error(err instanceof Error ? err.message : "重试失败，请稍后再试");
   } finally {
     retrying.value = false;
   }
@@ -88,24 +86,30 @@ async function retryTask() {
       }}</span>
     </div>
 
-    <p class="nw-task-result-content">{{ entry.content }}</p>
+    <div class="max-h-40 overflow-y-auto bg-black/5 rounded-md p-2">
+      <MarkdownPreviewer
+        :content="entry.content"
+        class="text-xs!"
+      ></MarkdownPreviewer>
+    </div>
 
     <div class="nw-task-result-actions">
-      <button
-        class="nw-task-result-confirm"
+      <Button
+        size="small"
+        type="primary"
         :disabled="confirming || retrying"
         @click="confirmResult"
       >
         {{ confirming ? "确认中..." : "确认" }}
-      </button>
-      <button
+      </Button>
+      <Button
         v-if="isFailed()"
-        class="nw-task-result-retry"
+        size="small"
         :disabled="retrying || confirming"
         @click="retryTask"
       >
         {{ retrying ? "重试中..." : "重试" }}
-      </button>
+      </Button>
     </div>
   </div>
 </template>
@@ -113,6 +117,7 @@ async function retryTask() {
 <style scoped>
 .nw-task-result {
   padding: 0.55rem 0.65rem;
+  max-height: 20rem;
   border-radius: var(--radius-sm);
   background: var(--surface-container-low);
   border: 1px solid var(--outline-ghost);

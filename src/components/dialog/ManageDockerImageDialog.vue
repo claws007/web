@@ -13,6 +13,7 @@ import Input from "@/components/Input.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { subscribeCommandProgressRealtime } from "@/services/command-progress-realtime";
 
 const emit = defineEmits<{
@@ -87,7 +88,7 @@ async function loadLocalImages(page = localPage.value) {
     localTotal.value = res.data.total || 0;
     localTotalPages.value = res.data.totalPages || 0;
   } catch (error) {
-    await msg.error(
+    notify.error(
       error instanceof Error ? error.message : "加载本地镜像失败",
     );
   } finally {
@@ -122,7 +123,7 @@ async function searchDockerHubOptions(
       } satisfies SelectorItem;
     });
   } catch (error) {
-    await msg.error(
+    notify.error(
       error instanceof Error ? error.message : "搜索 Docker Hub 失败",
     );
     return [];
@@ -132,7 +133,7 @@ async function searchDockerHubOptions(
 async function pullImage(target?: string) {
   const image = (target ?? pullImageName.value).trim();
   if (!image) {
-    await msg.error("请输入镜像名，例如 nginx:latest");
+    notify.error("请输入镜像名，例如 nginx:latest");
     return;
   }
 
@@ -143,7 +144,7 @@ async function pullImage(target?: string) {
     // 不需要notify，因为websocket会有回调
     // notify.success(`开始拉取镜像：${image}`);
   } catch (error) {
-    await msg.error(error instanceof Error ? error.message : "拉取镜像失败");
+    notify.error(error instanceof Error ? error.message : "拉取镜像失败");
   } finally {
     pulling.value = false;
   }
@@ -171,10 +172,10 @@ async function removeLocalImage(image: string) {
   deletingImage.value = target;
   try {
     await api.modelConnector.removeDockerImage({ image: target, force: true });
-    await msg.success(`镜像删除成功：${target}`);
+    notify.success(`镜像删除成功：${target}`);
     await loadLocalImages(localPage.value);
   } catch (error) {
-    await msg.error(error instanceof Error ? error.message : "删除镜像失败");
+    notify.error(error instanceof Error ? error.message : "删除镜像失败");
   } finally {
     deletingImage.value = null;
   }

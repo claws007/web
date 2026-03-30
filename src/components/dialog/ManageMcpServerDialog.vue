@@ -10,6 +10,7 @@ import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { dialogs } from "virtual:dialogs";
 import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const visible = ref(true);
 const closing = ref(false);
@@ -135,13 +136,13 @@ async function handleCreate() {
   }
 
   await loadMcpServers(true);
-  await msg.success("MCP Server 创建成功");
+  notify.success("MCP Server 创建成功");
 }
 
 async function handleEdit(id: number) {
   const target = allServers.value.find((item) => item.id === id);
   if (target && isBuiltinServer(target)) {
-    await msg.info("内置 MCP Server 不允许编辑");
+    notify.info("内置 MCP Server 不允许编辑");
     return;
   }
 
@@ -151,12 +152,12 @@ async function handleEdit(id: number) {
   }
 
   await loadMcpServers(true);
-  await msg.success("MCP Server 更新成功");
+  notify.success("MCP Server 更新成功");
 }
 
 async function handleDelete(server: MCPServerResponse) {
   if (isBuiltinServer(server)) {
-    await msg.info("内置 MCP Server 不允许删除");
+    notify.info("内置 MCP Server 不允许删除");
     return;
   }
 
@@ -177,11 +178,11 @@ async function handleDelete(server: MCPServerResponse) {
   try {
     await api.mcpServer.deleteMcpServerById(server.id);
     await loadMcpServers(true);
-    await msg.success("MCP Server 删除成功");
+    notify.success("MCP Server 删除成功");
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "删除 MCP Server 失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     deletingId.value = null;
   }

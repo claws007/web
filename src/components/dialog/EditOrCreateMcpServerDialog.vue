@@ -11,7 +11,7 @@ import Textarea from "@/components/Textarea.vue";
 import Selector, { type SelectorItem } from "@/components/Selector.vue";
 import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { minLength, required, type Validator } from "@/utils/validators";
 
 const props = defineProps<{
@@ -129,7 +129,7 @@ async function loadMcpServerById() {
       error instanceof Error
         ? error.message
         : "获取 MCP Server 详情失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     bootLoading.value = false;
   }
@@ -165,7 +165,7 @@ function normalizeHttpUrl(value: string): string {
 
 async function handleFormSubmit() {
   if (isBuiltinEditBlocked.value) {
-    await msg.info("内置 MCP Server 不允许编辑");
+    notify.info("内置 MCP Server 不允许编辑");
     return;
   }
 
@@ -173,7 +173,7 @@ async function handleFormSubmit() {
   const trimmedName = name.value.trim();
 
   if (!trimmedName) {
-    await msg.error("请输入 MCP Server 名称");
+    notify.error("请输入 MCP Server 名称");
     return;
   }
 
@@ -182,18 +182,18 @@ async function handleFormSubmit() {
     if (type === "HTTP") {
       normalizedUrl = normalizeHttpUrl(url.value);
       if (!normalizedUrl) {
-        await msg.error("HTTP 模式下必须填写可访问的 URL");
+        notify.error("HTTP 模式下必须填写可访问的 URL");
         return;
       }
     }
   } catch (error) {
-    await msg.error(error instanceof Error ? error.message : "URL 格式无效");
+    notify.error(error instanceof Error ? error.message : "URL 格式无效");
     return;
   }
 
   const trimmedCommand = command.value.trim();
   if (type === "STDIO" && !trimmedCommand) {
-    await msg.error("STDIO 模式下必须填写启动命令");
+    notify.error("STDIO 模式下必须填写启动命令");
     return;
   }
 
@@ -201,7 +201,7 @@ async function handleFormSubmit() {
   try {
     parsedHeaders = parseHeadersInput();
   } catch (error) {
-    await msg.error(
+    notify.error(
       error instanceof Error ? error.message : "请求头 JSON 格式错误",
     );
     return;
@@ -229,7 +229,7 @@ async function handleFormSubmit() {
       error instanceof Error
         ? error.message
         : "保存 MCP Server 失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     saving.value = false;
   }

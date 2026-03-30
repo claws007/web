@@ -10,6 +10,7 @@ import Button from "@/components/dialog/Button.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
 import { dialogs } from "virtual:dialogs";
 import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const visible = ref(true);
 const closing = ref(false);
@@ -107,7 +108,7 @@ async function handleCreate() {
   }
 
   await loadConnectors(true, 1);
-  await msg.success("Model Connector 创建成功");
+  notify.success("Model Connector 创建成功");
 }
 
 async function handleEdit(id: number) {
@@ -117,7 +118,7 @@ async function handleEdit(id: number) {
   }
 
   await loadConnectors(true, page.value);
-  await msg.success("Model Connector 更新成功");
+  notify.success("Model Connector 更新成功");
 }
 
 async function handleDelete(connector: AIModelConnectorResponse) {
@@ -140,13 +141,13 @@ async function handleDelete(connector: AIModelConnectorResponse) {
     const fallbackPage =
       connectors.value.length === 1 && page.value > 1 ? page.value - 1 : page.value;
     await loadConnectors(true, fallbackPage);
-    await msg.success("Model Connector 删除成功");
+    notify.success("Model Connector 删除成功");
   } catch (err) {
     const message =
       err instanceof Error
         ? err.message
         : "删除 Model Connector 失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
   } finally {
     deletingId.value = null;
   }

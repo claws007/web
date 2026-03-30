@@ -12,7 +12,7 @@ import Dialog, {
 import PaginatedListPanel from "@/components/PaginatedListPanel.vue";
 import Button from "@/components/dialog/Button.vue";
 import Switch from "@/components/Switch.vue";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const props = defineProps<{
   agentId: number;
@@ -181,7 +181,7 @@ async function onToggleServer(server: MCPServerResponse, enabled: boolean) {
       err instanceof Error
         ? err.message
         : "更新 MCP Server 绑定失败，请稍后重试";
-    await msg.error(message);
+    notify.error(message);
     await loadData(true);
   } finally {
     updateTogglingId(server.id, false);

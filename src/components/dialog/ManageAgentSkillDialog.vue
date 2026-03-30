@@ -12,7 +12,7 @@ import Dialog, {
 import PaginatedListPanel from "@/components/PaginatedListPanel.vue";
 import Button from "@/components/dialog/Button.vue";
 import Switch from "@/components/Switch.vue";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 
 const props = defineProps<{
   agentId: number;
@@ -170,7 +170,7 @@ async function onToggleSkill(skill: SkillResponse, enabled: boolean) {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "更新 Skill 绑定失败";
-    await msg.error(message);
+    notify.error(message);
     await loadData(true);
   } finally {
     updateTogglingId(skill.id, false);

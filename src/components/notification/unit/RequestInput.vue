@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { api } from "@/api";
-import { msg } from "@/utils/message";
+import { notify } from "@/components/notification";
 import { setNotificationResolved } from "@/services/notification-realtime";
 import { ref } from "vue";
 import type { RequestInputItem } from "../types";
@@ -84,9 +84,9 @@ async function onReject() {
       value: false,
     });
     setNotificationResolved(props.entry.notificationId);
-    await msg.info("请求已取消");
+    notify.info("请求已取消");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "操作失败，请重试");
+    notify.error(err instanceof Error ? err.message : "操作失败，请重试");
   } finally {
     submitting.value = false;
   }
@@ -95,7 +95,7 @@ async function onReject() {
 async function onSubmitInput() {
   const value = inputDraft.value.trim();
   if (!value) {
-    await msg.info("请输入内容后再提交");
+    notify.info("请输入内容后再提交");
     return;
   }
 
@@ -106,9 +106,9 @@ async function onSubmitInput() {
       value,
     });
     setNotificationResolved(props.entry.notificationId);
-    await msg.info("输入请求已提交");
+    notify.info("输入请求已提交");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "提交失败，请重试");
+    notify.error(err instanceof Error ? err.message : "提交失败，请重试");
   } finally {
     submitting.value = false;
   }
@@ -120,7 +120,7 @@ async function onSubmitSingle() {
     singleDraft.value ||
     (context.allowCustomInput ? inputDraft.value.trim() : "");
   if (!value) {
-    await msg.info("请选择或输入一个选项");
+    notify.info("请选择或输入一个选项");
     return;
   }
 
@@ -131,9 +131,9 @@ async function onSubmitSingle() {
       value,
     });
     setNotificationResolved(props.entry.notificationId);
-    await msg.info("单选请求已提交");
+    notify.info("单选请求已提交");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "提交失败，请重试");
+    notify.error(err instanceof Error ? err.message : "提交失败，请重试");
   } finally {
     submitting.value = false;
   }
@@ -141,7 +141,7 @@ async function onSubmitSingle() {
 
 async function onSubmitMulti() {
   if (multiDraft.value.length === 0) {
-    await msg.info("请至少选择一个选项");
+    notify.info("请至少选择一个选项");
     return;
   }
 
@@ -152,9 +152,9 @@ async function onSubmitMulti() {
       value: multiDraft.value,
     });
     setNotificationResolved(props.entry.notificationId);
-    await msg.info("多选请求已提交");
+    notify.info("多选请求已提交");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "提交失败，请重试");
+    notify.error(err instanceof Error ? err.message : "提交失败，请重试");
   } finally {
     submitting.value = false;
   }
@@ -168,9 +168,9 @@ async function onConfirm() {
       value: true,
     });
     setNotificationResolved(props.entry.notificationId);
-    await msg.info("确认请求已通过");
+    notify.info("确认请求已通过");
   } catch (err: unknown) {
-    msg.error(err instanceof Error ? err.message : "操作失败，请重试");
+    notify.error(err instanceof Error ? err.message : "操作失败，请重试");
   } finally {
     submitting.value = false;
   }
