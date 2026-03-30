@@ -83,6 +83,11 @@
     </section>
 
     <section class="h-full flex-[1.5] min-w-0 v gap-5">
+      <Textarea
+        v-model="newTaskContent"
+        placeholder="创建任务"
+        @enter="handleCreateTask"
+      />
       <div
         v-if="taskError"
         class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
@@ -127,11 +132,6 @@
           @realtime-agent-task-state="handleTaskRealtimeAgentTaskState"
         />
       </div>
-      <Textarea
-        v-model="newTaskContent"
-        placeholder="创建任务"
-        @enter="handleCreateTask"
-      />
     </section>
     <div
       v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"

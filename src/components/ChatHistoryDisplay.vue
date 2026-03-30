@@ -10,54 +10,107 @@
       加载中...
     </div>
     <div
-      v-else-if="renderedChatHistories.length === 0"
+      v-else-if="renderRows.length === 0"
       class="text-xs text-gray-500 text-center py-2"
     >
       暂无聊天记录
     </div>
     <div v-else class="v gap-2 items-start">
-      <div
-        v-for="history in renderedChatHistories"
-        :key="history.id"
-        class="text-xs p-3 rounded-md break-all"
-        :class="
-          history.isStreaming
-            ? 'bg-amber-50 border border-amber-200'
-            : 'bg-primary/10'
-        "
-      >
-        <div class="flex items-center gap-1.5 mb-0.5">
-          <span
-            class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase"
-            :class="getRoleClass(history.role)"
-          >
-            {{ history.role }}
-          </span>
-          <span
-            v-if="history.isStreaming"
-            class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-amber-700 bg-amber-100"
-          >
-            STREAMING
-          </span>
-          <span
-            v-if="history.eventType"
-            class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-gray-600 bg-gray-100"
-          >
-            {{ history.eventType }}
-          </span>
-          <TimeDisplay
-            class="text-gray-500 text-xxs ml-auto"
-            :timestamp="history.createdAt"
-          />
-        </div>
+      <div v-for="row in renderRows" :key="row.id" class="w-full">
         <div
-          class="text-gray-700 leading-tight break-all whitespace-pre-wrap line-clamp-5"
+          v-if="row.kind === 'item'"
+          class="text-xs p-3 rounded-md break-all v gap-2"
+          :class="
+            row.item.isStreaming
+              ? 'bg-amber-50 border border-amber-200'
+              : 'bg-primary/10'
+          "
         >
-          {{
-            history.content.length > 200
-              ? history.content.substring(0, 99999) + "..."
-              : history.content
-          }}
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span
+              v-if="useActorAvatar(row.item.role)"
+              class="inline-flex items-end gap-2"
+            >
+              <span
+                class="inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700"
+              >
+                <img
+                  v-if="resolveActorAvatar(row.item.role)"
+                  :src="resolveActorAvatar(row.item.role) ?? undefined"
+                  :alt="resolveActorLabel(row.item.role)"
+                  class="size-full object-cover"
+                />
+                <span v-else>{{ resolveActorFallback(row.item.role) }}</span>
+              </span>
+              <span class="font-semibold text-slate-700 text-sm">
+                {{ resolveActorLabel(row.item.role) }}
+              </span>
+            </span>
+            <span
+              v-else
+              class="inline-flex size-4 items-center justify-center rounded bg-white/70 text-xs"
+              :title="row.item.eventType ?? row.item.role"
+            >
+              {{ row.item.icon }}
+            </span>
+            <span
+              v-if="row.item.isStreaming"
+              class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-amber-700 bg-amber-100"
+            >
+              STREAMING
+            </span>
+          </div>
+          <div
+            class="leading-tight break-all whitespace-pre-wrap"
+            :class="
+              row.item.condensed ? 'text-gray-600 italic' : 'text-gray-700'
+            "
+          >
+            {{ row.item.displayContent }}
+          </div>
+        </div>
+
+        <div v-else class="px-3 py-2 text-xs break-all">
+          <!-- <div class="flex items-center gap-1.5 text-slate-600">
+            <span class="inline-flex size-4 items-center justify-center"
+              >⋯</span
+            >
+            <span class="font-medium">{{ row.summary }}</span>
+          </div> -->
+          <div
+            class="v gap-1 border-l border-slate-300/80 pl-2.5 break-all max-h-45 overflow-y-auto"
+          >
+            <div
+              v-for="item in row.items"
+              :key="`group-${item.id}`"
+              class="flex items-start gap-1.5"
+            >
+              <span
+                v-if="useActorAvatar(item.role)"
+                class="inline-flex size-4 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700"
+              >
+                <img
+                  v-if="resolveActorAvatar(item.role)"
+                  :src="resolveActorAvatar(item.role) ?? undefined"
+                  :alt="resolveActorLabel(item.role)"
+                  class="size-full object-cover"
+                />
+                <span v-else>{{ resolveActorFallback(item.role) }}</span>
+              </span>
+              <span
+                v-else
+                class="inline-flex size-4 items-center justify-center"
+                >{{ item.icon }}</span
+              >
+              <span class="min-w-0 flex-1 text-slate-600">{{
+                item.displayContent
+              }}</span>
+              <!-- <TimeDisplay
+                class="text-slate-500 text-xxs"
+                :timestamp="item.createdAt"
+              /> -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -66,15 +119,14 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { api, readStoredActiveCompanyId } from "@/api";
-import type { ChatHistoryResponse } from "@/api";
+import { api, getImageUrlByFileId, readStoredActiveCompanyId } from "@/api";
+import type { AgentResponse, ChatHistoryResponse } from "@/api";
 import type {
   ChatHistoryEntityRecord,
   EntityChangePayload,
   ModelStreamPayload,
   WsEventType,
 } from "@/api/generated-ws";
-import TimeDisplay from "@/components/TimeDisplay.vue";
 import {
   isEventSubscriptionLive,
   isTaskEventSubscriptionLive,
@@ -96,11 +148,31 @@ type DisplayChatHistory = Omit<ChatHistoryResponse, "role"> & {
   isStreaming?: boolean;
 };
 
+type RenderedChatHistory = DisplayChatHistory & {
+  displayContent: string;
+  icon: string;
+  condensed: boolean;
+};
+
+type RenderRow =
+  | {
+      kind: "item";
+      id: string;
+      item: RenderedChatHistory;
+    }
+  | {
+      kind: "group";
+      id: string;
+      items: RenderedChatHistory[];
+      summary: string;
+    };
+
 const DEFAULT_MAX_ITEMS = 9999;
 
 const userStore = useUserStore();
 const chatHistories = ref<DisplayChatHistory[]>([]);
 const streamingHistory = ref<DisplayChatHistory | null>(null);
+const taskAgent = ref<AgentResponse | null>(null);
 const loading = ref(false);
 
 let syncSerial = 0;
@@ -108,6 +180,25 @@ let unsubscribeEntityChange: (() => void) | null = null;
 let unsubscribeModelStream: (() => void) | null = null;
 let releaseEntityChangeSubscription: (() => void) | null = null;
 let releaseModelStreamSubscription: (() => void) | null = null;
+
+const activeCompany = computed(() => {
+  const activeCompanyId = readStoredActiveCompanyId();
+  if (!activeCompanyId) {
+    return null;
+  }
+  return (
+    userStore.companies.find((company) => company.id === activeCompanyId) ??
+    null
+  );
+});
+
+const companyAvatarUrl = computed(() =>
+  getImageUrlByFileId(activeCompany.value?.brandFileId ?? null),
+);
+
+const agentAvatarUrl = computed(() =>
+  getImageUrlByFileId(taskAgent.value?.avatarFileId ?? null),
+);
 
 const maxHistoryItems = computed(() => {
   if (typeof props.maxItems === "number" && props.maxItems > 0) {
@@ -125,7 +216,49 @@ const visibleChatHistories = computed(() => {
 });
 
 const renderedChatHistories = computed(() => {
-  return [...visibleChatHistories.value].reverse();
+  return [...visibleChatHistories.value]
+    .reverse()
+    .map((history) => buildRenderedHistory(history))
+    .filter((history) => history.displayContent.trim().length > 0);
+});
+
+const renderRows = computed<RenderRow[]>(() => {
+  const rows: RenderRow[] = [];
+  let groupBuffer: RenderedChatHistory[] = [];
+
+  const flushGroup = () => {
+    if (groupBuffer.length === 0) {
+      return;
+    }
+
+    const first = groupBuffer[0]!;
+    const last = groupBuffer[groupBuffer.length - 1]!;
+    rows.push({
+      kind: "group",
+      id: `group-${first.id}-${last.id}`,
+      items: [...groupBuffer],
+      summary: buildCondensedGroupSummary(groupBuffer),
+    });
+
+    groupBuffer = [];
+  };
+
+  for (const history of renderedChatHistories.value) {
+    if (history.condensed) {
+      groupBuffer.push(history);
+      continue;
+    }
+
+    flushGroup();
+    rows.push({
+      kind: "item",
+      id: `item-${history.id}`,
+      item: history,
+    });
+  }
+
+  flushGroup();
+  return rows;
 });
 
 function normalizeHistory(item: ChatHistoryResponse): DisplayChatHistory {
@@ -135,8 +268,286 @@ function normalizeHistory(item: ChatHistoryResponse): DisplayChatHistory {
   };
 }
 
+function useActorAvatar(role: string): boolean {
+  const normalized = role.toUpperCase();
+  return normalized === "ASSISTANT" || normalized === "USER";
+}
+
+function resolveActorLabel(role: string): string {
+  const normalized = role.toUpperCase();
+  if (normalized === "ASSISTANT") {
+    const name = taskAgent.value?.name?.trim();
+    return name || "Agent";
+  }
+  if (normalized === "USER") {
+    const companyName = activeCompany.value?.name?.trim();
+    return companyName || "Company";
+  }
+  return normalized;
+}
+
+function resolveActorFallback(role: string): string {
+  return resolveActorLabel(role).charAt(0).toUpperCase() || "?";
+}
+
+function resolveActorAvatar(role: string): string | null {
+  const normalized = role.toUpperCase();
+  if (normalized === "ASSISTANT") {
+    return agentAvatarUrl.value;
+  }
+  if (normalized === "USER") {
+    return companyAvatarUrl.value;
+  }
+  return null;
+}
+
 function isRecord(value: unknown): value is Record<string, any> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const text = value.trim();
+  return text ? text : null;
+}
+
+function asRecord(value: unknown): Record<string, any> {
+  return isRecord(value) ? value : {};
+}
+
+function truncateText(text: string, limit = 220): string {
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, limit)}...`;
+}
+
+function summarizeValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  if (typeof value === "string") {
+    return truncateText(value, 72);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.length}]`;
+  }
+  if (isRecord(value)) {
+    const keys = Object.keys(value);
+    if (keys.length === 0) {
+      return "{}";
+    }
+    return `{${keys.slice(0, 3).join(", ")}${keys.length > 3 ? ", ..." : ""}}`;
+  }
+  return String(value);
+}
+
+function summarizeArguments(payload: unknown): string {
+  if (!isRecord(payload)) {
+    return "";
+  }
+
+  const entries = Object.entries(payload)
+    .filter(([, value]) => value !== undefined)
+    .slice(0, 3)
+    .map(([key, value]) => `${key}: ${summarizeValue(value)}`);
+
+  return entries.join(" | ");
+}
+
+function isModelStreamHistory(item: DisplayChatHistory): boolean {
+  const eventTypeName = item.eventTypeName?.toLowerCase();
+  if (eventTypeName === "model_stream" || eventTypeName === "model-stream") {
+    return true;
+  }
+
+  const logs = asRecord(item.extraLogs);
+  const execution = asRecord(logs.execution);
+  const step = getString(execution.step)?.toLowerCase();
+  return step === "model_stream" || step === "model-stream";
+}
+
+function shouldKeepOriginalContent(item: DisplayChatHistory): boolean {
+  if (item.isStreaming || isModelStreamHistory(item)) {
+    return false;
+  }
+
+  const role = item.role.toUpperCase();
+  if (role === "USER" || role === "ASSISTANT") {
+    return true;
+  }
+
+  return false;
+}
+
+function mapHistoryIcon(item: DisplayChatHistory): string {
+  if (item.isStreaming || isModelStreamHistory(item)) {
+    return "⚡";
+  }
+
+  const role = item.role.toUpperCase();
+  if (role === "USER") {
+    return "👤";
+  }
+  if (role === "ASSISTANT") {
+    return "🤖";
+  }
+  if (role === "TOOL") {
+    return "🛠";
+  }
+
+  if (item.eventType === "MCP_CALL") {
+    return "🔌";
+  }
+  if (item.eventType === "MCP_RESULT") {
+    return "📥";
+  }
+  if (item.eventType === "TOOL_CALL") {
+    return "🧰";
+  }
+  if (item.eventType === "SKILL_CALL") {
+    return "🧠";
+  }
+  if (item.eventType === "EXECUTION") {
+    return "⏱";
+  }
+  if (item.eventType === "MESSAGE") {
+    return "💬";
+  }
+  return "ℹ";
+}
+
+function condensedTypeLabel(
+  eventType?: ChatHistoryResponse["eventType"],
+): string {
+  if (eventType === "MCP_CALL") {
+    return "MCP 调用";
+  }
+  if (eventType === "MCP_RESULT") {
+    return "MCP 结果";
+  }
+  if (eventType === "TOOL_CALL") {
+    return "工具调用";
+  }
+  if (eventType === "SKILL_CALL") {
+    return "技能调用";
+  }
+  if (eventType === "EXECUTION") {
+    return "执行状态";
+  }
+  if (eventType === "MESSAGE") {
+    return "系统消息";
+  }
+  return "系统事件";
+}
+
+function buildCondensedGroupSummary(items: RenderedChatHistory[]): string {
+  const counters = new Map<string, number>();
+  for (const item of items) {
+    const key =
+      item.isStreaming || isModelStreamHistory(item)
+        ? "模型流输出"
+        : condensedTypeLabel(item.eventType);
+    counters.set(key, (counters.get(key) ?? 0) + 1);
+  }
+
+  const chunks = Array.from(counters.entries())
+    .slice(0, 3)
+    .map(([label, count]) => `${label} ${count} 条`);
+
+  return `已浓缩 ${items.length} 条记录${chunks.length ? ` (${chunks.join("，")})` : ""}`;
+}
+
+function buildCondensedTip(item: DisplayChatHistory): string {
+  const logs = asRecord(item.extraLogs);
+  const execution = asRecord(logs.execution);
+  const tool = asRecord(logs.tool);
+  const mcp = asRecord(logs.mcp);
+  const mcpCall = asRecord(mcp.call);
+  const mcpResult = asRecord(mcp.result);
+  const skill = asRecord(logs.skill);
+
+  if (item.isStreaming || isModelStreamHistory(item)) {
+    return `模型流输出：${truncateText(item.content || "(empty)", 240)}`;
+  }
+
+  if (item.eventType === "MCP_CALL") {
+    const toolName =
+      getString(item.eventTypeName) ||
+      getString(mcp.toolName) ||
+      getString(mcpCall.toolName) ||
+      "unknown";
+    const args =
+      summarizeArguments(mcpCall.toolArguments) ||
+      summarizeArguments(mcpCall.arguments) ||
+      summarizeArguments(mcpCall.input);
+    return args
+      ? `调用 MCP 工具 ${toolName} (${args})`
+      : `调用 MCP 工具 ${toolName}`;
+  }
+
+  if (item.eventType === "MCP_RESULT") {
+    const toolName =
+      getString(mcp.toolName) || getString(item.eventTypeName) || "unknown";
+    const status =
+      getString(mcpResult.status) || getString(execution.status) || "UNKNOWN";
+    return `MCP 工具 ${toolName} 返回结果，状态 ${status}`;
+  }
+
+  if (item.eventType === "TOOL_CALL") {
+    const toolName =
+      getString(item.eventTypeName) ||
+      getString(tool.toolName) ||
+      getString(tool.name) ||
+      getString(mcp.toolName) ||
+      "unknown";
+    const args =
+      summarizeArguments(tool.arguments) ||
+      summarizeArguments(mcpCall.toolArguments) ||
+      summarizeArguments(mcpCall.arguments);
+    const status = getString(tool.status) || getString(execution.status);
+    const suffix = status ? `，状态 ${status}` : "";
+    return args
+      ? `调用工具 ${toolName} (${args})${suffix}`
+      : `调用工具 ${toolName}${suffix}`;
+  }
+
+  if (item.eventType === "SKILL_CALL") {
+    const skillId = summarizeValue(skill.skillId);
+    const refPath = getString(skill.referencePath);
+    return refPath
+      ? `调用技能 ${skillId}，引用 ${refPath}`
+      : `调用技能 ${skillId}`;
+  }
+
+  if (item.eventType === "EXECUTION") {
+    const step = getString(execution.step) || "execution";
+    const status = getString(execution.status) || "RUNNING";
+    return `执行步骤 ${step}，状态 ${status}`;
+  }
+
+  if (item.eventType === "MESSAGE" && item.role.toUpperCase() === "SYSTEM") {
+    return "系统消息";
+  }
+
+  return truncateText(item.content || "系统事件", 200);
+}
+
+function buildRenderedHistory(item: DisplayChatHistory): RenderedChatHistory {
+  const keepOriginal = shouldKeepOriginalContent(item);
+  return {
+    ...item,
+    displayContent: keepOriginal
+      ? truncateText(item.content, 99999)
+      : buildCondensedTip(item),
+    icon: mapHistoryIcon(item),
+    condensed: !keepOriginal,
+  };
 }
 
 function toDisplayChatHistory(
@@ -218,6 +629,21 @@ async function loadChatHistories(serial = syncSerial) {
 
   const snapshot = (res.data?.items ?? []).map(normalizeHistory);
   chatHistories.value = mergeChatHistories(chatHistories.value, snapshot);
+}
+
+async function loadTaskAgent(serial = syncSerial) {
+  try {
+    const res = await api.agentTask.getAgentTaskById(props.agentTaskId);
+    if (serial !== syncSerial) {
+      return;
+    }
+    taskAgent.value = res.data?.agent ?? null;
+  } catch {
+    if (serial !== syncSerial) {
+      return;
+    }
+    taskAgent.value = null;
+  }
 }
 
 function clearStreamingHistory() {
@@ -438,7 +864,10 @@ async function syncRealtimeAndHistories() {
       return;
     }
 
-    await loadChatHistories(currentSerial);
+    await Promise.all([
+      loadTaskAgent(currentSerial),
+      loadChatHistories(currentSerial),
+    ]);
   } catch (error) {
     if (currentSerial !== syncSerial) {
       return;
@@ -452,20 +881,6 @@ async function syncRealtimeAndHistories() {
       loading.value = false;
     }
   }
-}
-
-function getRoleClass(role: string): string {
-  const normalized = role.toUpperCase();
-  if (normalized === "SYSTEM") {
-    return "bg-gray-200 text-gray-800";
-  }
-  if (normalized === "USER") {
-    return "bg-blue-200 text-blue-800";
-  }
-  if (normalized === "ASSISTANT") {
-    return "bg-green-200 text-green-800";
-  }
-  return "bg-gray-200 text-gray-800";
 }
 
 watch(

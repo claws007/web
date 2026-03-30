@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-3 items-start">
+  <div class="flex gap-3 items-start w-full">
     <!-- Agent Avatar -->
     <div class="shrink-0 w-10 h-10">
       <div
@@ -122,7 +122,7 @@
         <ChatHistoryContainer
           v-if="isLatest && showChatHistories"
           :agent-task-id="agentTask.id"
-          class="max-h-72 py-3 bg-primary/5"
+          class="max-h-90 py-3 bg-primary/5"
         />
         <!-- :max-items="10" -->
         <!-- placeholder -->
