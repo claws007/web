@@ -60,14 +60,15 @@
               STREAMING
             </span>
           </div>
-          <div
-            class="leading-tight break-all whitespace-pre-wrap"
+          <MarkdownPreviewer
+            :content="row.item.displayContent"
+            class="leading-tight break-all text-xs!"
             :class="
-              row.item.condensed ? 'text-gray-600 italic' : 'text-gray-700'
+              row.item.condensed
+                ? 'text-gray-600 italic line-clamp-3'
+                : 'text-gray-700'
             "
-          >
-            {{ row.item.displayContent }}
-          </div>
+          />
         </div>
 
         <div v-else class="px-3 py-2 text-xs break-all">
@@ -77,9 +78,7 @@
             >
             <span class="font-medium">{{ row.summary }}</span>
           </div> -->
-          <div
-            class="v gap-1 border-l border-slate-300/80 pl-2.5 break-all max-h-45 overflow-y-auto"
-          >
+          <div class="v gap-1 border-l border-slate-300/80 pl-2.5 break-all">
             <div
               v-for="item in row.items"
               :key="`group-${item.id}`"
@@ -102,9 +101,10 @@
                 class="inline-flex size-4 items-center justify-center"
                 >{{ item.icon }}</span
               >
-              <span class="min-w-0 flex-1 text-slate-600">{{
-                item.displayContent
-              }}</span>
+              <MarkdownPreviewer
+                :content="item.displayContent"
+                class="min-w-0 flex-1 text-slate-600 text-xs! line-clamp-3"
+              />
               <!-- <TimeDisplay
                 class="text-slate-500 text-xxs"
                 :timestamp="item.createdAt"
@@ -317,19 +317,12 @@ function asRecord(value: unknown): Record<string, any> {
   return isRecord(value) ? value : {};
 }
 
-function truncateText(text: string, limit = 220): string {
-  if (text.length <= limit) {
-    return text;
-  }
-  return `${text.slice(0, limit)}...`;
-}
-
 function summarizeValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "-";
   }
   if (typeof value === "string") {
-    return truncateText(value, 72);
+    return value;
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
@@ -473,7 +466,7 @@ function buildCondensedTip(item: DisplayChatHistory): string {
   const skill = asRecord(logs.skill);
 
   if (item.isStreaming || isModelStreamHistory(item)) {
-    return `模型流输出：${truncateText(item.content || "(empty)", 240)}`;
+    return `模型流输出：${item.content || "(empty)"}`;
   }
 
   if (item.eventType === "MCP_CALL") {
@@ -535,16 +528,14 @@ function buildCondensedTip(item: DisplayChatHistory): string {
     return "系统消息";
   }
 
-  return truncateText(item.content || "系统事件", 200);
+  return item.content || "系统事件";
 }
 
 function buildRenderedHistory(item: DisplayChatHistory): RenderedChatHistory {
   const keepOriginal = shouldKeepOriginalContent(item);
   return {
     ...item,
-    displayContent: keepOriginal
-      ? truncateText(item.content, 99999)
-      : buildCondensedTip(item),
+    displayContent: keepOriginal ? item.content : buildCondensedTip(item),
     icon: mapHistoryIcon(item),
     condensed: !keepOriginal,
   };

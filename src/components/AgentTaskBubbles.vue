@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-full min-w-0 v gap-4">
     <!-- Header: Task Info -->
-    <div class="sticky top-0 z-10backdrop-blur-sm">
+    <div class="backdrop-blur-sm">
       <div class="flex items-center justify-between gap-3">
         <div class="flex-1 min-w-0 v gap-1">
           <div
@@ -38,7 +38,7 @@
     </div>
 
     <!-- Agent Tasks List -->
-    <div class="flex-1 overflow-y-auto v items-start gap-4">
+    <div class="flex-1 v items-start gap-4">
       <template v-if="!sortedAgentTasks || sortedAgentTasks.length === 0">
         <div
           class="flex items-center justify-center h-full text-sm text-gray-500"

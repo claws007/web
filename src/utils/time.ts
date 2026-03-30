@@ -4,7 +4,9 @@
  * - Within 7 days: "n天前" (n days ago)
  * - Beyond 7 days: Shows detailed format (with/without year based on current year)
  */
-export function formatRelativeTime(timestamp: string | null | undefined): string {
+export function formatRelativeTime(
+  timestamp: string | null | undefined,
+): string {
   if (!timestamp) {
     return "-";
   }
@@ -21,16 +23,24 @@ export function formatRelativeTime(timestamp: string | null | undefined): string
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
+  console.debug("Time difference in days:", diffDays, diffHours);
   // Within same day - show hours ago
-  if (diffDays === 0 && diffHours > 0) {
-    return `${diffHours}小时前`;
+  if (diffDays === 0 && diffHours >= 0) {
+    if (diffHours === 0) {
+      if (diffMinutes === 0) {
+        return `${diffSeconds}秒前`;
+      } else {
+        return `${diffMinutes}分钟前`;
+      }
+    } else {
+      return `${diffHours}小时前`;
+    }
   }
 
   // Within 7 days - show days ago
   if (diffDays > 0 && diffDays <= 7) {
     return `${diffDays}天前`;
   }
-
   // Beyond 7 days - show detailed format
   return formatDetailedTime(date);
 }
@@ -40,7 +50,9 @@ export function formatRelativeTime(timestamp: string | null | undefined): string
  * - If same year: "MM-DD HH:mm:ss" (e.g., "03-30 14:30:45")
  * - Different year: "YYYY-MM-DD HH:mm:ss" (e.g., "2025-03-30 14:30:45")
  */
-export function formatDetailedTime(timestamp: string | Date | null | undefined): string {
+export function formatDetailedTime(
+  timestamp: string | Date | null | undefined,
+): string {
   if (!timestamp) {
     return "-";
   }

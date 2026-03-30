@@ -122,7 +122,7 @@
         <ChatHistoryContainer
           v-if="isLatest && showChatHistories"
           :agent-task-id="agentTask.id"
-          class="max-h-90 py-3 bg-primary/5"
+          class="max-h-132 py-3 bg-primary/5"
         />
         <!-- :max-items="10" -->
         <!-- placeholder -->
