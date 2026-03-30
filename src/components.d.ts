@@ -22,6 +22,7 @@ declare module 'vue' {
     ChatHistoryDisplay: typeof import('./components/ChatHistoryDisplay.vue')['default']
     ChatHistoryItemCard: typeof import('./components/dialog/ChatHistoryItemCard.vue')['default']
     Checkbox: typeof import('./components/Checkbox.vue')['default']
+    Collapse: typeof import('./components/Collapse.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
     DefaultButton: typeof import('./components/DefaultButton.vue')['default']
     Dialog: typeof import('./components/Dialog.vue')['default']
