@@ -83,10 +83,6 @@ function onModelValueChange(value: boolean) {
   }
 }
 
-function isBuiltinServer(server: MCPServerResponse): boolean {
-  return Boolean((server as { builtin?: boolean }).builtin);
-}
-
 function prettyNumber(value: number): string {
   return value.toLocaleString("zh-CN");
 }
@@ -126,11 +122,8 @@ async function loadData(useSoftLoading = false) {
     const allServers = (serversRes.data.items ?? []).sort(
       (a, b) => a.id - b.id,
     );
-    const builtinServers = allServers.filter(isBuiltinServer);
 
-    mcpServers.value = (
-      builtinServers.length ? builtinServers : allServers
-    ).sort((a, b) => a.id - b.id);
+    mcpServers.value = allServers;
 
     const nextMap = new Map<number, AgentMcpServerRelationResponse>();
     for (const rel of relationsRes.data.items ?? []) {

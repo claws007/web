@@ -66,7 +66,7 @@
                         </svg>
                       </button>
                       <button
-                        v-else-if="isTaskCancelled"
+                        v-else
                         type="button"
                         class="grid place-items-center text-emerald-700 transition-opacity cursor-pointer hover:opacity-80"
                         title="恢复任务"
@@ -394,10 +394,6 @@ const visualState = computed(() => getVisualState(props.agentTask));
 
 const isTaskActive = computed(
   () => (props.agentTask.state ?? "").toUpperCase() === "ACTIVE",
-);
-
-const isTaskCancelled = computed(
-  () => (props.agentTask.state ?? "").toUpperCase() === "CANCELLED",
 );
 
 const summaryText = computed(() => {

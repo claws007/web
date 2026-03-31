@@ -94,5 +94,7 @@ function close() {
   font-size: 0.9rem;
   line-height: var(--leading-body, 1.6);
   color: var(--foreground-muted);
+  max-height: 70vh;
+  overflow: auto;
 }
 </style>

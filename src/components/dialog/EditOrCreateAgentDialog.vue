@@ -78,31 +78,8 @@ const computedTitle = computed(() => {
   return isEditMode.value ? "编辑 Agent" : "创建 Agent";
 });
 
-const selectedConnectorOption = computed(() => {
-  return (
-    modelConnectorOptions.value.find(
-      (item) => String(item.id) === modelConnectorId.value,
-    ) ?? null
-  );
-});
-
-const selectedModelOption = computed(() => {
-  return (
-    modelOptions.value.find((item) => String(item.id) === model.value) ?? null
-  );
-});
-
 const formValidators: Record<string, Validator[]> = {
-  name: [required("请输入 Agent 名称"), minLength(2, "名称至少 2 个字符")],
-  description: [
-    (value: string) => {
-      const text = String(value ?? "").trim();
-      if (!text) {
-        return true;
-      }
-      return text.length >= 6 ? true : "描述至少 6 个字符";
-    },
-  ],
+  name: [required("请输入 Agent 名称"), minLength(1, "名称至少 1 个字符")],
   capacity: [
     (value: string) => {
       const text = String(value ?? "").trim();
@@ -170,10 +147,10 @@ async function loadModelConnectors() {
 }
 
 async function loadModelCatalogByConnectorId(
-  connectorIdText: string,
+  connectorIdInput: string | number | undefined,
   preserveCurrentModel = false,
 ) {
-  const connectorId = Number(connectorIdText);
+  const connectorId = Number(connectorIdInput);
   if (!Number.isInteger(connectorId) || connectorId <= 0) {
     modelOptions.value = [];
     if (!preserveCurrentModel) {
@@ -241,8 +218,8 @@ async function loadAgentById() {
     model.value = agent.model ?? "";
     modelConnectorId.value =
       typeof agent.modelConnectorId === "number"
-        ? String(agent.modelConnectorId)
-        : "";
+        ? agent.modelConnectorId
+        : undefined;
     useDockerSandbox.value = agent.sandboxType === "DOCKER";
     containerImage.value = agent.containerImage ?? "";
 
@@ -475,19 +452,18 @@ onMounted(async () => {
           </div>
 
           <Textarea
+            v-model="capacity"
+            label="职务/能力"
+            placeholder="说明该 员工 职务或擅长的能力"
+            field-name="capacity"
+            :rows="2"
+          />
+          <Textarea
             v-model="description"
             label="描述"
             placeholder="描述 Agent 的角色与边界"
             field-name="description"
             :rows="3"
-          />
-
-          <Textarea
-            v-model="capacity"
-            label="能力简介"
-            placeholder="说明该 Agent 擅长的任务"
-            field-name="capacity"
-            :rows="2"
           />
 
           <div class="sandbox-area">

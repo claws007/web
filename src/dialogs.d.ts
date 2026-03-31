@@ -21,6 +21,7 @@ declare module "virtual:dialogs" {
 	export const dialogs: {
 		AgentTaskChatHistoryDialog: (...args: _A<typeof import("./components/dialog/AgentTaskChatHistoryDialog.vue")["default"]>) => _H<typeof import("./components/dialog/AgentTaskChatHistoryDialog.vue")["default"]>;
 		ConfirmDialog: (...args: _A<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ConfirmDialog.vue")["default"]>;
+		DebugDialog: (...args: _A<typeof import("./components/dialog/DebugDialog.vue")["default"]>) => _H<typeof import("./components/dialog/DebugDialog.vue")["default"]>;
 		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
 		EditOrCreateAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>;
 		EditOrCreateMcpServerDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>;

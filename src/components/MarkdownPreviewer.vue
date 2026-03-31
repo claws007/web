@@ -12,7 +12,7 @@ const props = withDefaults(
 );
 
 const markdownParser = new MarkdownIt({
-  html: false,
+  html: true,
   linkify: true,
   typographer: true,
   breaks: true,
@@ -50,5 +50,14 @@ const renderedHtml = computed(() => markdownParser.render(props.content ?? ""));
   opacity: 0.2;
   border-radius: 1rem;
   height: 0.15rem;
+}
+.markdown-body think {
+  display: block;
+  margin: 0.4rem 0;
+  color: var(--color-foreground-muted);
+}
+.markdown-body think::before {
+  content: "💭";
+  margin-right: 0.1rem;
 }
 </style>

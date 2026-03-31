@@ -9,7 +9,7 @@
           >
             Task #{{ task.id }}
           </div>
-          <h3 class="font-semibold text-black mt-1.5 break-all line-clamp-3">
+          <h3 class="line-clamp-9 mt-1.5 break-all">
             {{ task.content }}
           </h3>
         </div>

@@ -3146,7 +3146,14 @@ export class Api<
       data: {
         /** @minLength 1 */
         name: string;
-        description?: string | null;
+        description?: string;
+        /**
+         * Optional skill files (extracted from a ZIP archive)
+         * @format binary
+         */
+        files?: File[];
+        /** Relative path for each corresponding file (parallel array with files) */
+        filePath?: string[];
       },
       params: RequestParams = {},
     ) =>
@@ -3154,7 +3161,7 @@ export class Api<
         path: `/company/${companyId}/skill`,
         method: "POST",
         body: data,
-        type: ContentType.Json,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),
@@ -3192,8 +3199,15 @@ export class Api<
       id: number,
       data: {
         /** @minLength 1 */
-        name?: string | null;
-        description?: string | null;
+        name?: string;
+        description?: string;
+        /**
+         * Optional replacement skill files. When provided, replaces all existing files.
+         * @format binary
+         */
+        files?: File[];
+        /** Relative path for each corresponding file (parallel array with files) */
+        filePath?: string[];
       },
       params: RequestParams = {},
     ) =>
@@ -3201,7 +3215,7 @@ export class Api<
         path: `/company/${companyId}/skill/${id}`,
         method: "PUT",
         body: data,
-        type: ContentType.Json,
+        type: ContentType.FormData,
         format: "json",
         ...params,
       }),

@@ -19,12 +19,13 @@
       <div v-for="row in renderRows" :key="row.id" class="w-full">
         <div
           v-if="row.kind === 'item'"
-          class="text-xs p-3 rounded-md break-all v gap-2"
+          class="text-xs p-3 rounded-md break-all v gap-2 cursor-pointer transition-all hover:opacity-80"
           :class="
             row.item.isStreaming
-              ? 'bg-amber-50 border border-amber-200'
+              ? 'bg-white/50 border border-primary/20'
               : 'bg-primary/10'
           "
+          @click="showHistoryDataDetail(row.item)"
         >
           <div class="flex items-center gap-1.5 mb-0.5">
             <span
@@ -47,8 +48,29 @@
               </span>
               <span
                 v-if="row.item.isStreaming"
-                class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-amber-700 bg-amber-100"
+                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs uppercase text-white bg-black/70"
               >
+                <svg
+                  class="w-3 h-3 shrink-0 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  ></path>
+                </svg>
                 输出中
               </span>
             </span>
@@ -82,7 +104,8 @@
             <div
               v-for="item in row.items"
               :key="`group-${item.id}`"
-              class="flex items-start gap-1.5 text-foreground-muted"
+              class="flex items-start gap-1.5 text-foreground-muted cursor-pointer transition-all hover:opacity-80"
+              @click="showHistoryDataDetail(item)"
             >
               <span
                 v-if="useActorAvatar(item.role)"
@@ -101,10 +124,13 @@
                 class="inline-flex size-4 items-center justify-center"
                 >{{ item.icon }}</span
               >
-              <MarkdownPreviewer
+              <!-- <MarkdownPreviewer
                 :content="item.displayContent"
                 class="min-w-0 flex-1 text-slate-600 text-xs! line-clamp-3"
-              />
+              /> -->
+              <div class="line-clamp-2">
+                {{ item.displayContent }}
+              </div>
               <!-- <TimeDisplay
                 class="text-slate-500 text-xxs"
                 :timestamp="item.createdAt"
@@ -184,6 +210,10 @@ import {
   requestRealtimeSubscription,
 } from "@/services/events-realtime";
 import { useUserStore } from "@/store/user";
+import { dialogs } from "virtual:dialogs";
+
+// Debug control flag - set to true to enable message detail debug output
+const DEBUG = true;
 
 const props = defineProps<{
   agentTaskId: number;
@@ -1096,6 +1126,34 @@ watch(
     void loadChatHistories(syncSerial);
   },
 );
+
+function showHistoryDataDetail(item: RenderedChatHistory) {
+  if (!DEBUG) {
+    return;
+  }
+
+  // Extract original data excluding rendered fields
+  const originalData: Omit<
+    RenderedChatHistory,
+    "displayContent" | "icon" | "condensed"
+  > = {
+    id: item.id,
+    role: item.role,
+    eventType: item.eventType,
+    eventTypeName: item.eventTypeName,
+    durationMs: item.durationMs,
+    extraLogs: item.extraLogs,
+    content: item.content,
+    agentTaskId: item.agentTaskId,
+    createdAt: item.createdAt,
+    isStreaming: item.isStreaming,
+  };
+
+  dialogs.DebugDialog({
+    data: originalData,
+    title: "Chat History Item Detail",
+  });
+}
 
 onBeforeUnmount(() => {
   syncSerial += 1;

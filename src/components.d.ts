@@ -26,6 +26,7 @@ declare module 'vue' {
     Checkbox: typeof import('./components/Checkbox.vue')['default']
     Collapse: typeof import('./components/Collapse.vue')['default']
     ConfirmDialog: typeof import('./components/dialog/ConfirmDialog.vue')['default']
+    DebugDialog: typeof import('./components/dialog/DebugDialog.vue')['default']
     DefaultButton: typeof import('./components/DefaultButton.vue')['default']
     Dialog: typeof import('./components/Dialog.vue')['default']
     Drawer: typeof import('./components/Drawer.vue')['default']

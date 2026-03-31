@@ -78,6 +78,10 @@ function sortByIdAsc(items: SkillResponse[]): SkillResponse[] {
   return [...items].sort((a, b) => a.id - b.id);
 }
 
+function getSkillFileCount(skill: SkillResponse): number {
+  return skill.fileList?.files?.length ?? 0;
+}
+
 function ensurePageWithinRange() {
   const safeMax = Math.max(totalPages.value, 1);
   if (page.value > safeMax) {
@@ -216,6 +220,7 @@ onMounted(loadSkills);
             <th>ID</th>
             <th>名称</th>
             <th>描述</th>
+            <th class="th-files">文件数</th>
             <th class="th-actions">操作</th>
           </tr>
         </thead>
@@ -226,6 +231,7 @@ onMounted(loadSkills);
             <td class="desc" :title="item.description || '-'">
               {{ item.description || "-" }}
             </td>
+            <td class="mono">{{ prettyNumber(getSkillFileCount(item)) }}</td>
             <td class="actions-cell">
               <button
                 class="link-btn"

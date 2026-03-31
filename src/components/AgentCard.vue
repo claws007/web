@@ -643,7 +643,7 @@ onBeforeUnmount(() => {
             <!-- Loading icon for ACTIVE -->
             <svg
               v-if="latestTaskStateInfo.icon === 'loading'"
-              class="w-3.5 h-3.5 animate-spin"
+              class="w-4 h-4 shrink-0 animate-spin"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"

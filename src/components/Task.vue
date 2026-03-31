@@ -103,7 +103,7 @@
         selected
           ? 'border-cyan-500/40 bg-primary/5'
           : 'border-black/8 bg-white/50',
-        isCompleted && !selected ? 'opacity-70' : '',
+        isCompleted && !selected ? 'opacity-65' : '',
       ]"
       class="flex flex-col gap-3.5 rounded-sm border p-4 backdrop-blur-xl outline-none transition-[background-color,border-color] duration-150 cursor-pointer"
     >
@@ -136,9 +136,7 @@
             </div>
           </template>
           <template v-else>
-            <h3
-              class="m-0 text-base font-bold text-black leading-tight break-all"
-            >
+            <h3 class="m-0 text-sm text-black break-all">
               {{ localTask.content }}
             </h3>
           </template>
@@ -146,9 +144,7 @@
       </div>
       <template v-if="latestAgentTask">
         <div class="border-t border-dashed border-cyan-500/25"></div>
-        <div
-          class="inline-flex items-center gap-1.5 text-xs leading-tight min-w-0"
-        >
+        <div class="inline-flex items-center gap-1.5 text-xs min-w-0">
           <svg
             v-if="getAgentTaskVisualState(latestAgentTask) === 'running'"
             class="size-3.5 shrink-0 animate-spin text-secondary"
@@ -215,10 +211,7 @@
           >
             <circle cx="12" cy="12" r="10" />
           </svg>
-          <span
-            class="truncate"
-            :class="getAgentTaskStatusTextClass(latestAgentTask)"
-          >
+          <span :class="getAgentTaskStatusTextClass(latestAgentTask)">
             {{ getAgentTaskSummaryText(latestAgentTask) }}
           </span>
         </div>

@@ -194,15 +194,7 @@ function getTaskChainStatus(task: TaskResponse): TaskChainStatus {
 
 const taskChainStatusMap = ref<Map<number, TaskChainStatus>>(new Map());
 
-const sortedTasks = computed(() =>
-  [...tasks.value].sort((a, b) => {
-    const sa = taskChainStatusMap.value.get(a.id) ?? "incompleteOrFailed";
-    const sb = taskChainStatusMap.value.get(b.id) ?? "incompleteOrFailed";
-    if (sa === "incompleteOrFailed" && sb === "completed") return -1;
-    if (sa === "completed" && sb === "incompleteOrFailed") return 1;
-    return b.id - a.id;
-  }),
-);
+const sortedTasks = computed(() => tasks.value);
 
 const newTaskContent = ref("");
 

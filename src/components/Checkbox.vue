@@ -24,32 +24,9 @@ const emit = defineEmits<{
 }>();
 
 const inputRef = ref<HTMLInputElement | null>(null);
-const boxRef = ref<HTMLSpanElement | null>(null);
 const form = useFormContext();
-const isHovered = ref(false);
 const isActive = computed(() => props.modelValue || props.indeterminate);
 const fieldError = ref<string | null>(null);
-
-let pos = 0;
-let raf = 0;
-let lastTs = 0;
-
-// Slower flow so gradient looks more diffuse instead of busy.
-const SPEED_NORMAL = 7;
-const SPEED_HOVER = 20;
-
-function tick(ts: DOMHighResTimeStamp) {
-  const delta = lastTs === 0 ? 0 : ts - lastTs;
-  lastTs = ts;
-
-  if (isActive.value && boxRef.value) {
-    const speed = isHovered.value ? SPEED_HOVER : SPEED_NORMAL;
-    pos = (pos + speed * delta * 0.0025) % 400;
-    boxRef.value.style.backgroundPosition = `${pos.toFixed(3)}% 50%`;
-  }
-
-  raf = requestAnimationFrame(tick);
-}
 
 function onChange(event: Event) {
   if (props.disabled) return;
@@ -70,11 +47,6 @@ function onChange(event: Event) {
     form.updateFieldTouched(props.fieldName, true);
     form.updateFieldValue(props.fieldName, checked);
   }
-
-  if (!checked && boxRef.value) {
-    pos = 0;
-    boxRef.value.style.backgroundPosition = "0% 50%";
-  }
 }
 
 function syncNativeIndeterminate() {
@@ -86,12 +58,6 @@ watch(() => [props.indeterminate, props.modelValue], syncNativeIndeterminate, {
   immediate: true,
 });
 
-watch(isActive, (active) => {
-  if (active || !boxRef.value) return;
-  pos = 0;
-  boxRef.value.style.backgroundPosition = "0% 50%";
-});
-
 onMounted(() => {
   syncNativeIndeterminate();
   if (form && props.fieldName) {
@@ -101,14 +67,12 @@ onMounted(() => {
     form.updateFieldValue(props.fieldName, props.modelValue);
     fieldError.value = form.getFieldError(props.fieldName);
   }
-  raf = requestAnimationFrame(tick);
 });
 
 onUnmounted(() => {
   if (form && props.fieldName) {
     form.unregisterField(props.fieldName);
   }
-  cancelAnimationFrame(raf);
 });
 
 watch(
@@ -137,12 +101,7 @@ watch(
 </script>
 
 <template>
-  <label
-    class="checkbox"
-    :class="{ 'is-disabled': disabled }"
-    @mouseenter="isHovered = !disabled"
-    @mouseleave="isHovered = false"
-  >
+  <label class="checkbox" :class="{ 'is-disabled': disabled }">
     <input
       ref="inputRef"
       class="checkbox-native"
@@ -153,7 +112,6 @@ watch(
     />
 
     <span
-      ref="boxRef"
       class="checkbox-box"
       :class="{
         'is-active': modelValue || indeterminate,
@@ -229,8 +187,6 @@ watch(
   border-radius: 0.42rem;
   border: 1.5px solid rgb(90 102 109 / 0.28);
   background-color: rgb(255 255 255 / 0.84);
-  background-size: 400% 100%;
-  background-position: 0% 50%;
   display: inline-grid;
   place-items: center;
   color: white;
@@ -240,6 +196,7 @@ watch(
     box-shadow var(--duration-gentle) var(--ease-crystal),
     border-color var(--duration-gentle) var(--ease-crystal),
     background-color var(--duration-gentle) var(--ease-crystal);
+  overflow: hidden;
 }
 
 .checkbox-box::before {
@@ -256,6 +213,26 @@ watch(
   transition:
     opacity var(--duration-gentle) var(--ease-crystal),
     transform var(--duration-gentle) var(--ease-crystal);
+  pointer-events: none;
+}
+
+.checkbox-box::after {
+  content: "";
+  position: absolute;
+  top: -45%;
+  left: -120%;
+  width: 55%;
+  height: 190%;
+  transform: translateX(0) rotate(18deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.12) 45%,
+    rgb(255 255 255 / 0.4) 50%,
+    rgb(255 255 255 / 0.12) 55%,
+    transparent 100%
+  );
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -286,6 +263,11 @@ watch(
     0 8px 24px rgb(76 147 244 / 0.26),
     0 0 0 1px rgb(255 255 255 / 0.16) inset;
   background-image: var(--checkbox-flow);
+}
+
+.checkbox-box.is-active::after {
+  opacity: 0.92;
+  animation: checkbox-sheen 1.8s linear infinite;
 }
 
 .checkbox-box.is-error {
@@ -325,5 +307,27 @@ watch(
 .checkbox-label {
   font-size: 0.84rem;
   line-height: 1.2;
+}
+
+@keyframes checkbox-sheen {
+  from {
+    transform: translateX(0) rotate(18deg);
+  }
+  to {
+    transform: translateX(390%) rotate(18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkbox-box,
+  .checkbox-path,
+  .checkbox-box::before {
+    transition-duration: 0.01ms;
+  }
+
+  .checkbox-box.is-active::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 </style>
