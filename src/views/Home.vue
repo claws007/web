@@ -69,7 +69,7 @@
       <!-- Agent 卡片列表 -->
       <div
         v-else
-        class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4"
+        class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3"
       >
         <AgentCard
           v-for="agent in agents"
@@ -82,7 +82,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-[1.5] min-w-0 v gap-3">
+    <section class="h-full flex-[1.5] min-w-0 v gap-3 [&>*]:pr-4">
       <Textarea
         v-model="newTaskContent"
         placeholder="创建任务"
@@ -109,7 +109,7 @@
         暂无任务，先创建一个吧
       </div>
 
-      <div v-else class="v gap-5 stretch overflow-y-auto">
+      <div v-else class="v gap-3 stretch overflow-y-auto">
         <Task
           v-for="task in sortedTasks"
           :key="task.id"
@@ -388,8 +388,13 @@ async function handleAssignTask(task: TaskResponse) {
       const filtered = kw
         ? allAgents.filter((agent) => {
             const name = (agent.name ?? "").toLowerCase();
-            const description = (agent.description ?? "").toLowerCase();
-            return name.includes(kw) || description.includes(kw);
+            const capacity = (agent.capacity ?? "").toLowerCase();
+            const extraPrompt = (agent.extraPrompt ?? "").toLowerCase();
+            return (
+              name.includes(kw) ||
+              capacity.includes(kw) ||
+              extraPrompt.includes(kw)
+            );
           })
         : allAgents;
 
@@ -399,8 +404,12 @@ async function handleAssignTask(task: TaskResponse) {
         items: pageItems.map((agent) => ({
           id: agent.id,
           label: agent.name || `Agent #${agent.id}`,
-          description: agent.description || "-",
-          keywords: [agent.name ?? "", agent.description ?? ""],
+          description: agent.capacity || agent.extraPrompt || "-",
+          keywords: [
+            agent.name ?? "",
+            agent.capacity ?? "",
+            agent.extraPrompt ?? "",
+          ],
         })),
         total: filtered.length,
         page,

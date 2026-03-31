@@ -33,7 +33,7 @@ const submitButtonRef = ref<HTMLButtonElement | null>(null);
 const { resolve, reject } = useDialogContext<AgentResponse>();
 
 const name = ref("");
-const description = ref("");
+const extraPrompt = ref("");
 const capacity = ref("");
 const model = ref("");
 const modelConnectorId = ref<number>();
@@ -213,7 +213,7 @@ async function loadAgentById() {
     const agent = res.data;
 
     name.value = agent.name ?? "";
-    description.value = agent.description ?? "";
+    extraPrompt.value = agent.extraPrompt ?? "";
     capacity.value = agent.capacity ?? "";
     model.value = agent.model ?? "";
     modelConnectorId.value =
@@ -291,7 +291,7 @@ async function handleFormSubmit() {
 
   const payload = {
     name: name.value.trim(),
-    description: description.value.trim() || "",
+    extraPrompt: extraPrompt.value.trim() || "",
     capacity: capacity.value.trim() || "",
     model: model.value.trim(),
     modelConnectorId: connectorId,
@@ -429,7 +429,7 @@ onMounted(async () => {
           />
 
           <div class="selector-stack">
-            <label class="selector-label">模型连接器</label>
+            <label class="form-label">模型连接器</label>
             <Selector
               v-model="modelConnectorId"
               :items="modelConnectorOptions"
@@ -440,7 +440,7 @@ onMounted(async () => {
           </div>
 
           <div class="selector-stack">
-            <label class="selector-label">模型</label>
+            <label class="form-label">模型</label>
             <Selector
               v-model="model"
               :items="modelOptions"
@@ -459,17 +459,17 @@ onMounted(async () => {
             :rows="2"
           />
           <Textarea
-            v-model="description"
-            label="描述"
-            placeholder="描述 Agent 的角色与边界"
-            field-name="description"
-            :rows="3"
+            v-model="extraPrompt"
+            label="额外指令 / 工作流程"
+            placeholder="补充这个 Agent 的额外要求、执行流程或协作规则"
+            field-name="extraPrompt"
+            :rows="5"
           />
 
           <div class="sandbox-area">
             <Checkbox v-model="useDockerSandbox" label="启用 Docker 沙箱" />
             <div class="selector-stack">
-              <label class="selector-label">容器镜像</label>
+              <label class="selector-label form-label">容器镜像</label>
               <section
                 class="image-selector-shell rounded-lg"
                 @click="openDockerImageDialog"
@@ -543,12 +543,6 @@ onMounted(async () => {
 .selector-stack {
   display: grid;
   gap: 0.45rem;
-}
-
-.selector-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--foreground);
 }
 
 .loading-state {

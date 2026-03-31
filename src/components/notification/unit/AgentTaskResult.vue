@@ -2,6 +2,7 @@
 import { api, type NotificationResponse } from "@/api";
 import { setNotificationResolved } from "@/services/notification-realtime";
 import { ref } from "vue";
+import { notify } from "..";
 
 const props = defineProps<{
   entry: NotificationResponse;
@@ -15,17 +16,6 @@ function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function asNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-}
-
-function extractAgentTaskId(item: NotificationResponse): number | null {
-  const extra = asObject(item.extraParams);
-  return asNumber(extra.agentTaskId);
 }
 
 function isCompleted(item: NotificationResponse): boolean {
@@ -51,15 +41,13 @@ async function confirmResult() {
 }
 
 async function retryTask() {
-  const agentTaskId = extractAgentTaskId(props.entry);
-  if (!agentTaskId) {
-    notify.error("无法重试：缺少 AgentTaskId");
-    return;
-  }
-
   retrying.value = true;
   try {
-    await api.agentTask.postAgentTaskByIdRetry(agentTaskId);
+    await api.notification.resolveNotification(props.entry.id, {
+      type: "AGENT_TASK_RESULT",
+      value: false,
+    });
+    setNotificationResolved(props.entry.id);
     notify.success("已发起重试");
   } catch (err: unknown) {
     notify.error(err instanceof Error ? err.message : "重试失败，请稍后再试");

@@ -54,7 +54,7 @@ const renderedHtml = computed(() => markdownParser.render(props.content ?? ""));
 .markdown-body think {
   display: block;
   margin: 0.4rem 0;
-  color: var(--color-foreground-muted);
+  color: var(--color-foreground);
 }
 .markdown-body think::before {
   content: "💭";

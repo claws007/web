@@ -134,7 +134,7 @@ watch(
 
     <span
       ref="circleRef"
-      class="radiobox-circle"
+      class="radiobox-circle shrink-0"
       :class="{
         'is-active': isChecked,
         'is-error': !!fieldError,

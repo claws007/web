@@ -23,7 +23,6 @@ export function formatRelativeTime(
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  console.debug("Time difference in days:", diffDays, diffHours);
   // Within same day - show hours ago
   if (diffDays === 0 && diffHours >= 0) {
     if (diffHours === 0) {

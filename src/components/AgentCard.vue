@@ -189,7 +189,7 @@ function applyAgentRecordPatch(record: AgentEntityRecord) {
     id: record.id,
     companyId: record.companyId,
     name: record.name,
-    description: (record.description as string | null) ?? null,
+    extraPrompt: (record.extraPrompt as string | null) ?? null,
     capacity: (record.capacity as string | null) ?? null,
     model: (record.model as string | null) ?? null,
     sandboxType: record.sandboxType,
@@ -379,8 +379,8 @@ const agentName = computed(() => liveAgent.value.name || "未命名 Agent");
 const abilityIntro = computed(() => {
   return (
     liveAgent.value.capacity?.trim() ||
-    liveAgent.value.description?.trim() ||
-    "暂无能力简介"
+    liveAgent.value.extraPrompt?.trim() ||
+    "暂无额外指令"
   );
 });
 
@@ -393,18 +393,6 @@ const modelConnectorName = computed(() => {
 });
 const modelName = computed(() => {
   return liveAgent.value.model?.trim() || "-";
-});
-
-const sandboxLabel = computed(() => {
-  if (!liveAgent.value.sandboxType || liveAgent.value.sandboxType === "NONE") {
-    return "无沙箱";
-  }
-
-  if (liveAgent.value.sandboxType === "DOCKER") {
-    return "Docker";
-  }
-
-  return liveAgent.value.sandboxType;
 });
 
 const isSandboxMode = computed(() => {
@@ -564,7 +552,7 @@ onBeforeUnmount(() => {
 
 <template>
   <article
-    class="flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow-ambient backdrop-blur-xl"
+    class="flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow backdrop-blur-xl"
     role="region"
     :aria-label="agentName"
   >
@@ -699,7 +687,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div
-      class="flex gap-1 shrink-0 action-button-group bg-white rounded-md shadow-md p-1 absolute right-2 top-2"
+      class="flex gap-1 shrink-0 action-button-group bg-white rounded-md shadow-md p-1 absolute right-2 bottom-2"
     >
       <button
         class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 hover:bg-primary/10 hover:border-primary/30 hover:text-primary"

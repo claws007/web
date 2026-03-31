@@ -29,7 +29,7 @@ export interface AgentEntityRecord {
   createdByUserId: number | unknown;
   updatedByUserId: number | unknown;
   name: string;
-  description: string | unknown;
+  extraPrompt: string | unknown;
   capacity: string | unknown;
   model: string | unknown;
   sandboxType: "NONE" | "DOCKER";

@@ -105,7 +105,7 @@
           : 'border-black/8 bg-white/50',
         isCompleted && !selected ? 'opacity-65' : '',
       ]"
-      class="flex flex-col gap-3.5 rounded-sm border p-4 backdrop-blur-xl outline-none transition-[background-color,border-color] duration-150 cursor-pointer"
+      class="flex shadow flex-col gap-3.5 rounded-sm border p-4 backdrop-blur-xl outline-none transition-[background-color,border-color] duration-150 cursor-pointer"
     >
       <div class="flex items-start justify-between gap-2.4 min-w-0">
         <div class="min-w-0 flex-1 flex flex-col gap-1.8">

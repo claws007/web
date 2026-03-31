@@ -25,7 +25,7 @@
       class="stretch rounded-md rounded-tl-md backdrop-blur-sm transition-all duration-300 v gap-1"
       :class="
         isLatest
-          ? 'bg-primary/6 border border-primary/10'
+          ? 'bg-primary/3 border border-primary/10'
           : 'bg-white/80 border border-primary/20'
       "
     >
@@ -65,70 +65,71 @@
                           <rect x="7" y="7" width="10" height="10" rx="2" />
                         </svg>
                       </button>
-                      <button
-                        v-else
-                        type="button"
-                        class="grid place-items-center text-emerald-700 transition-opacity cursor-pointer hover:opacity-80"
-                        title="恢复任务"
-                        aria-label="恢复任务"
-                        @click.stop="resumeTask"
-                      >
-                        <svg
-                          class="size-3.5 translate-x-px"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          aria-hidden="true"
+                      <template v-else>
+                        <button
+                          type="button"
+                          class="grid place-items-center text-emerald-700 transition-opacity cursor-pointer hover:opacity-80"
+                          title="恢复任务"
+                          aria-label="恢复任务"
+                          @click.stop="resumeTask"
                         >
-                          <path d="M8 6.5v11l9-5.5-9-5.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="grid place-items-center text-cyan-700 transition-opacity cursor-pointer hover:opacity-80"
-                        title="重新开始"
-                        aria-label="重新开始"
-                        @click.stop="restartTask"
-                      >
-                        <svg
-                          class="size-3.5"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
+                          <svg
+                            class="size-3.5 translate-x-px"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M8 6.5v11l9-5.5-9-5.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="grid place-items-center text-cyan-700 transition-opacity cursor-pointer hover:opacity-80"
+                          title="重新开始"
+                          aria-label="重新开始"
+                          @click.stop="restartTask"
                         >
-                          <path d="M3 12a9 9 0 1 0 3-6.708" />
-                          <path d="M3 4v5h5" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="grid place-items-center text-slate-600 transition-opacity cursor-pointer hover:opacity-80"
-                        title="添加 Comment"
-                        aria-label="添加 Comment"
-                        @click.stop="openCreateCommentDialog"
-                      >
-                        <svg
-                          class="size-3.5"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
+                          <svg
+                            class="size-3.5"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M3 12a9 9 0 1 0 3-6.708" />
+                            <path d="M3 4v5h5" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="grid place-items-center text-slate-600 transition-opacity cursor-pointer hover:opacity-80"
+                          title="添加 Comment"
+                          aria-label="添加 Comment"
+                          @click.stop="openCreateCommentDialog"
                         >
-                          <path d="M12 20h9" />
-                          <path
-                            d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            class="size-3.5"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 20h9" />
+                            <path
+                              d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                            />
+                          </svg>
+                        </button>
+                      </template>
                     </div>
                     <svg
                       v-if="visualState === 'running'"
@@ -236,7 +237,7 @@
         <ChatHistoryContainer
           v-if="hasLoadedChatHistories"
           :agent-task-id="agentTask.id"
-          class="py-3 bg-primary/5 px-3"
+          class="py-3 px-3"
         />
       </Collapse>
     </div>
@@ -311,8 +312,8 @@ function handleAgentEntityChange(payload: EntityChangePayload) {
   localAgent.value = {
     ...localAgent.value,
     name: record.name,
-    description:
-      (record.description as string | null) ?? localAgent.value.description,
+    extraPrompt:
+      (record.extraPrompt as string | null) ?? localAgent.value.extraPrompt,
     avatarFileId:
       typeof record.avatarFileId === "number"
         ? record.avatarFileId

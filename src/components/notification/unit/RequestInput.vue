@@ -1,11 +1,31 @@
 <script setup lang="ts">
-import { api } from "@/api";
+import { api, getImageUrlByFileId } from "@/api";
 import { notify } from "@/components/notification";
 import { setNotificationResolved } from "@/services/notification-realtime";
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { RequestInputItem } from "../types";
 
 type SelectionOption = { value: string; label: string };
+
+type ResolvedRequestContext = {
+  prompt: string;
+  options: SelectionOption[];
+  allowCustomInput: boolean;
+  flow: string;
+  scheduleTargetAgentId: number | null;
+};
+
+type AgentMeta = {
+  name: string;
+  avatarFileId: number | null;
+};
+
+type AgentTaskMeta = {
+  content: string;
+};
+
+const agentMetaCache = new Map<number, AgentMeta>();
+const taskMetaCache = new Map<number, AgentTaskMeta>();
 
 const props = defineProps<{
   entry: RequestInputItem;
@@ -16,6 +36,9 @@ const inputDraft = ref("");
 const singleDraft = ref("");
 const multiDraft = ref<string[]>([]);
 const submitting = ref(false);
+const sourceAgentName = ref("");
+const sourceAgentAvatarUrl = ref<string | null>(null);
+const sourceTaskContent = ref("");
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
@@ -31,8 +54,16 @@ function asBoolean(value: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
-function resolveRequestContext() {
-  const source = props.entry.source;
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  return null;
+}
+
+function resolveRequestContext(
+  source: RequestInputItem["source"],
+): ResolvedRequestContext {
   const extra = asObject(source.extraParams);
   const originalRequest = asObject(extra.originalRequest);
   const prompt =
@@ -58,6 +89,10 @@ function resolveRequestContext() {
     prompt,
     options,
     allowCustomInput: asBoolean(originalRequest.allow_custom_input),
+    flow: asString(originalRequest.flow),
+    scheduleTargetAgentId: asNumber(
+      asObject(originalRequest.scheduleIntent).targetAgentId,
+    ),
   };
 }
 
@@ -75,6 +110,96 @@ function onToggleMulti(value: string, checked: boolean) {
       : [...multiDraft.value, value]
     : multiDraft.value.filter((item) => item !== value);
 }
+
+const extraParams = computed(() => asObject(props.entry.source.extraParams));
+const requestContext = computed(() =>
+  resolveRequestContext(props.entry.source),
+);
+const sourceAgentId = computed(() => asNumber(extraParams.value.sourceAgentId));
+const sourceAgentTaskId = computed(() =>
+  asNumber(extraParams.value.sourceAgentTaskId),
+);
+const isTopLevelPeerScheduleFlow = computed(
+  () => requestContext.value.flow === "SCHEDULE_TOP_LEVEL_PEER_CONFIRM",
+);
+const showSourceMeta = computed(
+  () => sourceAgentId.value !== null || sourceAgentTaskId.value !== null,
+);
+const sourceAgentInitials = computed(() => {
+  const text = sourceAgentName.value.trim();
+  if (!text) return "AG";
+  const first = Array.from(text)[0] ?? "A";
+  return first.toUpperCase();
+});
+const sourceTaskSummary = computed(() => {
+  const raw = sourceTaskContent.value.trim();
+  if (!raw) return "";
+  return raw.length > 72 ? `${raw.slice(0, 72)}...` : raw;
+});
+
+async function loadSourceMeta() {
+  const agentId = sourceAgentId.value;
+  if (agentId) {
+    try {
+      const cached = agentMetaCache.get(agentId);
+      if (cached) {
+        sourceAgentName.value = cached.name;
+        sourceAgentAvatarUrl.value = getImageUrlByFileId(cached.avatarFileId);
+      } else {
+        const res = await api.agent.getAgentById(agentId);
+        const meta: AgentMeta = {
+          name: res.data.name?.trim() || `Agent-${agentId}`,
+          avatarFileId:
+            typeof res.data.avatarFileId === "number"
+              ? res.data.avatarFileId
+              : null,
+        };
+        agentMetaCache.set(agentId, meta);
+        sourceAgentName.value = meta.name;
+        sourceAgentAvatarUrl.value = getImageUrlByFileId(meta.avatarFileId);
+      }
+    } catch {
+      sourceAgentName.value = `Agent-${agentId}`;
+      sourceAgentAvatarUrl.value = null;
+    }
+  } else {
+    sourceAgentName.value = "";
+    sourceAgentAvatarUrl.value = null;
+  }
+
+  const agentTaskId = sourceAgentTaskId.value;
+  if (agentTaskId) {
+    try {
+      const cached = taskMetaCache.get(agentTaskId);
+      if (cached) {
+        sourceTaskContent.value = cached.content;
+      } else {
+        const res = await api.agentTask.getAgentTaskById(agentTaskId);
+        const meta: AgentTaskMeta = {
+          content: typeof res.data.content === "string" ? res.data.content : "",
+        };
+        taskMetaCache.set(agentTaskId, meta);
+        sourceTaskContent.value = meta.content;
+      }
+    } catch {
+      sourceTaskContent.value = "";
+    }
+  } else {
+    sourceTaskContent.value = "";
+  }
+}
+
+watch(
+  () => [
+    props.entry.notificationId,
+    sourceAgentId.value,
+    sourceAgentTaskId.value,
+  ],
+  () => {
+    void loadSourceMeta();
+  },
+  { immediate: true },
+);
 
 async function onReject() {
   submitting.value = true;
@@ -115,7 +240,7 @@ async function onSubmitInput() {
 }
 
 async function onSubmitSingle() {
-  const context = resolveRequestContext();
+  const context = requestContext.value;
   const value =
     singleDraft.value ||
     (context.allowCustomInput ? inputDraft.value.trim() : "");
@@ -186,26 +311,69 @@ async function onConfirm() {
     ]"
   >
     <div class="nw-request-top">
-      <span class="nw-request-title">{{
-        entry.source.title || "待处理请求"
-      }}</span>
-      <span class="nw-request-badge">{{
-        getTypeLabel(entry.requestType)
-      }}</span>
+      <div class="nw-request-source" v-if="showSourceMeta">
+        <span class="nw-request-avatar">
+          <img
+            v-if="sourceAgentAvatarUrl"
+            :src="sourceAgentAvatarUrl"
+            :alt="sourceAgentName || 'Agent avatar'"
+            class="nw-request-avatar-img"
+          />
+          <span v-else class="nw-request-avatar-fallback">{{
+            sourceAgentInitials
+          }}</span>
+        </span>
+      </div>
+
+      <div class="nw-request-main">
+        <div class="nw-request-headline">
+          <span class="nw-request-title">{{
+            entry.source.title || "待处理请求"
+          }}</span>
+          <span class="nw-request-badge">{{
+            getTypeLabel(entry.requestType)
+          }}</span>
+        </div>
+
+        <div v-if="showSourceMeta" class="nw-request-meta">
+          <span v-if="sourceAgentName" class="nw-request-meta-item"
+            >来源: {{ sourceAgentName }}</span
+          >
+          <span v-if="sourceAgentTaskId" class="nw-request-meta-item"
+            >Task #{{ sourceAgentTaskId }}</span
+          >
+          <span v-if="isTopLevelPeerScheduleFlow" class="nw-request-meta-item">
+            顶层同级委派
+          </span>
+          <span
+            v-if="requestContext.scheduleTargetAgentId"
+            class="nw-request-meta-item"
+            >目标 Agent #{{ requestContext.scheduleTargetAgentId }}</span
+          >
+        </div>
+
+        <p v-if="sourceTaskSummary" class="nw-request-task-summary">
+          {{ sourceTaskSummary }}
+        </p>
+      </div>
     </div>
 
-    <p class="nw-request-prompt">{{ resolveRequestContext().prompt }}</p>
-
+    <p class="nw-request-prompt">{{ requestContext.prompt }}</p>
     <template v-if="entry.requestType === 'REQUEST_INPUT'">
       <Input v-model="inputDraft" placeholder="请输入应答内容" icon="none" />
       <div class="nw-request-actions">
         <PrimaryButton
           type="button"
           :disabled="submitting"
+          size="small"
           @click="onSubmitInput"
           >提交</PrimaryButton
         >
-        <DefaultButton type="button" :disabled="submitting" @click="onReject"
+        <DefaultButton
+          type="button"
+          :disabled="submitting"
+          @click="onReject"
+          size="small"
           >取消</DefaultButton
         >
       </div>
@@ -214,7 +382,7 @@ async function onConfirm() {
     <template v-else-if="entry.requestType === 'REQUEST_SELECT_SINGLE'">
       <div class="nw-request-options">
         <Radiobox
-          v-for="option in resolveRequestContext().options"
+          v-for="option in requestContext.options"
           :key="option.value"
           v-model="singleDraft"
           :value="option.value"
@@ -223,7 +391,7 @@ async function onConfirm() {
         />
       </div>
       <Input
-        v-if="resolveRequestContext().allowCustomInput"
+        v-if="requestContext.allowCustomInput"
         v-model="inputDraft"
         placeholder="可选：手动输入"
         icon="none"
@@ -231,11 +399,16 @@ async function onConfirm() {
       <div class="nw-request-actions">
         <PrimaryButton
           type="button"
+          size="small"
           :disabled="submitting"
           @click="onSubmitSingle"
           >提交</PrimaryButton
         >
-        <DefaultButton type="button" :disabled="submitting" @click="onReject"
+        <DefaultButton
+          type="button"
+          :disabled="submitting"
+          @click="onReject"
+          size="small"
           >取消</DefaultButton
         >
       </div>
@@ -244,7 +417,7 @@ async function onConfirm() {
     <template v-else-if="entry.requestType === 'REQUEST_SELECT_MULTI'">
       <div class="nw-request-options">
         <Checkbox
-          v-for="option in resolveRequestContext().options"
+          v-for="option in requestContext.options"
           :key="option.value"
           :model-value="multiDraft.includes(option.value)"
           :label="option.label"
@@ -256,11 +429,16 @@ async function onConfirm() {
       <div class="nw-request-actions">
         <PrimaryButton
           type="button"
+          size="small"
           :disabled="submitting"
           @click="onSubmitMulti"
           >提交</PrimaryButton
         >
-        <DefaultButton type="button" :disabled="submitting" @click="onReject"
+        <DefaultButton
+          size="small"
+          type="button"
+          :disabled="submitting"
+          @click="onReject"
           >取消</DefaultButton
         >
       </div>
@@ -318,6 +496,47 @@ async function onConfirm() {
 
 .nw-request-top {
   display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.nw-request-source {
+  flex-shrink: 0;
+}
+
+.nw-request-avatar {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--outline-ghost);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.nw-request-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nw-request-avatar-fallback {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.nw-request-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nw-request-headline {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -350,6 +569,35 @@ async function onConfirm() {
   line-height: 1.45;
   color: var(--foreground-muted);
   white-space: pre-wrap;
+}
+
+.nw-request-meta {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.nw-request-meta-item {
+  font-size: 0.64rem;
+  color: var(--foreground-muted);
+  border: 1px solid var(--outline-ghost);
+  background: color-mix(
+    in srgb,
+    var(--surface-container-high) 88%,
+    transparent
+  );
+  border-radius: 999px;
+  padding: 0.02rem 0.34rem;
+}
+
+.nw-request-task-summary {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: var(--foreground-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nw-request-options {

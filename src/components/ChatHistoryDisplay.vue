@@ -19,11 +19,11 @@
       <div v-for="row in renderRows" :key="row.id" class="w-full">
         <div
           v-if="row.kind === 'item'"
-          class="text-xs p-3 rounded-md break-all v gap-2 cursor-pointer transition-all hover:opacity-80"
+          class="text-xs p-3 shadow-md rounded-md break-all v gap-2 cursor-pointer transition-all hover:opacity-80"
           :class="
             row.item.isStreaming
               ? 'bg-white/50 border border-primary/20'
-              : 'bg-primary/10'
+              : 'bg-primary/8'
           "
           @click="showHistoryDataDetail(row.item)"
         >
@@ -84,7 +84,7 @@
           </div>
           <MarkdownPreviewer
             :content="row.item.displayContent"
-            class="leading-tight break-all text-xs!"
+            class="leading-tight break-all text-sm!"
             :class="
               row.item.condensed
                 ? 'text-gray-600 italic line-clamp-3'
@@ -146,8 +146,8 @@
         class="w-full text-xs p-3 rounded-md v gap-2"
         :class="
           taskResultCard.visualState === 'success'
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-red-50 border border-red-200'
+            ? 'bg-green-50 border border-primary/20'
+            : 'bg-red-50 border border-secondary/20'
         "
       >
         <div class="flex items-center gap-2">
@@ -158,8 +158,8 @@
             class="font-semibold text-sm"
             :class="
               taskResultCard.visualState === 'success'
-                ? 'text-green-700'
-                : 'text-red-700'
+                ? 'text-primary'
+                : 'text-secondary'
             "
             >{{ taskResultCard.title }}</span
           >
@@ -850,8 +850,8 @@ function handleAgentChange(payload: EntityChangePayload) {
   taskAgent.value = {
     ...taskAgent.value,
     name: record.name,
-    description:
-      (record.description as string | null) ?? taskAgent.value.description,
+    extraPrompt:
+      (record.extraPrompt as string | null) ?? taskAgent.value.extraPrompt,
     avatarFileId:
       typeof record.avatarFileId === "number"
         ? record.avatarFileId

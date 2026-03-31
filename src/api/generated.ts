@@ -156,7 +156,7 @@ export interface AIModelConnectorResponse {
 export interface AgentResponse {
   id: number;
   name: string;
-  description?: string | null;
+  extraPrompt?: string | null;
   capacity?: string | null;
   model?: string | null;
   sandboxType?: "NONE" | "DOCKER";
@@ -760,10 +760,8 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<
-  D extends unknown,
-  E extends unknown = unknown,
-> extends Response {
+export interface HttpResponse<D extends unknown, E extends unknown = unknown>
+  extends Response {
   data: D;
   error: E;
 }
@@ -1412,7 +1410,7 @@ export class Api<
       data: {
         /** @minLength 1 */
         name: string;
-        description?: string;
+        extraPrompt?: string;
         /** Send empty string to clear capacity */
         capacity?: string | null;
         /** @minLength 1 */
@@ -1473,8 +1471,8 @@ export class Api<
       data: {
         /** @minLength 1 */
         name?: string;
-        /** Send empty string to clear description */
-        description?: string | null;
+        /** Send empty string to clear extra instructions/workflow */
+        extraPrompt?: string | null;
         /** Send empty string to clear capacity */
         capacity?: string | null;
         /** @minLength 1 */
@@ -2026,7 +2024,7 @@ export class Api<
         name: string;
         /** @min 0 */
         modelConnectorId: number;
-        description?: string | null;
+        extraPrompt?: string | null;
         capacity?: string | null;
         /** @minLength 1 */
         model?: string | null;
@@ -3134,7 +3132,7 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Creates a new skill via multipart/form-data. File upload fields: - `files`: optional array of binary file entries extracted from a ZIP archive. - `filePath`: optional parallel string array with the relative path for each file. When no files are provided, a default SKILL.md placeholder is created automatically. When files are provided, they are stored under /skills/{skillId}/ and linked to the skill's file list.
      *
      * @tags Skill
      * @name PostCompanyByCompanyIdSkill
@@ -3147,12 +3145,9 @@ export class Api<
         /** @minLength 1 */
         name: string;
         description?: string;
-        /**
-         * Optional skill files (extracted from a ZIP archive)
-         * @format binary
-         */
+        /** Optional skill files extracted from a ZIP archive */
         files?: File[];
-        /** Relative path for each corresponding file (parallel array with files) */
+        /** Relative path for each corresponding file entry (parallel array with files) */
         filePath?: string[];
       },
       params: RequestParams = {},
@@ -3187,7 +3182,7 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Updates an existing skill via multipart/form-data. File upload fields: - `files`: optional array of binary file entries. When provided, replaces all existing files in the skill's file list. - `filePath`: optional parallel string array with the relative path for each file. Name and description updates are applied regardless of whether files are provided.
      *
      * @tags Skill
      * @name PutCompanyByCompanyIdSkillById
@@ -3201,12 +3196,9 @@ export class Api<
         /** @minLength 1 */
         name?: string;
         description?: string;
-        /**
-         * Optional replacement skill files. When provided, replaces all existing files.
-         * @format binary
-         */
+        /** Optional replacement skill files. When provided, replaces all existing files in the skill's file list. */
         files?: File[];
-        /** Relative path for each corresponding file (parallel array with files) */
+        /** Relative path for each corresponding file entry (parallel array with files) */
         filePath?: string[];
       },
       params: RequestParams = {},

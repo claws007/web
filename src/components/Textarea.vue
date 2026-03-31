@@ -209,8 +209,8 @@ defineExpose({
     <label v-if="label" class="form-label">{{ label }}</label>
     <div
       :class="[
-        'relative flex items-start rounded-sm border-[1.5px] bg-surface-container-lowest',
-        'transition-[border-color,box-shadow] duration-[var(--duration-gentle)] ease-[var(--ease-crystal)]',
+        'relative flex items-start rounded-sm border-[1.5px] bg-surface-container-lowest/5 backdrop-blur-sm',
+        'transition-[border-color,box-shadow] duration-[--duration-gentle] ease-crystal',
         errorMessage
           ? [
               'border-[#e5484d]',
@@ -238,7 +238,7 @@ defineExpose({
         :content="errorMessage ?? undefined"
         placement="top"
         :persistent="true"
-        class="absolute bottom-2 right-2.5 text-[#e5484d] cursor-default opacity-[0.85] hover:opacity-100 transition-opacity duration-[var(--duration-gentle)]"
+        class="absolute bottom-2 right-2.5 text-[#e5484d] cursor-default opacity-[0.85] hover:opacity-100 transition-opacity duration-[--duration-gentle]"
       >
         <span v-show="errorMessage" aria-label="校验错误">
           <svg
