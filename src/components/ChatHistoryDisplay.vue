@@ -793,6 +793,11 @@ function handleAgentTaskChange(payload: EntityChangePayload) {
     return;
   }
 
+  // Update state immediately so computed props (e.g. taskResultCard) react on retry/cancel.
+  if (taskData.value && typeof record.state === "string") {
+    taskData.value = { ...taskData.value, state: record.state };
+  }
+
   const state = (record.state || "").toUpperCase();
   if (FINISHED_STATES.has(state)) {
     void loadTaskAgent(syncSerial);
