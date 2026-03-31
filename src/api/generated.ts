@@ -760,8 +760,10 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<D extends unknown, E extends unknown = unknown>
-  extends Response {
+export interface HttpResponse<
+  D extends unknown,
+  E extends unknown = unknown,
+> extends Response {
   data: D;
   error: E;
 }
@@ -2864,26 +2866,28 @@ export class Api<
       }),
 
     /**
-     * @description Uploads file content to MinIO and stores metadata in the File table. Supported content types: - application/json: send { fileName, contentBase64, contentType?, filePath? } - multipart/form-data: send file field named file and optional filePath Storage strategy: - bucket name: company-{companyId} - object key: flat UUID
+     * @description Batch uploads file content to MinIO and stores metadata in the File table. Supported content types: - application/json: send { files: [{ fileName, contentBase64, contentType?, filePath? }] } - multipart/form-data: send one or more files in files field and optional repeated filePath fields by index Storage strategy: - bucket name: company-{companyId} - object key: flat UUID
      *
      * @tags File
      * @name PostCompanyByCompanyIdFileUpload
-     * @summary Upload a file to MinIO and create file metadata
+     * @summary Batch upload files to MinIO and create file metadata
      * @request POST:/company/{companyId}/file/upload
      */
     postCompanyByCompanyIdFileUpload: (
       companyId: number,
       data: {
-        /** @minLength 1 */
-        fileName: string;
-        contentBase64: string;
-        contentType?: string | null;
-        /** @minLength 1 */
-        filePath?: string | null;
+        files: {
+          /** @minLength 1 */
+          fileName: string;
+          contentBase64: string;
+          contentType?: string | null;
+          /** @minLength 1 */
+          filePath?: string | null;
+        }[];
       },
       params: RequestParams = {},
     ) =>
-      this.request<FileResponse, ValidationErrorResponse | ErrorResponse>({
+      this.request<FileResponse[], ValidationErrorResponse | ErrorResponse>({
         path: `/company/${companyId}/file/upload`,
         method: "POST",
         body: data,

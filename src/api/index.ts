@@ -515,7 +515,7 @@ type EnhancedApi = Api<string> & {
         Api<string>["company"]["postCompanyByCompanyIdFileUpload"]
       >[1],
       params?: RequestParams,
-    ): Promise<HttpResponse<FileResponse, unknown>>;
+    ): Promise<HttpResponse<FileResponse[], unknown>>;
     getFileByIdDownload(
       id: number,
       params?: RequestParams,

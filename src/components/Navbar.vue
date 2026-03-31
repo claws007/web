@@ -128,6 +128,11 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
     return;
   }
 
+  if (menu.key === "skill") {
+    await dialogs.ManageSkillDialog();
+    return;
+  }
+
   notify.info(`${menu.label} 功能开发中`);
 }
 
