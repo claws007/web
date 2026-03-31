@@ -82,7 +82,7 @@
             <div
               v-for="item in row.items"
               :key="`group-${item.id}`"
-              class="flex items-start gap-1.5"
+              class="flex items-start gap-1.5 text-foreground-muted"
             >
               <span
                 v-if="useActorAvatar(item.role)"

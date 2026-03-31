@@ -45,4 +45,10 @@ const renderedHtml = computed(() => markdownParser.render(props.content ?? ""));
 .markdown-previewer.markdown-body > :last-child {
   margin-bottom: 0;
 }
+.markdown-body hr {
+  background: var(--color-primary);
+  opacity: 0.2;
+  border-radius: 1rem;
+  height: 0.15rem;
+}
 </style>

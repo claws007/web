@@ -22,127 +22,213 @@
 
     <!-- Bubble Content -->
     <div
-      class="stretch rounded-md rounded-tl-md shadow backdrop-blur-sm transition-all duration-300 v gap-1"
+      class="stretch rounded-md rounded-tl-md backdrop-blur-sm transition-all duration-300 v gap-1"
       :class="
         isLatest
           ? 'bg-primary/6 border border-primary/10'
-          : 'bg-white/80 border border-cyan-100/30'
+          : 'bg-white/80 border border-cyan-300/30'
       "
     >
       <Collapse v-model="isChatExpanded">
         <template #title>
-          <button
-            type="button"
-            class="cursor-pointer hover:opacity-80 duration-300 w-full px-3 pt-2 pb-1 flex items-start gap-2 text-left"
-            :aria-expanded="isChatExpanded"
-            @click="isChatExpanded = !isChatExpanded"
-          >
-            <div class="v gap-1 flex-1 min-w-0">
-              <!-- Agent Name + Status -->
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <h4 class="text-sm font-semibold text-gray-900 truncate">
-                  {{ agent?.name || `Agent #${agentTask.agentId}` }}
-                </h4>
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <!-- Status Icon -->
-                  <svg
-                    v-if="visualState === 'running'"
-                    class="w-4 h-4 animate-spin text-secondary"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
+          <div class="v gap-1 px-3 pt-2 pb-1">
+            <button
+              type="button"
+              class="cursor-pointer hover:opacity-80 duration-300 w-full flex items-start gap-2 text-left"
+              :aria-expanded="isChatExpanded"
+              @click="isChatExpanded = !isChatExpanded"
+            >
+              <div class="v gap-1 flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <h4 class="text-sm font-semibold text-gray-900 truncate">
+                    {{ agent?.name || `Agent #${agentTask.agentId}` }}
+                  </h4>
+                  <div class="flex items-center gap-4 shrink-0">
+                    <div class="h gap-2 items-center">
+                      <button
+                        v-if="isTaskActive"
+                        type="button"
+                        class="grid place-items-center text-amber-700 transition-opacity cursor-pointer hover:opacity-80"
+                        title="停止任务"
+                        aria-label="停止任务"
+                        @click.stop="stopTask"
+                      >
+                        <svg
+                          class="size-3.5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <rect x="7" y="7" width="10" height="10" rx="2" />
+                        </svg>
+                      </button>
+                      <button
+                        v-else-if="isTaskCancelled"
+                        type="button"
+                        class="grid place-items-center text-emerald-700 transition-opacity cursor-pointer hover:opacity-80"
+                        title="恢复任务"
+                        aria-label="恢复任务"
+                        @click.stop="resumeTask"
+                      >
+                        <svg
+                          class="size-3.5 translate-x-px"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path d="M8 6.5v11l9-5.5-9-5.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid place-items-center text-cyan-700 transition-opacity cursor-pointer hover:opacity-80"
+                        title="重新开始"
+                        aria-label="重新开始"
+                        @click.stop="restartTask"
+                      >
+                        <svg
+                          class="size-3.5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 12a9 9 0 1 0 3-6.708" />
+                          <path d="M3 4v5h5" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid place-items-center text-slate-600 transition-opacity cursor-pointer hover:opacity-80"
+                        title="添加 Comment"
+                        aria-label="添加 Comment"
+                        @click.stop="openCreateCommentDialog"
+                      >
+                        <svg
+                          class="size-3.5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 20h9" />
+                          <path
+                            d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <svg
+                      v-if="visualState === 'running'"
+                      class="w-4 h-4 animate-spin text-secondary"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      />
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    <svg
+                      v-else-if="visualState === 'success'"
+                      class="w-4 h-4 text-primary"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
                       stroke="currentColor"
-                      stroke-width="4"
+                      stroke-width="2.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <svg
+                      v-else-if="visualState === 'failed'"
+                      class="w-4 h-4 text-red-600"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <svg
+                      v-else
+                      class="w-4 h-4 text-gray-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    <TimeDisplay
+                      class="text-xs text-gray-500 whitespace-nowrap"
+                      :timestamp="agentTask.assignedAt"
                     />
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  <svg
-                    v-else-if="visualState === 'success'"
-                    class="w-4 h-4 text-primary"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <svg
-                    v-else-if="visualState === 'failed'"
-                    class="w-4 h-4 text-red-600"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <svg
-                    v-else
-                    class="w-4 h-4 text-gray-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
-                  <!-- Timestamp -->
-                  <TimeDisplay
-                    class="text-xs text-gray-500 whitespace-nowrap"
-                    :timestamp="agentTask.assignedAt"
-                  />
+                  </div>
+                </div>
+
+                <div
+                  class="text-sm leading-relaxed break-all mb-2"
+                  :class="statusTextClass"
+                >
+                  {{ summaryText }}
                 </div>
               </div>
 
-              <!-- Summary Text -->
-              <div
-                class="text-sm leading-relaxed break-all mb-2"
-                :class="statusTextClass"
+              <svg
+                class="w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 mt-1"
+                :class="isChatExpanded ? 'rotate-90' : ''"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
               >
-                {{ summaryText }}
-              </div>
-            </div>
-
-            <svg
-              class="w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 mt-1"
-              :class="isChatExpanded ? 'rotate-90' : ''"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M7.22 4.22a.75.75 0 011.06 0l5.25 5.25a.75.75 0 010 1.06l-5.25 5.25a.75.75 0 11-1.06-1.06L11.94 10 7.22 5.28a.75.75 0 010-1.06z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </button>
+                <path
+                  fill-rule="evenodd"
+                  d="M7.22 4.22a.75.75 0 011.06 0l5.25 5.25a.75.75 0 010 1.06l-5.25 5.25a.75.75 0 11-1.06-1.06L11.94 10 7.22 5.28a.75.75 0 010-1.06z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+            <AgentTaskComments
+              ref="commentsRef"
+              :agent-task-id="agentTask.id"
+            />
+          </div>
         </template>
 
         <ChatHistoryContainer
@@ -156,11 +242,14 @@
 </template>
 
 <script setup lang="ts">
+import { api, type AgentResponse, type AgentTaskResponse } from "@/api";
+import AgentTaskComments from "@/components/AgentTaskComments.vue";
 import { computed, ref, watch } from "vue";
-import type { AgentResponse, AgentTaskResponse } from "@/api";
 import ChatHistoryContainer from "@/components/ChatHistoryContainer.vue";
 import Collapse from "@/components/Collapse.vue";
+import { notify } from "@/components/notification";
 import TimeDisplay from "@/components/TimeDisplay.vue";
+import { dialogs } from "virtual:dialogs";
 
 const props = defineProps<{
   agentTask: AgentTaskResponse;
@@ -171,6 +260,7 @@ const props = defineProps<{
 
 const isChatExpanded = ref(Boolean(props.isLatest));
 const hasLoadedChatHistories = ref(Boolean(props.isLatest));
+const commentsRef = ref<InstanceType<typeof AgentTaskComments> | null>(null);
 
 watch(isChatExpanded, (expanded) => {
   if (expanded) {
@@ -215,6 +305,14 @@ function getVisualState(agentTask: AgentTaskResponse): string {
 
 const visualState = computed(() => getVisualState(props.agentTask));
 
+const isTaskActive = computed(
+  () => (props.agentTask.state ?? "").toUpperCase() === "ACTIVE",
+);
+
+const isTaskCancelled = computed(
+  () => (props.agentTask.state ?? "").toUpperCase() === "CANCELLED",
+);
+
 const summaryText = computed(() => {
   const state = getVisualState(props.agentTask);
   if (state === "running") return "进行中...";
@@ -235,6 +333,67 @@ const statusTextClass = computed(() => {
     return "text-secondary text-xs";
   }
   return "text-xs";
+});
+
+async function stopTask() {
+  try {
+    await api.agentTask.postAgentTaskByIdStop(props.agentTask.id);
+    notify.success("任务已停止");
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : "停止任务失败");
+  }
+}
+
+async function resumeTask() {
+  const result = await dialogs.TextPromptDialog({
+    title: "恢复任务",
+    description: "可以补充说明，也可以留空直接恢复。",
+    placeholder: "输入额外信息（可选）",
+    confirmText: "恢 复",
+    required: false,
+    rows: 4,
+  });
+  if (result.type !== "resolve") {
+    return;
+  }
+
+  try {
+    await api.agentTask.postAgentTaskByIdRetryContinue(props.agentTask.id, {
+      message: result.value || undefined,
+    });
+    notify.success("任务已恢复");
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : "恢复任务失败");
+  }
+}
+
+async function restartTask() {
+  dialogs
+    .ConfirmDialog({
+      title: "重新开始",
+      content:
+        "重新开始会删除该对话后的所有内容，再从当前 AgentTask 重新开始，是否继续？",
+      confirmText: "重 新 开 始",
+      confirmType: "danger",
+    })
+    .resolve(async () => {
+      try {
+        await api.agentTask.postAgentTaskByIdRetry(props.agentTask.id);
+        notify.success("已重新开始任务");
+      } catch (error) {
+        notify.error(error instanceof Error ? error.message : "重新开始失败");
+      }
+    });
+}
+
+function openCreateCommentDialog() {
+  return commentsRef.value?.openCreateDialog();
+}
+
+defineExpose({
+  openCreateCommentDialog() {
+    return openCreateCommentDialog();
+  },
 });
 </script>
 

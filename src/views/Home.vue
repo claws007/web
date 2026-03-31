@@ -168,6 +168,7 @@ import {
   requestRealtimeSubscription,
 } from "@/services/events-realtime";
 import { useUserStore } from "@/store/user";
+import { notify } from "@/components/notification";
 
 const userStore = useUserStore();
 
@@ -447,10 +448,7 @@ async function handleAssignTask(task: TaskResponse) {
     } as any);
     selectedTaskId.value = task.id;
     await fetchTasks();
-    dialogs.MessageDialog({
-      type: "success",
-      content: `Task #${task.id} 已分配给 Agent #${agentId}`,
-    });
+    notify.success(`Task #${task.id} 已分配给 Agent #${agentId}`);
   } catch (err) {
     dialogs.MessageDialog({
       type: "error",

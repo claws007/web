@@ -303,6 +303,18 @@ export interface AgentTaskResponse {
   agent?: AgentResponse;
 }
 
+export interface AgentTaskCommentResponse {
+  id: number;
+  agentTaskId: number;
+  userId: number;
+  content: string;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+  user?: SafeUserResponse;
+}
+
 export interface ChatHistoryResponse {
   id: number;
   role: "SYSTEM" | "USER" | "ASSISTANT";
@@ -372,6 +384,18 @@ export interface AgentPageResponse {
 
 export interface AgentTaskPageResponse {
   items: AgentTaskResponse[];
+  /** @min 1 */
+  page: number;
+  /** @min 1 */
+  pageSize: number;
+  /** @min 0 */
+  total: number;
+  /** @min 0 */
+  totalPages: number;
+}
+
+export interface AgentTaskCommentPageResponse {
+  items: AgentTaskCommentResponse[];
   /** @min 1 */
   page: number;
   /** @min 1 */
@@ -2523,6 +2547,116 @@ export class Api<
       >({
         path: `/company/${companyId}/agent-task/${id}/stop`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Returns paginated comments for an agent task. Pagination: - `page` defaults to 1. - `pageSize` defaults to 20. - Results are ordered by `createdAt` descending.
+     *
+     * @tags Agent Task
+     * @name GetCompanyByCompanyIdAgentTaskByIdComments
+     * @summary List comments for an agent task
+     * @request GET:/company/{companyId}/agent-task/{id}/comments
+     */
+    getCompanyByCompanyIdAgentTaskByIdComments: (
+      companyId: number,
+      id: number,
+      query?: {
+        /**
+         * 1-based page number.
+         * @min 1
+         * @default 1
+         */
+        page?: number;
+        /**
+         * Number of comments returned per page.
+         * @min 1
+         * @default 20
+         */
+        pageSize?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentTaskCommentPageResponse, ErrorResponse>({
+        path: `/company/${companyId}/agent-task/${id}/comments`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Creates a comment for the target agent task. Body fields: - `content` is required.
+     *
+     * @tags Agent Task
+     * @name PostCompanyByCompanyIdAgentTaskByIdComments
+     * @summary Create an agent task comment
+     * @request POST:/company/{companyId}/agent-task/{id}/comments
+     */
+    postCompanyByCompanyIdAgentTaskByIdComments: (
+      companyId: number,
+      id: number,
+      data: {
+        /** @minLength 1 */
+        content: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        AgentTaskCommentResponse,
+        ValidationErrorResponse | ErrorResponse
+      >({
+        path: `/company/${companyId}/agent-task/${id}/comments`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Task
+     * @name PutCompanyByCompanyIdAgentTaskCommentsByCommentId
+     * @summary Update an agent task comment
+     * @request PUT:/company/{companyId}/agent-task/comments/{commentId}
+     */
+    putCompanyByCompanyIdAgentTaskCommentsByCommentId: (
+      companyId: number,
+      commentId: number,
+      data: {
+        /** @minLength 1 */
+        content: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentTaskCommentResponse, ErrorResponse>({
+        path: `/company/${companyId}/agent-task/comments/${commentId}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Agent Task
+     * @name DeleteCompanyByCompanyIdAgentTaskCommentsByCommentId
+     * @summary Delete an agent task comment
+     * @request DELETE:/company/{companyId}/agent-task/comments/{commentId}
+     */
+    deleteCompanyByCompanyIdAgentTaskCommentsByCommentId: (
+      companyId: number,
+      commentId: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SuccessResponse, ErrorResponse>({
+        path: `/company/${companyId}/agent-task/comments/${commentId}`,
+        method: "DELETE",
         format: "json",
         ...params,
       }),

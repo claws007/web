@@ -8,6 +8,8 @@ import {
   type AgentSkillRelationPageResponse,
   type AgentSkillRelationResponse,
   type AIModelConnectorPageResponse,
+  type AgentTaskCommentPageResponse,
+  type AgentTaskCommentResponse,
   type AgentTaskPageResponse,
   type AgentTaskResponse,
   type AIModelConnectorResponse,
@@ -390,6 +392,29 @@ type EnhancedApi = Api<string> & {
     ): Promise<HttpResponse<unknown, unknown>>;
     postAgentTaskByIdStop(
       id: number,
+      params?: RequestParams,
+    ): Promise<HttpResponse<unknown, unknown>>;
+    getAgentTaskByIdComments(
+      id: number,
+      query?: { page?: number; pageSize?: number },
+      params?: RequestParams,
+    ): Promise<HttpResponse<AgentTaskCommentPageResponse, unknown>>;
+    postAgentTaskByIdComments(
+      id: number,
+      data: Parameters<
+        Api<string>["company"]["postCompanyByCompanyIdAgentTaskByIdComments"]
+      >[2],
+      params?: RequestParams,
+    ): Promise<HttpResponse<AgentTaskCommentResponse, unknown>>;
+    putAgentTaskCommentByCommentId(
+      commentId: number,
+      data: Parameters<
+        Api<string>["company"]["putCompanyByCompanyIdAgentTaskCommentsByCommentId"]
+      >[2],
+      params?: RequestParams,
+    ): Promise<HttpResponse<AgentTaskCommentResponse, unknown>>;
+    deleteAgentTaskCommentByCommentId(
+      commentId: number,
       params?: RequestParams,
     ): Promise<HttpResponse<unknown, unknown>>;
   };
@@ -968,6 +993,60 @@ export const api = Object.assign(rawApi, {
         rawApi.company.postCompanyByCompanyIdAgentTaskByIdStop(
           companyId,
           id,
+          params,
+        ),
+    ),
+    getAgentTaskByIdComments: withCompanyScope(
+      (
+        companyId,
+        id: number,
+        query?: { page?: number; pageSize?: number },
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.getCompanyByCompanyIdAgentTaskByIdComments(
+          companyId,
+          id,
+          query,
+          params,
+        ),
+    ),
+    postAgentTaskByIdComments: withCompanyScope(
+      (
+        companyId,
+        id: number,
+        data: Parameters<
+          Api<string>["company"]["postCompanyByCompanyIdAgentTaskByIdComments"]
+        >[2],
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.postCompanyByCompanyIdAgentTaskByIdComments(
+          companyId,
+          id,
+          data,
+          params,
+        ),
+    ),
+    putAgentTaskCommentByCommentId: withCompanyScope(
+      (
+        companyId,
+        commentId: number,
+        data: Parameters<
+          Api<string>["company"]["putCompanyByCompanyIdAgentTaskCommentsByCommentId"]
+        >[2],
+        params: RequestParams = {},
+      ) =>
+        rawApi.company.putCompanyByCompanyIdAgentTaskCommentsByCommentId(
+          companyId,
+          commentId,
+          data,
+          params,
+        ),
+    ),
+    deleteAgentTaskCommentByCommentId: withCompanyScope(
+      (companyId, commentId: number, params: RequestParams = {}) =>
+        rawApi.company.deleteCompanyByCompanyIdAgentTaskCommentsByCommentId(
+          companyId,
+          commentId,
           params,
         ),
     ),

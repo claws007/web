@@ -144,7 +144,7 @@ onUnmounted(() => {
 
     <template #default>
       <div
-        class="flex min-w-48 flex-col gap-1 p-1"
+        class="flex min-w-48 flex-col gap-1"
         role="menu"
         @mouseenter="openMenu"
         @mouseleave="scheduleClose"
@@ -153,7 +153,7 @@ onUnmounted(() => {
           v-for="menu in menus"
           :key="menu.key"
           type="button"
-          class="flex cursor-pointer items-start rounded-xl border-0 bg-transparent px-3 py-2.5 text-left text-sm text-foreground transition-colors duration-200 hover:bg-[rgb(255_255_255/0.28)]"
+          class="flex cursor-pointer items-start rounded-md border-0 bg-transparent px-3 py-2.5 text-left text-sm text-foreground transition-colors duration-200 hover:bg-[rgb(255_255_255/0.4)] hover:shadow"
           :class="{
             'cursor-not-allowed opacity-45 hover:bg-transparent': menu.disabled,
           }"
@@ -162,10 +162,7 @@ onUnmounted(() => {
         >
           <span class="flex flex-col gap-0.5">
             <span>{{ menu.label }}</span>
-            <span
-              v-if="menu.description"
-              class="text-xs text-foreground-muted"
-            >
+            <span v-if="menu.description" class="text-xs text-foreground-muted">
               {{ menu.description }}
             </span>
           </span>
