@@ -52,6 +52,8 @@ export function useDraggableSnapOverlay(
 
   let dragOffsetX = 0;
   let dragOffsetY = 0;
+  let prevBodyUserSelect = "";
+  let prevBodyCursor = "";
 
   const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(max, value));
@@ -105,7 +107,7 @@ export function useDraggableSnapOverlay(
     ];
 
     const best = candidates.reduce((current, candidate) =>
-      current.dist < candidate.dist ? current : candidate
+      current.dist < candidate.dist ? current : candidate,
     );
 
     state.snapEdge = best.edge;
@@ -141,6 +143,7 @@ export function useDraggableSnapOverlay(
   };
 
   const onDrag = (event: MouseEvent) => {
+    event.preventDefault();
     state.pos = {
       x: event.clientX - dragOffsetX,
       y: event.clientY - dragOffsetY,
@@ -148,19 +151,34 @@ export function useDraggableSnapOverlay(
   };
 
   const endDrag = () => {
+    const body = document.body;
+
     isDragging.value = false;
     window.removeEventListener("mousemove", onDrag);
     window.removeEventListener("mouseup", endDrag);
+
+    body.style.userSelect = prevBodyUserSelect;
+    body.style.cursor = prevBodyCursor;
+
     snapToNearestEdge();
   };
 
   const startDrag = (event: MouseEvent) => {
     if (event.button !== 0) return;
 
+    const body = document.body;
+
     event.preventDefault();
+    window.getSelection()?.removeAllRanges();
+
     isDragging.value = true;
     dragOffsetX = event.clientX - state.pos.x;
     dragOffsetY = event.clientY - state.pos.y;
+
+    prevBodyUserSelect = body.style.userSelect;
+    prevBodyCursor = body.style.cursor;
+    body.style.userSelect = "none";
+    body.style.cursor = "grabbing";
 
     window.addEventListener("mousemove", onDrag);
     window.addEventListener("mouseup", endDrag, { once: true });

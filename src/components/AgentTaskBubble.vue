@@ -21,127 +21,146 @@
     </div>
 
     <!-- Bubble Content -->
-    <div class="flex-1 min-w-0">
-      <div
-        class="rounded-md pt-2 [&>div]:px-3 rounded-tl-md shadow backdrop-blur-sm transition-all duration-300 v gap-1"
-        :class="
-          isLatest
-            ? 'bg-primary/6 border border-primary/10'
-            : 'bg-white/80 border border-cyan-100/30'
-        "
-      >
-        <!-- Agent Name + Status -->
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <h4 class="text-sm font-semibold text-gray-900 truncate">
-            {{ agent?.name || `Agent #${agentTask.agentId}` }}
-          </h4>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <!-- Status Icon -->
-            <svg
-              v-if="visualState === 'running'"
-              class="w-4 h-4 animate-spin text-secondary"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            <svg
-              v-else-if="visualState === 'success'"
-              class="w-4 h-4 text-primary"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <svg
-              v-else-if="visualState === 'failed'"
-              class="w-4 h-4 text-red-600"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <svg
-              v-else
-              class="w-4 h-4 text-gray-400"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-            </svg>
-            <!-- Timestamp -->
-            <TimeDisplay
-              class="text-xs text-gray-500 whitespace-nowrap"
-              :timestamp="agentTask.assignedAt"
-            />
-          </div>
-        </div>
-
-        <!-- Summary Text -->
-        <div
-          class="text-sm leading-relaxed break-all mb-2"
-          :class="statusTextClass"
-        >
-          {{ summaryText }}
-        </div>
-        <!-- Chat Histories for Latest Task -->
-        <ChatHistoryContainer
-          v-if="isLatest && showChatHistories"
-          :agent-task-id="agentTask.id"
-          class="max-h-132 py-3 bg-primary/5"
-        />
-        <!-- :max-items="10" -->
-        <!-- placeholder -->
-        <div v-else class="pb-2">
-          <Button size="small" @click="openTaskChatHistoryDialog"
-            >查看详情</Button
+    <div
+      class="stretch rounded-md rounded-tl-md shadow backdrop-blur-sm transition-all duration-300 v gap-1"
+      :class="
+        isLatest
+          ? 'bg-primary/6 border border-primary/10'
+          : 'bg-white/80 border border-cyan-100/30'
+      "
+    >
+      <Collapse v-model="isChatExpanded">
+        <template #title>
+          <button
+            type="button"
+            class="cursor-pointer hover:opacity-80 duration-300 w-full px-3 pt-2 pb-1 flex items-start gap-2 text-left"
+            :aria-expanded="isChatExpanded"
+            @click="isChatExpanded = !isChatExpanded"
           >
-        </div>
-      </div>
+            <div class="v gap-1 flex-1 min-w-0">
+              <!-- Agent Name + Status -->
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <h4 class="text-sm font-semibold text-gray-900 truncate">
+                  {{ agent?.name || `Agent #${agentTask.agentId}` }}
+                </h4>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <!-- Status Icon -->
+                  <svg
+                    v-if="visualState === 'running'"
+                    class="w-4 h-4 animate-spin text-secondary"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    />
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <svg
+                    v-else-if="visualState === 'success'"
+                    class="w-4 h-4 text-primary"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <svg
+                    v-else-if="visualState === 'failed'"
+                    class="w-4 h-4 text-red-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <svg
+                    v-else
+                    class="w-4 h-4 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
+                  <!-- Timestamp -->
+                  <TimeDisplay
+                    class="text-xs text-gray-500 whitespace-nowrap"
+                    :timestamp="agentTask.assignedAt"
+                  />
+                </div>
+              </div>
+
+              <!-- Summary Text -->
+              <div
+                class="text-sm leading-relaxed break-all mb-2"
+                :class="statusTextClass"
+              >
+                {{ summaryText }}
+              </div>
+            </div>
+
+            <svg
+              class="w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 mt-1"
+              :class="isChatExpanded ? 'rotate-90' : ''"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M7.22 4.22a.75.75 0 011.06 0l5.25 5.25a.75.75 0 010 1.06l-5.25 5.25a.75.75 0 11-1.06-1.06L11.94 10 7.22 5.28a.75.75 0 010-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </template>
+
+        <ChatHistoryContainer
+          v-if="hasLoadedChatHistories"
+          :agent-task-id="agentTask.id"
+          class="py-3 bg-primary/5 px-3"
+        />
+      </Collapse>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { AgentResponse, AgentTaskResponse } from "@/api";
 import ChatHistoryContainer from "@/components/ChatHistoryContainer.vue";
+import Collapse from "@/components/Collapse.vue";
 import TimeDisplay from "@/components/TimeDisplay.vue";
-import { dialogs } from "virtual:dialogs";
 
 const props = defineProps<{
   agentTask: AgentTaskResponse;
@@ -150,11 +169,24 @@ const props = defineProps<{
   showChatHistories?: boolean;
 }>();
 
-function openTaskChatHistoryDialog() {
-  void dialogs.AgentTaskChatHistoryDialog({
-    agentTaskId: props.agentTask.id,
-  });
-}
+const isChatExpanded = ref(Boolean(props.isLatest));
+const hasLoadedChatHistories = ref(Boolean(props.isLatest));
+
+watch(isChatExpanded, (expanded) => {
+  if (expanded) {
+    hasLoadedChatHistories.value = true;
+  }
+});
+
+watch(
+  () => props.isLatest,
+  (latest) => {
+    if (latest) {
+      isChatExpanded.value = true;
+      hasLoadedChatHistories.value = true;
+    }
+  },
+);
 
 function getTaskStateText(state: string): string {
   const normalized = state.toUpperCase();

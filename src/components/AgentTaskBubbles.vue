@@ -38,32 +38,45 @@
     </div>
 
     <!-- Agent Tasks List -->
-    <div class="flex-1 v items-start gap-4">
-      <template v-if="!sortedAgentTasks || sortedAgentTasks.length === 0">
-        <div
-          class="flex items-center justify-center h-full text-sm text-gray-500"
-        >
-          暂无 Agent 执行结果
-        </div>
-      </template>
-      <template v-else>
-        <AgentTaskBubble
-          v-for="(agentTask, idx) in sortedAgentTasks"
-          :key="agentTask.id"
-          :agent-task="agentTask"
-          :agent="getAgentForTask(agentTask)"
-          :is-latest="idx === 0"
-          :show-chat-histories="idx === 0"
-        />
-      </template>
-    </div>
+    <AutoStickBottom class="flex-1 pr-4" :reset-key="props.task.id">
+      <div class="v items-start gap-6">
+        <template v-if="!sortedAgentTasks || sortedAgentTasks.length === 0">
+          <div
+            class="flex items-center justify-center h-full text-sm text-gray-500"
+          >
+            暂无 Agent 执行结果
+          </div>
+        </template>
+        <template v-else>
+          <AgentTaskBubble
+            v-for="(agentTask, idx) in sortedAgentTasks"
+            :key="agentTask.id"
+            :agent-task="agentTask"
+            :agent="getAgentForTask(agentTask)"
+            :is-latest="idx === sortedAgentTasks.length - 1"
+            :show-chat-histories="idx === sortedAgentTasks.length - 1"
+          />
+        </template>
+      </div>
+    </AutoStickBottom>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { readStoredActiveCompanyId } from "@/api";
 import type { AgentResponse, AgentTaskResponse, TaskResponse } from "@/api";
+import type {
+  EntityChangePayload,
+  AgentTaskEntityRecord,
+} from "@/api/generated-ws";
+import AutoStickBottom from "@/components/AutoStickBottom.vue";
 import AgentTaskBubble from "@/components/AgentTaskBubble.vue";
+import {
+  registerEntityChangeHandler,
+  requestRealtimeSubscription,
+} from "@/services/events-realtime";
+import { useUserStore } from "@/store/user";
 
 const props = defineProps<{
   task: TaskResponse;
@@ -74,6 +87,109 @@ const emit = defineEmits<{
   close: [];
 }>();
 
+const userStore = useUserStore();
+const localAgentTasks = ref<AgentTaskResponse[]>([
+  ...(props.task.agentTasks ?? []),
+]);
+
+watch(
+  () => props.task,
+  (next) => {
+    localAgentTasks.value = [...(next.agentTasks ?? [])];
+  },
+  { deep: true },
+);
+
+let unsubscribeEntityChange: (() => void) | null = null;
+let releaseSubscriptionDemand: (() => void) | null = null;
+
+function toAgentTaskResponse(
+  record: AgentTaskEntityRecord,
+  existing?: AgentTaskResponse,
+): AgentTaskResponse {
+  return {
+    id: record.id,
+    agentId: record.agentId,
+    content: record.content,
+    ac: (record.ac as string | null) ?? existing?.ac ?? null,
+    state: record.state,
+    queueOrder: record.queueOrder,
+    assignedAt: record.assignedAt,
+    startedAt:
+      (record.startedAt as string | null) ?? existing?.startedAt ?? null,
+    finishedAt:
+      (record.finishedAt as string | null) ?? existing?.finishedAt ?? null,
+    updatedAt: record.updatedAt,
+  };
+}
+
+function handleEntityChange(payload: EntityChangePayload) {
+  if (payload.entity !== "agent_task") {
+    return;
+  }
+
+  if (payload.operation === "delete") {
+    const deletedId = Number(
+      (payload.record as { id?: unknown }).id ?? payload.entityId,
+    );
+    if (!Number.isFinite(deletedId) || deletedId <= 0) {
+      return;
+    }
+    const idx = localAgentTasks.value.findIndex(
+      (agentTask) => agentTask.id === deletedId,
+    );
+    if (idx !== -1) {
+      localAgentTasks.value.splice(idx, 1);
+    }
+    return;
+  }
+
+  const record = payload.record as AgentTaskEntityRecord;
+  if (record.taskId !== props.task.id) {
+    return;
+  }
+
+  const idx = localAgentTasks.value.findIndex(
+    (agentTask) => agentTask.id === record.id,
+  );
+  if (idx === -1) {
+    localAgentTasks.value.push(toAgentTaskResponse(record));
+    return;
+  }
+
+  const existing = localAgentTasks.value[idx];
+  localAgentTasks.value[idx] = toAgentTaskResponse(record, existing);
+}
+
+function startRealtime() {
+  const token = userStore.token?.trim() || null;
+  const companyId = readStoredActiveCompanyId();
+  if (!token || !companyId) {
+    return;
+  }
+
+  releaseSubscriptionDemand ??= requestRealtimeSubscription({
+    token,
+    companyId,
+    events: ["entity_change"],
+    entities: ["agent_task"],
+  });
+
+  unsubscribeEntityChange ??= registerEntityChangeHandler(handleEntityChange, {
+    entities: ["agent_task"],
+  });
+}
+
+function stopRealtime() {
+  unsubscribeEntityChange?.();
+  unsubscribeEntityChange = null;
+  releaseSubscriptionDemand?.();
+  releaseSubscriptionDemand = null;
+}
+
+onMounted(startRealtime);
+onBeforeUnmount(stopRealtime);
+
 function getAgentForTask(
   agentTask: AgentTaskResponse,
 ): AgentResponse | undefined {
@@ -81,7 +197,7 @@ function getAgentForTask(
 }
 
 const sortedAgentTasks = computed(() => {
-  return [...(props.task.agentTasks ?? [])].sort((a, b) => b.id - a.id);
+  return [...localAgentTasks.value].sort((a, b) => a.id - b.id);
 });
 </script>
 

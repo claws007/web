@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from "vue";
+import { computed, ref, type PropType } from "vue";
 
-interface Props {
-  modelValue?: boolean;
-  defaultExpanded?: boolean;
-  title?: string;
-  disabled?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  defaultExpanded: false,
-  title: "",
-  disabled: false,
+const props = defineProps({
+  modelValue: {
+    type: Boolean as PropType<boolean | undefined>,
+    default: undefined,
+  },
+  defaultExpanded: {
+    type: Boolean,
+    default: false,
+  },
+  title: {
+    type: String,
+    default: "",
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits<{
@@ -19,7 +25,6 @@ const emit = defineEmits<{
   toggle: [value: boolean];
 }>();
 
-const slots = useSlots();
 const uncontrolledExpanded = ref(props.defaultExpanded);
 const contentId = `collapse-content-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -44,134 +49,44 @@ function toggle() {
 
   isExpanded.value = !isExpanded.value;
 }
-
-function onEnter(el: Element) {
-  const node = el as HTMLElement;
-  node.style.height = "0px";
-  node.style.opacity = "0";
-  node.style.overflow = "hidden";
-
-  requestAnimationFrame(() => {
-    node.style.height = `${node.scrollHeight}px`;
-    node.style.opacity = "1";
-  });
-}
-
-function onAfterEnter(el: Element) {
-  const node = el as HTMLElement;
-  node.style.height = "auto";
-  node.style.overflow = "visible";
-}
-
-function onBeforeLeave(el: Element) {
-  const node = el as HTMLElement;
-  node.style.height = `${node.scrollHeight}px`;
-  node.style.opacity = "1";
-  node.style.overflow = "hidden";
-}
-
-function onLeave(el: Element) {
-  const node = el as HTMLElement;
-  void node.offsetHeight;
-  node.style.height = "0px";
-  node.style.opacity = "0";
-}
-
-function onAfterLeave(el: Element) {
-  const node = el as HTMLElement;
-  node.style.height = "";
-  node.style.opacity = "";
-  node.style.overflow = "";
-}
 </script>
 
 <template>
-  <section class="collapse" :class="{ 'collapse--disabled': disabled }">
-    <button
-      type="button"
-      class="collapse-trigger"
-      :disabled="disabled"
-      :aria-expanded="isExpanded"
-      :aria-controls="contentId"
-      @click="toggle"
-    >
-      <span class="collapse-title">
-        <slot name="title">
-          {{ title || "详情" }}
-        </slot>
-      </span>
-      <span class="collapse-icon" :class="{ 'is-expanded': isExpanded }">
-        ▾
-      </span>
-    </button>
+  <section :class="{ 'opacity-65': disabled }">
+    <slot name="title">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-4 rounded-[0.9rem] border-0 bg-transparent px-4 py-[0.8rem] text-inherit transition-colors duration-200 ease-crystal hover:bg-black/3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--primary)_28%,white)] disabled:cursor-not-allowed"
+        :disabled="disabled"
+        :aria-expanded="isExpanded"
+        :aria-controls="contentId"
+        @click="toggle"
+      >
+        {{ title || "详情" }}
+        <span
+          class="shrink-0 text-[0.95rem] transition-transform duration-200 ease-crystal"
+          :class="{ 'rotate-180': isExpanded }"
+        >
+          ▾
+        </span>
+      </button>
+    </slot>
 
-    <Transition
-      name="collapse-content"
-      @enter="onEnter"
-      @after-enter="onAfterEnter"
-      @before-leave="onBeforeLeave"
-      @leave="onLeave"
-      @after-leave="onAfterLeave"
+    <div
+      :id="contentId"
+      class="grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+      :class="
+        isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+      "
     >
-      <div v-if="isExpanded" :id="contentId" class="collapse-content">
-        <slot v-if="slots.default" />
+      <div
+        class="min-h-0 overflow-hidden"
+        :class="{ 'pointer-events-none': !isExpanded }"
+      >
+        <div class="border-t border-t-[rgb(90_102_109/0.16)]">
+          <slot />
+        </div>
       </div>
-    </Transition>
+    </div>
   </section>
 </template>
-
-<style scoped>
-.collapse {
-  border: 1px solid rgb(90 102 109 / 0.22);
-  border-radius: 0.9rem;
-  background: rgb(255 255 255 / 0.82);
-  box-shadow: 0 10px 24px rgb(0 104 119 / 0.08);
-}
-
-.collapse--disabled {
-  opacity: 0.65;
-}
-
-.collapse-trigger {
-  width: 100%;
-  border: 0;
-  border-radius: 0.9rem;
-  background: transparent;
-  padding: 0.8rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.collapse-trigger:disabled {
-  cursor: not-allowed;
-}
-
-.collapse-title {
-  text-align: left;
-}
-
-.collapse-icon {
-  transition: transform 0.2s ease;
-}
-
-.collapse-icon.is-expanded {
-  transform: rotate(180deg);
-}
-
-.collapse-content {
-  border-top: 1px solid rgb(90 102 109 / 0.16);
-  padding: 0.85rem 1rem 1rem;
-}
-
-:global(.collapse-content-enter-active),
-:global(.collapse-content-leave-active) {
-  transition:
-    height 0.22s ease,
-    opacity 0.22s ease;
-}
-</style>

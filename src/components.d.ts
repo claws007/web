@@ -17,6 +17,7 @@ declare module 'vue' {
     AgentTaskChatHistoryDialog: typeof import('./components/dialog/AgentTaskChatHistoryDialog.vue')['default']
     AgentTaskResult: typeof import('./components/notification/unit/AgentTaskResult.vue')['default']
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
+    AutoStickBottom: typeof import('./components/AutoStickBottom.vue')['default']
     Button: typeof import('./components/dialog/Button.vue')['default']
     ChatHistoryContainer: typeof import('./components/ChatHistoryContainer.vue')['default']
     ChatHistoryDisplay: typeof import('./components/ChatHistoryDisplay.vue')['default']

@@ -82,7 +82,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-[1.5] min-w-0 v gap-5">
+    <section class="h-full flex-[1.5] min-w-0 v gap-3">
       <Textarea
         v-model="newTaskContent"
         placeholder="创建任务"
@@ -94,8 +94,6 @@
       >
         {{ taskError }}
       </div>
-
-      <Tabs v-model="activeTaskTab" :items="taskTabs" />
 
       <div
         v-if="taskLoading"
@@ -113,7 +111,7 @@
 
       <div v-else class="v gap-5 stretch overflow-y-auto">
         <Task
-          v-for="task in tasks"
+          v-for="task in sortedTasks"
           :key="task.id"
           :task="task"
           :is-editing="editingTaskId === task.id"
@@ -121,6 +119,10 @@
           :saving="taskSaving"
           :selected="selectedTaskId === task.id"
           class="cursor-pointer"
+          :class="{
+            'opacity-70':
+              isTaskCompleted(task.id) && selectedTaskId !== task.id,
+          }"
           @click="handleTaskClick(task)"
           @edit="startEditTask"
           @delete="handleDeleteTask"
@@ -133,11 +135,9 @@
         />
       </div>
     </section>
-    <div
-      v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
-      class="flex-5 shrink flex flex-col min-w-0"
-    >
+    <div class="flex-5 shrink flex flex-col min-w-0">
       <AgentTaskBubbles
+        v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
         :task="tasks.find((t) => t.id === selectedTaskId)!"
         :all-agents="agents"
         @close="selectedTaskId = null"
@@ -147,18 +147,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
   api,
   readStoredActiveCompanyId,
   type AgentResponse,
   type TaskResponse,
 } from "@/api";
+import type {
+  AgentTaskEntityRecord,
+  EntityChangePayload,
+  TaskEntityRecord,
+} from "@/api/generated-ws";
 import AgentCard from "@/components/AgentCard.vue";
 import Task from "@/components/Task.vue";
 import AgentTaskBubbles from "@/components/AgentTaskBubbles.vue";
-import Tabs from "@/components/Tabs.vue";
 import { dialogs } from "virtual:dialogs";
+import {
+  registerEntityChangeHandler,
+  requestRealtimeSubscription,
+} from "@/services/events-realtime";
+import { useUserStore } from "@/store/user";
+
+const userStore = useUserStore();
 
 const agents = ref<AgentResponse[]>([]);
 const loading = ref(false);
@@ -169,19 +180,43 @@ const taskSaving = ref(false);
 const taskError = ref<string | null>(null);
 const tasks = ref<TaskResponse[]>([]);
 
-type TaskTabValue = "incompleteOrFailed" | "completed";
-const activeTaskTab = ref<TaskTabValue>("incompleteOrFailed");
-const taskTabs = computed(() => [
-  { id: "incompleteOrFailed", label: "未完成" },
-  { id: "completed", label: "已完成" },
-]);
+type TaskChainStatus = "completed" | "incompleteOrFailed";
+const finishedStates = new Set(["FINISHED", "CANCELLED", "TRANSFERRED"]);
+
+function getTaskChainStatus(task: TaskResponse): TaskChainStatus {
+  const agentTasks = task.agentTasks ?? [];
+  const allDone =
+    agentTasks.length > 0 &&
+    agentTasks.every((at) =>
+      finishedStates.has((at.state ?? "").toUpperCase()),
+    );
+  return allDone ? "completed" : "incompleteOrFailed";
+}
+
+const taskChainStatusMap = ref<Map<number, TaskChainStatus>>(new Map());
+
+const sortedTasks = computed(() =>
+  [...tasks.value].sort((a, b) => {
+    const sa = taskChainStatusMap.value.get(a.id) ?? "incompleteOrFailed";
+    const sb = taskChainStatusMap.value.get(b.id) ?? "incompleteOrFailed";
+    if (sa === "incompleteOrFailed" && sb === "completed") return -1;
+    if (sa === "completed" && sb === "incompleteOrFailed") return 1;
+    return b.id - a.id;
+  }),
+);
+
+function isTaskCompleted(taskId: number): boolean {
+  return (
+    (taskChainStatusMap.value.get(taskId) ?? "incompleteOrFailed") ===
+    "completed"
+  );
+}
 
 const newTaskContent = ref("");
 
 const editingTaskId = ref<number | null>(null);
 const editTaskContent = ref("");
 const selectedTaskId = ref<number | null>(null);
-type TaskChainStatus = "completed" | "incompleteOrFailed";
 
 async function fetchAgents() {
   loading.value = true;
@@ -210,13 +245,12 @@ async function fetchTasks() {
   taskError.value = null;
   try {
     const res = await api.company.getCompanyByCompanyIdTask(companyId, {
-      query: {
-        page: 1,
-        pageSize: 30,
-        agentTaskChainStatus: activeTaskTab.value,
-      },
+      query: { page: 1, pageSize: 30 },
     } as any);
-    tasks.value = (res.data.items ?? []).sort((a, b) => b.id - a.id);
+    tasks.value = res.data.items ?? [];
+    taskChainStatusMap.value = new Map(
+      tasks.value.map((t) => [t.id, getTaskChainStatus(t)]),
+    );
   } catch (e) {
     taskError.value = e instanceof Error ? e.message : "获取 Task 列表失败";
   } finally {
@@ -411,6 +445,7 @@ async function handleAssignTask(task: TaskResponse) {
       taskId: task.id,
       content: task.content,
     } as any);
+    selectedTaskId.value = task.id;
     await fetchTasks();
     dialogs.MessageDialog({
       type: "success",
@@ -477,14 +512,163 @@ function handleTaskRealtimeAgentTaskState(payload: {
   taskId: number;
   taskChainStatus: TaskChainStatus;
 }) {
-  if (payload.taskChainStatus !== activeTaskTab.value) {
-    tasks.value = tasks.value.filter((t) => t.id !== payload.taskId);
+  taskChainStatusMap.value = new Map(
+    taskChainStatusMap.value.set(payload.taskId, payload.taskChainStatus),
+  );
+}
+
+// ---------- Realtime ----------
+
+function handleEntityChange(payload: EntityChangePayload) {
+  const companyId = readStoredActiveCompanyId();
+  if (payload.companyId !== companyId) return;
+
+  if (payload.entity === "task") {
+    handleTaskEntityChange(payload);
+  } else if (payload.entity === "agent_task") {
+    handleAgentTaskEntityChange(payload);
   }
 }
 
-watch(activeTaskTab, async () => {
-  await fetchTasks();
+function handleTaskEntityChange(payload: EntityChangePayload) {
+  const taskId = Number(payload.entityId);
+
+  if (payload.operation === "delete") {
+    tasks.value = tasks.value.filter((t) => t.id !== taskId);
+    const next = new Map(taskChainStatusMap.value);
+    next.delete(taskId);
+    taskChainStatusMap.value = next;
+    if (selectedTaskId.value === taskId) selectedTaskId.value = null;
+    if (editingTaskId.value === taskId) cancelEditTask();
+    return;
+  }
+
+  const record = payload.record as TaskEntityRecord;
+
+  if (payload.operation === "create") {
+    if (!tasks.value.some((t) => t.id === taskId)) {
+      const newTask: TaskResponse = {
+        id: taskId,
+        companyId: payload.companyId,
+        content: record.content,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        agentTasks: [],
+      };
+      tasks.value.unshift(newTask);
+      taskChainStatusMap.value = new Map(
+        taskChainStatusMap.value.set(taskId, getTaskChainStatus(newTask)),
+      );
+    }
+    return;
+  }
+
+  if (payload.operation === "update") {
+    const idx = tasks.value.findIndex((t) => t.id === taskId);
+    if (idx !== -1) {
+      tasks.value[idx] = {
+        ...tasks.value[idx]!,
+        content: record.content,
+        updatedAt: record.updatedAt,
+      };
+    }
+  }
+}
+
+function handleAgentTaskEntityChange(payload: EntityChangePayload) {
+  const record = payload.record as AgentTaskEntityRecord;
+  const taskId = record.taskId;
+  const agentTaskId = Number(payload.entityId);
+
+  const taskIdx = tasks.value.findIndex((t) => t.id === taskId);
+  if (taskIdx === -1) return;
+
+  const task = tasks.value[taskIdx]!;
+  const agentTasks = [...(task.agentTasks ?? [])];
+
+  if (payload.operation === "delete") {
+    tasks.value[taskIdx] = {
+      ...task,
+      agentTasks: agentTasks.filter((at) => at.id !== agentTaskId),
+    };
+  } else if (payload.operation === "create") {
+    if (!agentTasks.some((at) => at.id === agentTaskId)) {
+      agentTasks.push({
+        id: agentTaskId,
+        agentId: record.agentId,
+        content: record.content,
+        ac: record.ac as string | null,
+        state: record.state,
+        queueOrder: record.queueOrder,
+        assignedAt: record.assignedAt,
+        startedAt: record.startedAt as string | null,
+        finishedAt: record.finishedAt as string | null,
+        updatedAt: record.updatedAt,
+      });
+      tasks.value[taskIdx] = { ...task, agentTasks };
+    }
+  } else if (payload.operation === "update") {
+    const atIdx = agentTasks.findIndex((at) => at.id === agentTaskId);
+    if (atIdx !== -1) {
+      agentTasks[atIdx] = {
+        ...agentTasks[atIdx]!,
+        state: record.state,
+        startedAt: record.startedAt as string | null,
+        finishedAt: record.finishedAt as string | null,
+        updatedAt: record.updatedAt,
+      };
+    } else {
+      agentTasks.push({
+        id: agentTaskId,
+        agentId: record.agentId,
+        content: record.content,
+        ac: record.ac as string | null,
+        state: record.state,
+        queueOrder: record.queueOrder,
+        assignedAt: record.assignedAt,
+        startedAt: record.startedAt as string | null,
+        finishedAt: record.finishedAt as string | null,
+        updatedAt: record.updatedAt,
+      });
+    }
+    tasks.value[taskIdx] = { ...task, agentTasks };
+  }
+
+  const updatedTask = tasks.value[taskIdx]!;
+  taskChainStatusMap.value = new Map(
+    taskChainStatusMap.value.set(taskId, getTaskChainStatus(updatedTask)),
+  );
+}
+
+let cleanupRealtime: (() => void) | null = null;
+
+function setupRealtime() {
+  const companyId = readStoredActiveCompanyId();
+  if (!companyId) return;
+
+  const releaseSubscription = requestRealtimeSubscription({
+    token: userStore.token,
+    companyId,
+    events: ["entity_change"],
+    entities: ["task", "agent_task"],
+  });
+
+  const unregister = registerEntityChangeHandler(handleEntityChange, {
+    entities: ["task", "agent_task"],
+  });
+
+  cleanupRealtime = () => {
+    releaseSubscription();
+    unregister();
+  };
+}
+
+onMounted(async () => {
+  await fetchAgents();
+  setupRealtime();
 });
 
-onMounted(fetchAgents);
+onUnmounted(() => {
+  cleanupRealtime?.();
+});
 </script>

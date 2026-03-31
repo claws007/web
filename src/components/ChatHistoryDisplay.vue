@@ -45,6 +45,12 @@
               <span class="font-semibold text-slate-700 text-sm">
                 {{ resolveActorLabel(row.item.role) }}
               </span>
+              <span
+                v-if="row.item.isStreaming"
+                class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-amber-700 bg-amber-100"
+              >
+                输出中
+              </span>
             </span>
             <span
               v-else
@@ -52,12 +58,6 @@
               :title="row.item.eventType ?? row.item.role"
             >
               {{ row.item.icon }}
-            </span>
-            <span
-              v-if="row.item.isStreaming"
-              class="inline-block px-1.5 py-0.5 rounded text-xxs font-semibold uppercase text-amber-700 bg-amber-100"
-            >
-              STREAMING
             </span>
           </div>
           <MarkdownPreviewer
@@ -366,8 +366,12 @@ function isModelStreamHistory(item: DisplayChatHistory): boolean {
 }
 
 function shouldKeepOriginalContent(item: DisplayChatHistory): boolean {
-  if (item.isStreaming || isModelStreamHistory(item)) {
-    return false;
+  if (item.isStreaming) {
+    return true;
+  }
+
+  if (isModelStreamHistory(item)) {
+    return true;
   }
 
   const role = item.role.toUpperCase();
@@ -532,9 +536,11 @@ function buildCondensedTip(item: DisplayChatHistory): string {
 }
 
 function buildRenderedHistory(item: DisplayChatHistory): RenderedChatHistory {
+  const displayRole = isModelStreamHistory(item) ? "ASSISTANT" : item.role;
   const keepOriginal = shouldKeepOriginalContent(item);
   return {
     ...item,
+    role: displayRole,
     displayContent: keepOriginal ? item.content : buildCondensedTip(item),
     icon: mapHistoryIcon(item),
     condensed: !keepOriginal,
