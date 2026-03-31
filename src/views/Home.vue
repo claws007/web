@@ -119,10 +119,6 @@
           :saving="taskSaving"
           :selected="selectedTaskId === task.id"
           class="cursor-pointer"
-          :class="{
-            'opacity-70':
-              isTaskCompleted(task.id) && selectedTaskId !== task.id,
-          }"
           @click="handleTaskClick(task)"
           @edit="startEditTask"
           @delete="handleDeleteTask"
@@ -135,7 +131,9 @@
         />
       </div>
     </section>
-    <div class="flex-5 shrink flex flex-col min-w-0">
+    <div
+      class="flex-5 shrink flex flex-col min-w-0 bg-primary/4 backdrop-blur-xs rounded-md overflow-hidden"
+    >
       <AgentTaskBubbles
         v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
         :task="tasks.find((t) => t.id === selectedTaskId)!"
@@ -205,13 +203,6 @@ const sortedTasks = computed(() =>
     return b.id - a.id;
   }),
 );
-
-function isTaskCompleted(taskId: number): boolean {
-  return (
-    (taskChainStatusMap.value.get(taskId) ?? "incompleteOrFailed") ===
-    "completed"
-  );
-}
 
 const newTaskContent = ref("");
 
@@ -575,21 +566,40 @@ function handleTaskEntityChange(payload: EntityChangePayload) {
 
 function handleAgentTaskEntityChange(payload: EntityChangePayload) {
   const record = payload.record as AgentTaskEntityRecord;
-  const taskId = record.taskId;
   const agentTaskId = Number(payload.entityId);
 
+  if (payload.operation === "delete") {
+    // On delete, record.taskId may be absent (tombstone); fall back to scanning all tasks.
+    const taskIdFromRecord = record.taskId || 0;
+    const taskIdx =
+      taskIdFromRecord > 0
+        ? tasks.value.findIndex((t) => t.id === taskIdFromRecord)
+        : tasks.value.findIndex((t) =>
+            (t.agentTasks ?? []).some((at) => at.id === agentTaskId),
+          );
+    if (taskIdx === -1) return;
+    const task = tasks.value[taskIdx]!;
+    const agentTasks = (task.agentTasks ?? []).filter(
+      (at) => at.id !== agentTaskId,
+    );
+    tasks.value[taskIdx] = { ...task, agentTasks };
+    taskChainStatusMap.value = new Map(
+      taskChainStatusMap.value.set(
+        task.id,
+        getTaskChainStatus(tasks.value[taskIdx]!),
+      ),
+    );
+    return;
+  }
+
+  const taskId = record.taskId;
   const taskIdx = tasks.value.findIndex((t) => t.id === taskId);
   if (taskIdx === -1) return;
 
   const task = tasks.value[taskIdx]!;
   const agentTasks = [...(task.agentTasks ?? [])];
 
-  if (payload.operation === "delete") {
-    tasks.value[taskIdx] = {
-      ...task,
-      agentTasks: agentTasks.filter((at) => at.id !== agentTaskId),
-    };
-  } else if (payload.operation === "create") {
+  if (payload.operation === "create") {
     if (!agentTasks.some((at) => at.id === agentTaskId)) {
       agentTasks.push({
         id: agentTaskId,

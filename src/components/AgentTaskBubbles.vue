@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full min-w-0 v gap-4">
+  <div class="flex flex-col h-full min-w-0 v [&>div]:px-5">
     <!-- Header: Task Info -->
-    <div class="backdrop-blur-sm">
+    <div class="py-3 bg-primary/6">
       <div class="flex items-center justify-between gap-3">
         <div class="flex-1 min-w-0 v gap-1">
           <div
@@ -38,7 +38,7 @@
     </div>
 
     <!-- Agent Tasks List -->
-    <AutoStickBottom class="flex-1 pr-4" :reset-key="props.task.id">
+    <AutoStickBottom class="flex-1 py-5" :reset-key="props.task.id">
       <div class="v items-start gap-6">
         <template v-if="!sortedAgentTasks || sortedAgentTasks.length === 0">
           <div
@@ -92,12 +92,14 @@ const localAgentTasks = ref<AgentTaskResponse[]>([
   ...(props.task.agentTasks ?? []),
 ]);
 
+// Only reset local state when the selected task itself changes (different task ID).
+// Changes to agentTasks within the same task are handled by realtime CUD events to avoid
+// race conditions where a prop reset re-introduces stale data after CUD-based cleanups.
 watch(
-  () => props.task,
-  (next) => {
-    localAgentTasks.value = [...(next.agentTasks ?? [])];
+  () => props.task.id,
+  () => {
+    localAgentTasks.value = [...(props.task.agentTasks ?? [])];
   },
-  { deep: true },
 );
 
 let unsubscribeEntityChange: (() => void) | null = null;

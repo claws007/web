@@ -1,14 +1,14 @@
 <template>
-  <div class="flex gap-3 items-start w-full">
+  <div class="flex gap-3 items-start w-full group">
     <!-- Agent Avatar -->
-    <div class="shrink-0 w-10 h-10">
+    <div class="shrink-0 w-10 h-10 sticky top-0">
       <div
-        v-if="agent?.avatarFileId"
+        v-if="localAgent?.avatarFileId"
         class="w-10 h-10 rounded-md shadow bg-cyan-400 flex items-center justify-center text-white font-semibold text-sm overflow-hidden"
       >
         <img
-          :src="`/api/images/${agent.avatarFileId}`"
-          :alt="agent.name"
+          :src="`/api/images/${localAgent!.avatarFileId}`"
+          :alt="localAgent!.name"
           class="w-full h-full object-cover"
         />
       </div>
@@ -16,7 +16,7 @@
         v-else
         class="w-10 h-10 rounded-md shadow bg-cyan-400 flex items-center justify-center text-white font-semibold text-sm"
       >
-        {{ agent?.name?.charAt(0)?.toUpperCase() ?? "A" }}
+        {{ localAgent?.name?.charAt(0)?.toUpperCase() ?? "A" }}
       </div>
     </div>
 
@@ -26,12 +26,12 @@
       :class="
         isLatest
           ? 'bg-primary/6 border border-primary/10'
-          : 'bg-white/80 border border-cyan-300/30'
+          : 'bg-white/80 border border-primary/20'
       "
     >
       <Collapse v-model="isChatExpanded">
         <template #title>
-          <div class="v gap-1 px-3 pt-2 pb-1">
+          <div class="v gap-1 p-3">
             <button
               type="button"
               class="cursor-pointer hover:opacity-80 duration-300 w-full flex items-start gap-2 text-left"
@@ -41,10 +41,12 @@
               <div class="v gap-1 flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2 mb-2">
                   <h4 class="text-sm font-semibold text-gray-900 truncate">
-                    {{ agent?.name || `Agent #${agentTask.agentId}` }}
+                    {{ localAgent?.name || `Agent #${agentTask.agentId}` }}
                   </h4>
                   <div class="flex items-center gap-4 shrink-0">
-                    <div class="h gap-2 items-center">
+                    <div
+                      class="group-hover:opacity-100 opacity-0 duration-200 transition-opacity h gap-2 items-center"
+                    >
                       <button
                         v-if="isTaskActive"
                         type="button"
@@ -242,14 +244,30 @@
 </template>
 
 <script setup lang="ts">
-import { api, type AgentResponse, type AgentTaskResponse } from "@/api";
+import {
+  api,
+  readStoredActiveCompanyId,
+  type AgentResponse,
+  type AgentTaskResponse,
+} from "@/api";
 import AgentTaskComments from "@/components/AgentTaskComments.vue";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ChatHistoryContainer from "@/components/ChatHistoryContainer.vue";
 import Collapse from "@/components/Collapse.vue";
 import { notify } from "@/components/notification";
 import TimeDisplay from "@/components/TimeDisplay.vue";
 import { dialogs } from "virtual:dialogs";
+import type {
+  AgentEntityRecord,
+  EntityChangePayload,
+} from "@/api/generated-ws";
+import {
+  registerEntityChangeHandler,
+  requestRealtimeSubscription,
+} from "@/services/events-realtime";
+import { useUserStore } from "@/store/user";
+
+const userStore = useUserStore();
 
 const props = defineProps<{
   agentTask: AgentTaskResponse;
@@ -261,6 +279,75 @@ const props = defineProps<{
 const isChatExpanded = ref(Boolean(props.isLatest));
 const hasLoadedChatHistories = ref(Boolean(props.isLatest));
 const commentsRef = ref<InstanceType<typeof AgentTaskComments> | null>(null);
+
+// Local copy of agent, kept in sync with prop and updated via CUD events.
+const localAgent = ref<AgentResponse | undefined>(
+  props.agent ? { ...props.agent } : undefined,
+);
+
+watch(
+  () => props.agent,
+  (next) => {
+    localAgent.value = next ? { ...next } : undefined;
+  },
+);
+
+let unsubscribeAgentChange: (() => void) | null = null;
+let releaseAgentSubscription: (() => void) | null = null;
+
+function handleAgentEntityChange(payload: EntityChangePayload) {
+  if (payload.entity !== "agent") return;
+  const agentId = Number(payload.entityId);
+  if (!localAgent.value || localAgent.value.id !== agentId) return;
+
+  if (payload.operation === "delete") {
+    localAgent.value = undefined;
+    return;
+  }
+
+  const record = payload.record as AgentEntityRecord & {
+    avatarFileId?: number | null;
+  };
+  localAgent.value = {
+    ...localAgent.value,
+    name: record.name,
+    description:
+      (record.description as string | null) ?? localAgent.value.description,
+    avatarFileId:
+      typeof record.avatarFileId === "number"
+        ? record.avatarFileId
+        : localAgent.value.avatarFileId,
+  };
+}
+
+function startAgentRealtime() {
+  const token = userStore.token?.trim() || null;
+  const companyId = readStoredActiveCompanyId();
+  if (!token || !companyId) return;
+
+  releaseAgentSubscription ??= requestRealtimeSubscription({
+    token,
+    companyId,
+    events: ["entity_change"],
+    entities: ["agent"],
+  });
+  unsubscribeAgentChange ??= registerEntityChangeHandler(
+    handleAgentEntityChange,
+    {
+      entities: ["agent"],
+    },
+  );
+}
+
+function stopAgentRealtime() {
+  unsubscribeAgentChange?.();
+  unsubscribeAgentChange = null;
+  releaseAgentSubscription?.();
+  releaseAgentSubscription = null;
+}
+
+onMounted(startAgentRealtime);
+onBeforeUnmount(stopAgentRealtime);
 
 watch(isChatExpanded, (expanded) => {
   if (expanded) {

@@ -10,7 +10,7 @@
       加载中...
     </div>
     <div
-      v-else-if="renderRows.length === 0"
+      v-else-if="renderRows.length === 0 && !taskResultCard"
       class="text-xs text-gray-500 text-center py-2"
     >
       暂无聊天记录
@@ -113,6 +113,47 @@
           </div>
         </div>
       </div>
+
+      <!-- Task result card appended at the bottom when history is done -->
+      <div
+        v-if="taskResultCard"
+        class="w-full text-xs p-3 rounded-md v gap-2"
+        :class="
+          taskResultCard.visualState === 'success'
+            ? 'bg-green-50 border border-green-200'
+            : 'bg-red-50 border border-red-200'
+        "
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-base leading-none">{{
+            taskResultCard.visualState === "success" ? "✅" : "❌"
+          }}</span>
+          <span
+            class="font-semibold text-sm"
+            :class="
+              taskResultCard.visualState === 'success'
+                ? 'text-green-700'
+                : 'text-red-700'
+            "
+            >{{ taskResultCard.title }}</span
+          >
+        </div>
+        <div v-if="taskResultCard.summary" class="text-gray-700">
+          <span class="font-medium text-gray-500 mr-1">摘要：</span
+          >{{ taskResultCard.summary }}
+        </div>
+        <div v-if="taskResultCard.output" class="v gap-1">
+          <span class="font-medium text-gray-500">输出：</span>
+          <MarkdownPreviewer
+            :content="taskResultCard.output"
+            class="text-gray-700 text-xs! leading-tight break-all"
+          />
+        </div>
+        <div v-if="taskResultCard.failureReason" class="text-red-600">
+          <span class="font-medium mr-1">失败原因：</span
+          >{{ taskResultCard.failureReason }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -120,8 +161,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { api, getImageUrlByFileId, readStoredActiveCompanyId } from "@/api";
-import type { AgentResponse, ChatHistoryResponse } from "@/api";
 import type {
+  AgentResponse,
+  AgentTaskResponse,
+  ChatHistoryResponse,
+} from "@/api";
+import type {
+  AgentEntityRecord,
+  AgentTaskEntityRecord,
   ChatHistoryEntityRecord,
   EntityChangePayload,
   ModelStreamPayload,
@@ -173,12 +220,68 @@ const userStore = useUserStore();
 const chatHistories = ref<DisplayChatHistory[]>([]);
 const streamingHistory = ref<DisplayChatHistory | null>(null);
 const taskAgent = ref<AgentResponse | null>(null);
+const taskData = ref<AgentTaskResponse | null>(null);
 const loading = ref(false);
+
+const FINISHED_STATES = new Set([
+  "FINISHED",
+  "CANCELLED",
+  "TRANSFERRED",
+  "FAILED",
+]);
+
+type TaskResultCard = {
+  visualState: "success" | "failed";
+  title: string;
+  summary: string | null;
+  output: string | null;
+  failureReason: string | null;
+};
+
+const taskResultCard = computed((): TaskResultCard | null => {
+  const data = taskData.value;
+  if (!data) return null;
+  const state = (data.state || "").toUpperCase();
+  if (!FINISHED_STATES.has(state)) return null;
+
+  const isSuccess = state === "FINISHED" || state === "TRANSFERRED";
+  const submission = data.result?.submission;
+  const failure = data.result?.failure;
+
+  const output = submission?.output?.trim() || null;
+  const summary = submission?.summary?.trim() || null;
+  const failureReason =
+    submission?.failureReason?.trim() || failure?.message?.trim() || null;
+
+  let title: string;
+  if (isSuccess) {
+    title = "任务已完成";
+  } else if (state === "CANCELLED") {
+    title = "任务已取消";
+  } else {
+    title = "任务失败";
+  }
+
+  // Only show the card if there's something meaningful to display
+  if (!output && !summary && !failureReason && isSuccess) return null;
+
+  return {
+    visualState: isSuccess ? "success" : "failed",
+    title,
+    summary,
+    output,
+    failureReason,
+  };
+});
 
 let syncSerial = 0;
 let unsubscribeEntityChange: (() => void) | null = null;
+let unsubscribeAgentTaskChange: (() => void) | null = null;
+let unsubscribeAgentChange: (() => void) | null = null;
 let unsubscribeModelStream: (() => void) | null = null;
 let releaseEntityChangeSubscription: (() => void) | null = null;
+let releaseAgentTaskSubscription: (() => void) | null = null;
+let releaseAgentSubscription: (() => void) | null = null;
 let releaseModelStreamSubscription: (() => void) | null = null;
 
 const activeCompany = computed(() => {
@@ -635,11 +738,13 @@ async function loadTaskAgent(serial = syncSerial) {
       return;
     }
     taskAgent.value = res.data?.agent ?? null;
+    taskData.value = res.data ?? null;
   } catch {
     if (serial !== syncSerial) {
       return;
     }
     taskAgent.value = null;
+    taskData.value = null;
   }
 }
 
@@ -662,6 +767,60 @@ function upsertStreamingHistory(delta: string) {
     agentTaskId: props.agentTaskId,
     createdAt: current?.createdAt ?? new Date().toISOString(),
     isStreaming: true,
+  };
+}
+
+function handleAgentTaskChange(payload: EntityChangePayload) {
+  if (payload.entity !== "agent_task") {
+    return;
+  }
+
+  const deletedId = Number(payload.entityId);
+
+  if (payload.operation === "delete") {
+    if (deletedId === props.agentTaskId) {
+      // The AgentTask this display is bound to was deleted (e.g. during retry).
+      // Clear all local state so stale content is not shown.
+      chatHistories.value = [];
+      clearStreamingHistory();
+      taskData.value = null;
+    }
+    return;
+  }
+
+  const record = payload.record as Partial<AgentTaskEntityRecord>;
+  if (Number(record.id) !== props.agentTaskId) {
+    return;
+  }
+
+  const state = (record.state || "").toUpperCase();
+  if (FINISHED_STATES.has(state)) {
+    void loadTaskAgent(syncSerial);
+  }
+}
+
+function handleAgentChange(payload: EntityChangePayload) {
+  if (payload.entity !== "agent") return;
+  const agentId = Number(payload.entityId);
+  if (!taskAgent.value || taskAgent.value.id !== agentId) return;
+
+  if (payload.operation === "delete") {
+    taskAgent.value = null;
+    return;
+  }
+
+  const record = payload.record as AgentEntityRecord & {
+    avatarFileId?: number | null;
+  };
+  taskAgent.value = {
+    ...taskAgent.value,
+    name: record.name,
+    description:
+      (record.description as string | null) ?? taskAgent.value.description,
+    avatarFileId:
+      typeof record.avatarFileId === "number"
+        ? record.avatarFileId
+        : taskAgent.value.avatarFileId,
   };
 }
 
@@ -804,11 +963,23 @@ function stopRealtime() {
   unsubscribeEntityChange?.();
   unsubscribeEntityChange = null;
 
+  unsubscribeAgentTaskChange?.();
+  unsubscribeAgentTaskChange = null;
+
+  unsubscribeAgentChange?.();
+  unsubscribeAgentChange = null;
+
   unsubscribeModelStream?.();
   unsubscribeModelStream = null;
 
   releaseEntityChangeSubscription?.();
   releaseEntityChangeSubscription = null;
+
+  releaseAgentTaskSubscription?.();
+  releaseAgentTaskSubscription = null;
+
+  releaseAgentSubscription?.();
+  releaseAgentSubscription = null;
 
   releaseModelStreamSubscription?.();
   releaseModelStreamSubscription = null;
@@ -831,6 +1002,15 @@ async function syncRealtimeAndHistories() {
     unsubscribeEntityChange = registerEntityChangeHandler(handleEntityChange, {
       entities: ["chat_history"],
     });
+    unsubscribeAgentTaskChange = registerEntityChangeHandler(
+      handleAgentTaskChange,
+      {
+        entities: ["agent_task"],
+      },
+    );
+    unsubscribeAgentChange = registerEntityChangeHandler(handleAgentChange, {
+      entities: ["agent"],
+    });
     unsubscribeModelStream = registerModelStreamHandler(handleModelStream);
 
     releaseEntityChangeSubscription = requestRealtimeSubscription({
@@ -838,6 +1018,18 @@ async function syncRealtimeAndHistories() {
       companyId,
       events: ["entity_change"],
       entities: ["chat_history"],
+    });
+    releaseAgentTaskSubscription = requestRealtimeSubscription({
+      token,
+      companyId,
+      events: ["entity_change"],
+      entities: ["agent_task"],
+    });
+    releaseAgentSubscription = requestRealtimeSubscription({
+      token,
+      companyId,
+      events: ["entity_change"],
+      entities: ["agent"],
     });
     releaseModelStreamSubscription = requestRealtimeSubscription({
       token,

@@ -21,29 +21,13 @@
  * ```
  */
 
-import { createApp } from "vue";
-import NotificationHost from "./NotificationHost.vue";
 import {
   addProgressTask,
   addToast,
   patchProgressTask,
   removeProgressTask,
 } from "./store";
-// ── Singleton host mount ───────────────────────────────────────────────────────
-
-let _mounted = false;
-
-function ensureHostMounted(): void {
-  if (_mounted || typeof window === "undefined") return;
-  _mounted = true;
-  const host = document.createElement("div");
-  host.id = "__notification-host__";
-  // The host div itself is zero-size; actual UI is rendered via Teleport to body
-  host.style.cssText =
-    "position:fixed;top:0;left:0;width:0;height:0;z-index:10000;pointer-events:none;overflow:visible";
-  document.body.appendChild(host);
-  createApp(NotificationHost).mount(host);
-}
+// ── NotificationHost is mounted once via App.vue <NotificationHost /> ─────────
 
 // ── Toast options ─────────────────────────────────────────────────────────────
 
@@ -69,23 +53,19 @@ export interface ProgressHandle {
 
 export const notify = {
   info(message: string, options: ToastOptions = {}): string {
-    ensureHostMounted();
     return addToast("info", message, options.duration ?? 4000);
   },
 
   warn(message: string, options: ToastOptions = {}): string {
-    ensureHostMounted();
     return addToast("warn", message, options.duration ?? 4000);
   },
 
   success(message: string, options: ToastOptions = {}): string {
-    ensureHostMounted();
     return addToast("success", message, options.duration ?? 4000);
   },
 
   /** Error toasts are persistent (duration=0) by default. */
   error(message: string, options: ToastOptions = {}): string {
-    ensureHostMounted();
     return addToast("error", message, options.duration ?? 0);
   },
 
@@ -94,7 +74,6 @@ export const notify = {
    * Returns a handle for updating / completing the task.
    */
   progress(title: string): ProgressHandle {
-    ensureHostMounted();
     const id = addProgressTask(title);
 
     return {

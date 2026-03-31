@@ -1,9 +1,9 @@
 <template>
   <section
     v-if="comments.length > 0"
-    class="v gap-2 bg-primary/8 p-3 rounded-md divide-y divide-primary/20 divide-dashed"
+    class="v bg-primary/8 px-3 rounded-md divide-y divide-primary/20 divide-dashed"
   >
-    <article v-for="comment in comments" :key="comment.id" class="">
+    <article v-for="comment in comments" :key="comment.id" class="py-3">
       <div class="flex items-start gap-2">
         <div class="mt-0.5 shrink-0">
           <img
@@ -19,7 +19,7 @@
             {{ getUserDisplayName(comment).charAt(0).toUpperCase() }}
           </div>
         </div>
-        <div class="min-w-0 flex-1 v gap-1">
+        <div class="min-w-0 flex-1 v">
           <div class="flex items-center justify-between gap-2">
             <div class="min-w-0 flex items-center gap-2">
               <span class="truncate text-xs font-semibold text-gray-800">
