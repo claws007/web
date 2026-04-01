@@ -11,9 +11,9 @@ import {
   registerEntityChangeHandler,
   requestRealtimeSubscription,
 } from "@/services/events-realtime";
-import DropdownMenu, {
-  type DropdownMenuItem,
-} from "@/components/DropdownMenu.vue";
+import type { DropdownMenuItem } from "@/components/DropdownMenu.vue";
+import ActionBar, { type ActionBarItem } from "@/components/ActionBar.vue";
+import { DeleteIcon, EditIcon, SettingsIcon } from "@/components/icons";
 import { dialogs } from "virtual:dialogs";
 import type {
   AgentEntityRecord,
@@ -444,6 +444,38 @@ async function handleSettingMenuSelect(menu: DropdownMenuItem) {
   }
 }
 
+const actionItems = computed<ActionBarItem[]>(() => [
+  {
+    key: "edit",
+    title: "编辑",
+    ariaLabel: "编辑 Agent",
+    iconKey: "edit",
+    icon: EditIcon,
+    onClick: () => emit("edit", liveAgent.value),
+  },
+  {
+    key: "settings",
+    title: "设置",
+    ariaLabel: "设置 Agent",
+    iconKey: "settings",
+    icon: SettingsIcon,
+    rotateOnOpen: true,
+    menus: settingMenus.value,
+    onMenuSelect: (menu) => {
+      void handleSettingMenuSelect(menu);
+    },
+  },
+  {
+    key: "delete",
+    title: "删除",
+    ariaLabel: "删除 Agent",
+    iconKey: "delete",
+    icon: DeleteIcon,
+    danger: true,
+    onClick: () => emit("delete", liveAgent.value),
+  },
+]);
+
 const latestTaskStateInfo = computed(() => {
   const state = latestTask.value?.state;
   const content = latestTask.value?.content;
@@ -552,7 +584,7 @@ onBeforeUnmount(() => {
 
 <template>
   <article
-    class="flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow backdrop-blur-xl"
+    class="group flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow backdrop-blur-xl"
     role="region"
     :aria-label="agentName"
   >
@@ -686,94 +718,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div
-      class="flex gap-1 shrink-0 action-button-group bg-white rounded-md shadow-md p-1 absolute right-2 bottom-2"
-    >
-      <button
-        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 hover:bg-primary/10 hover:border-primary/30 hover:text-primary"
-        title="编辑"
-        aria-label="编辑 Agent"
-        @click.stop="emit('edit', liveAgent)"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path
-            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-          />
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-        </svg>
-      </button>
-      <DropdownMenu
-        placement="bottom"
-        :menus="settingMenus"
-        @select="handleSettingMenuSelect"
-      >
-        <template #trigger="{ open }">
-          <button
-            class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 hover:bg-primary/10 hover:border-primary/30 hover:text-primary"
-            title="设置"
-            aria-label="设置 Agent"
-            :aria-expanded="open"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.9"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-              class="transition-transform duration-200"
-              :class="{ 'rotate-90': open }"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 7.2a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.25V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-              />
-            </svg>
-          </button>
-        </template>
-      </DropdownMenu>
-
-      <button
-        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-on-surface-variant transition-all duration-120 danger-btn"
-        title="删除"
-        aria-label="删除 Agent"
-        @click.stop="emit('delete', liveAgent)"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6" />
-          <path d="M14 11v6" />
-          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-        </svg>
-      </button>
-    </div>
+    <ActionBar
+      class="group-hover:opacity-100 opacity-0 duration-300 absolute right-2 bottom-2"
+      :items="actionItems"
+    />
   </article>
 </template>
 
@@ -826,19 +774,6 @@ onBeforeUnmount(() => {
 
 .task-state-muted {
   color: var(--foreground-muted);
-}
-
-/* Button hover states with primary color */
-button:hover {
-  background-color: rgb(0 104 119 / 0.1);
-  border-color: rgb(0 104 119 / 0.3);
-  color: var(--primary);
-}
-
-button.danger-btn:hover {
-  background-color: rgb(211 47 47 / 0.1);
-  border-color: rgb(211 47 47 / 0.3);
-  color: #d32f2f;
 }
 
 article:hover .action-button-group,

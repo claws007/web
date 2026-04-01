@@ -1,6 +1,6 @@
 <template>
   <header
-    class="w-full flex h-16 items-center justify-between border-b border-slate-200 bg-black/3 backdrop-blur-md px-10"
+    class="w-full flex h-16 items-center justify-between border-b border-primary/10 shadow bg-black/3 backdrop-blur-md px-10"
   >
     <FlowPrimaryText class="text-2xl font-bold">{{
       currentCompanyName

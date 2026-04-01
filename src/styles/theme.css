@@ -15,8 +15,8 @@
   --outline-ghost: rgb(102 115 124 / 0.15);
 
   /* Brand palette */
-  --primary: #006877;
-  --primary-soft: #a2eeff;
+  --primary: #0b6370;
+  --primary-soft: rgba(160, 217, 158, 0.798);
   --secondary: #7825ea;
   --secondary-soft: #ebdcff;
   --tertiary: #a43073;

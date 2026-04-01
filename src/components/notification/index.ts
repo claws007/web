@@ -66,7 +66,7 @@ export const notify = {
 
   /** Error toasts are persistent (duration=0) by default. */
   error(message: string, options: ToastOptions = {}): string {
-    return addToast("error", message, options.duration ?? 0);
+    return addToast("error", message, options.duration ?? 10000);
   },
 
   /**

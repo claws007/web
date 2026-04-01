@@ -22,7 +22,10 @@ const renderedHtml = computed(() => markdownParser.render(props.content ?? ""));
 </script>
 
 <template>
-  <article class="markdown-previewer markdown-body" v-html="renderedHtml" />
+  <article
+    class="markdown-previewer markdown-body text-sm!"
+    v-html="renderedHtml"
+  />
 </template>
 
 <style>

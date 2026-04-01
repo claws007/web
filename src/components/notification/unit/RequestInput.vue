@@ -201,6 +201,14 @@ watch(
   { immediate: true },
 );
 
+watch(inputDraft, (val) => {
+  if (val) singleDraft.value = "";
+});
+
+watch(singleDraft, (val) => {
+  if (val) inputDraft.value = "";
+});
+
 async function onReject() {
   submitting.value = true;
   try {
@@ -351,14 +359,20 @@ async function onConfirm() {
             >目标 Agent #{{ requestContext.scheduleTargetAgentId }}</span
           >
         </div>
-
-        <p v-if="sourceTaskSummary" class="nw-request-task-summary">
-          {{ sourceTaskSummary }}
-        </p>
+        <MarkdownPreviewer
+          :content="sourceTaskSummary"
+          v-if="sourceTaskSummary"
+          class="text-xs!"
+        ></MarkdownPreviewer>
       </div>
     </div>
 
-    <p class="nw-request-prompt">{{ requestContext.prompt }}</p>
+    <p class="nw-request-prompt">
+      <MarkdownPreviewer
+        :content="requestContext.prompt"
+        class="text-xs!"
+      ></MarkdownPreviewer>
+    </p>
     <template v-if="entry.requestType === 'REQUEST_INPUT'">
       <Input v-model="inputDraft" placeholder="请输入应答内容" icon="none" />
       <div class="nw-request-actions">

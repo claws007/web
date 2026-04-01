@@ -11,7 +11,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionBar: typeof import('./components/ActionBar.vue')['default']
     AgentCard: typeof import('./components/AgentCard.vue')['default']
+    AgentCardActionBar: typeof import('./components/AgentCardActionBar.vue')['default']
     AgentTaskBubble: typeof import('./components/AgentTaskBubble.vue')['default']
     AgentTaskBubbles: typeof import('./components/AgentTaskBubbles.vue')['default']
     AgentTaskChatHistoryDialog: typeof import('./components/dialog/AgentTaskChatHistoryDialog.vue')['default']

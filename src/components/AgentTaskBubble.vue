@@ -21,17 +21,17 @@
     </div>
 
     <!-- Bubble Content -->
-    <div
-      class="stretch rounded-md rounded-tl-md backdrop-blur-sm transition-all duration-300 v gap-1"
-      :class="
-        isLatest
-          ? 'bg-primary/3 border border-primary/10'
-          : 'bg-white/80 border border-primary/20'
-      "
-    >
+    <div class="stretch transition-all duration-300 v gap-1">
       <Collapse v-model="isChatExpanded">
         <template #title>
-          <div class="v gap-1 p-3">
+          <div
+            class="sticky top-0 shadow v gap-1 p-3 backdrop-blur-md z-20 rounded-md"
+            :class="
+              isLatest
+                ? 'bg-primary-soft/80 border border-primary/10'
+                : 'bg-white/80 border border-primary/20'
+            "
+          >
             <button
               type="button"
               class="cursor-pointer hover:opacity-80 duration-300 w-full flex items-start gap-2 text-left"
@@ -40,97 +40,14 @@
             >
               <div class="v gap-1 flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2 mb-2">
-                  <h4 class="text-sm font-semibold text-gray-900 truncate">
+                  <h4 class="text-sm font-semibold truncate">
                     {{ localAgent?.name || `Agent #${agentTask.agentId}` }}
                   </h4>
                   <div class="flex items-center gap-4 shrink-0">
-                    <div
-                      class="group-hover:opacity-100 opacity-0 duration-200 transition-opacity h gap-2 items-center"
-                    >
-                      <button
-                        v-if="isTaskActive"
-                        type="button"
-                        class="grid place-items-center text-amber-700 transition-opacity cursor-pointer hover:opacity-80"
-                        title="停止任务"
-                        aria-label="停止任务"
-                        @click.stop="stopTask"
-                      >
-                        <svg
-                          class="size-3.5"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <rect x="7" y="7" width="10" height="10" rx="2" />
-                        </svg>
-                      </button>
-                      <template v-else>
-                        <button
-                          type="button"
-                          class="grid place-items-center text-emerald-700 transition-opacity cursor-pointer hover:opacity-80"
-                          title="恢复任务"
-                          aria-label="恢复任务"
-                          @click.stop="resumeTask"
-                        >
-                          <svg
-                            class="size-3.5 translate-x-px"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <path d="M8 6.5v11l9-5.5-9-5.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          class="grid place-items-center text-cyan-700 transition-opacity cursor-pointer hover:opacity-80"
-                          title="重新开始"
-                          aria-label="重新开始"
-                          @click.stop="restartTask"
-                        >
-                          <svg
-                            class="size-3.5"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M3 12a9 9 0 1 0 3-6.708" />
-                            <path d="M3 4v5h5" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          class="grid place-items-center text-slate-600 transition-opacity cursor-pointer hover:opacity-80"
-                          title="添加 Comment"
-                          aria-label="添加 Comment"
-                          @click.stop="openCreateCommentDialog"
-                        >
-                          <svg
-                            class="size-3.5"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M12 20h9" />
-                            <path
-                              d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
-                            />
-                          </svg>
-                        </button>
-                      </template>
-                    </div>
+                    <ActionBar
+                      :items="taskControlItems"
+                      class="group-hover:opacity-100 opacity-0 duration-200"
+                    />
                     <svg
                       v-if="visualState === 'running'"
                       class="w-4 h-4 animate-spin text-secondary"
@@ -185,7 +102,7 @@
                     </svg>
                     <svg
                       v-else
-                      class="w-4 h-4 text-gray-400"
+                      class="w-4 h-4"
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
                       fill="none"
@@ -198,7 +115,7 @@
                       <circle cx="12" cy="12" r="10" />
                     </svg>
                     <TimeDisplay
-                      class="text-xs text-gray-500 whitespace-nowrap"
+                      class="text-xs whitespace-nowrap"
                       :timestamp="agentTask.assignedAt"
                     />
                   </div>
@@ -234,7 +151,7 @@
           </div>
         </template>
 
-        <ChatHistoryContainer
+        <ChatHistoryDisplay
           v-if="hasLoadedChatHistories"
           :agent-task-id="agentTask.id"
           class="py-3 px-3"
@@ -252,8 +169,8 @@ import {
   type AgentTaskResponse,
 } from "@/api";
 import AgentTaskComments from "@/components/AgentTaskComments.vue";
+import ActionBar, { type ActionBarItem } from "@/components/ActionBar.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import ChatHistoryContainer from "@/components/ChatHistoryContainer.vue";
 import Collapse from "@/components/Collapse.vue";
 import { notify } from "@/components/notification";
 import TimeDisplay from "@/components/TimeDisplay.vue";
@@ -267,6 +184,12 @@ import {
   requestRealtimeSubscription,
 } from "@/services/events-realtime";
 import { useUserStore } from "@/store/user";
+import {
+  AgentTaskCommentIcon,
+  AgentTaskRestartIcon,
+  AgentTaskResumeIcon,
+  AgentTaskStopIcon,
+} from "@/components/icons";
 
 const userStore = useUserStore();
 
@@ -417,6 +340,49 @@ const statusTextClass = computed(() => {
     return "text-secondary text-xs";
   }
   return "text-xs";
+});
+
+const taskControlItems = computed<ActionBarItem[]>(() => {
+  if (isTaskActive.value) {
+    return [
+      {
+        key: "stop",
+        title: "停止任务",
+        ariaLabel: "停止任务",
+        iconKey: "stop",
+        icon: AgentTaskStopIcon,
+        className: "text-amber-700",
+        onClick: stopTask,
+      },
+    ];
+  }
+
+  return [
+    {
+      key: "resume",
+      title: "恢复任务",
+      ariaLabel: "恢复任务",
+      iconKey: "resume",
+      icon: AgentTaskResumeIcon,
+      onClick: resumeTask,
+    },
+    {
+      key: "restart",
+      title: "重新开始",
+      ariaLabel: "重新开始",
+      iconKey: "restart",
+      icon: AgentTaskRestartIcon,
+      onClick: restartTask,
+    },
+    {
+      key: "comment",
+      title: "添加 Comment",
+      ariaLabel: "添加 Comment",
+      iconKey: "comment",
+      icon: AgentTaskCommentIcon,
+      onClick: openCreateCommentDialog,
+    },
+  ];
 });
 
 async function stopTask() {

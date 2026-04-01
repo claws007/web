@@ -1,39 +1,41 @@
 <template>
-  <div class="flex flex-col h-full min-w-0 v [&>div]:px-5">
+  <div class="v h-full min-w-0 v *:px-5">
     <!-- Header: Task Info -->
-    <div class="py-3 bg-primary/6">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex-1 min-w-0 v gap-1">
-          <div
-            class="text-xs text-cyan-600/70 uppercase tracking-wider font-semibold"
-          >
-            Task #{{ task.id }}
+    <div class="">
+      <div class="p-3 bg-primary/6 rounded-md shadow">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex-1 min-w-0 v gap-1">
+            <div
+              class="text-xs text-cyan-600/70 uppercase tracking-wider font-semibold"
+            >
+              Task #{{ task.id }}
+            </div>
+            <h3 class="line-clamp-9 mt-1.5 break-all">
+              {{ task.content }}
+            </h3>
           </div>
-          <h3 class="line-clamp-9 mt-1.5 break-all">
-            {{ task.content }}
-          </h3>
-        </div>
-        <button
-          class="shrink-0 w-5 cursor-pointer h-5 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-          aria-label="Close"
-          @click="$emit('close')"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+          <button
+            class="shrink-0 w-5 cursor-pointer h-5 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label="Close"
+            @click="$emit('close')"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 

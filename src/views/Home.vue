@@ -1,14 +1,16 @@
 <template>
-  <div class="px-10 p-5 h size-full items-stretch gap-5">
+  <div class="h size-full items-stretch">
     <!-- 头部：标题 + 新建按钮 -->
-    <section class="flex flex-col gap-6 flex-1 shrink">
+    <section
+      class="p-5 bg-primary/5 flex flex-col gap-6 flex-1 shrink backdrop-blur-md overflow-y-auto"
+    >
       <div class="flex items-center justify-between">
         <div class="v gap-1">
           <div class="text-xl font-bold">员工列表</div>
           <div class="text-sm text-(--on-surface-variant)">Agents</div>
         </div>
-        <button
-          class="inline-flex h-9 cursor-pointer items-center gap-1 rounded-full border-0 bg-linear-to-br from-primary to-secondary px-4 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0"
+        <PrimaryButton
+          size="small"
           title="新建 Agent"
           aria-label="新建 Agent"
           @click="
@@ -32,8 +34,8 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          <span>新建</span>
-        </button>
+          <span>招人</span>
+        </PrimaryButton>
       </div>
 
       <!-- 加载中 -->
@@ -67,10 +69,7 @@
       </div>
 
       <!-- Agent 卡片列表 -->
-      <div
-        v-else
-        class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3"
-      >
+      <div v-else class="v gap-3">
         <AgentCard
           v-for="agent in agents"
           :key="agent.id"
@@ -82,7 +81,7 @@
       </div>
     </section>
 
-    <section class="h-full flex-[1.5] min-w-0 v gap-3 [&>*]:pr-4">
+    <section class="h-full flex-1 min-w-0 v gap-3 *:px-5 py-5">
       <Textarea
         v-model="newTaskContent"
         placeholder="创建任务"
@@ -131,13 +130,12 @@
         />
       </div>
     </section>
-    <div
-      class="flex-5 shrink flex flex-col min-w-0 bg-primary/4 backdrop-blur-xs rounded-md overflow-hidden"
-    >
+    <div class="flex-[3.5] shrink bg-primary/5 backdrop-blur-xs">
       <AgentTaskBubbles
         v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
         :task="tasks.find((t) => t.id === selectedTaskId)!"
         :all-agents="agents"
+        class="size-full *:px-5 pt-5"
         @close="selectedTaskId = null"
       />
     </div>

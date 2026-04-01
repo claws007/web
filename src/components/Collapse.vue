@@ -83,9 +83,7 @@ function toggle() {
         class="min-h-0 overflow-hidden"
         :class="{ 'pointer-events-none': !isExpanded }"
       >
-        <div class="border-t border-t-[rgb(90_102_109/0.16)]">
-          <slot />
-        </div>
+        <slot />
       </div>
     </div>
   </section>

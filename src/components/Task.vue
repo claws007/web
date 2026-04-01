@@ -7,96 +7,9 @@
   >
     <div
       v-if="!isEditing"
-      class="z-10 shadow border border-primary/10 absolute right-1.5 opacity-0 group-hover:opacity-100 duration-200 transition-opacity bottom-1.5 bg-white/95 rounded-md p-1.5"
+      class="z-10 absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 duration-200 transition-opacity"
     >
-      <button
-        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-gray-600 transition-all duration-120 hover:bg-cyan-500/12 hover:border-cyan-500/30 hover:text-cyan-700 disabled:opacity-45 disabled:cursor-not-allowed"
-        :title="agentTasks.length > 0 ? '重新分配给员工' : '分配给员工'"
-        :aria-label="agentTasks.length > 0 ? '重新分配给员工' : '分配给员工'"
-        :disabled="saving"
-        @click.stop="$emit('assign', localTask)"
-      >
-        <svg
-          v-if="agentTasks.length > 0"
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="23 4 23 10 17 10" />
-          <polyline points="1 20 1 14 7 14" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-        </svg>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <polygon points="7 4 20 12 7 20 7 4" />
-        </svg>
-      </button>
-      <button
-        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-gray-600 transition-all duration-120 hover:bg-cyan-500/12 hover:border-cyan-500/30 hover:text-cyan-700 disabled:opacity-45 disabled:cursor-not-allowed"
-        title="编辑"
-        aria-label="编辑任务"
-        :disabled="saving"
-        @click.stop="$emit('edit', localTask)"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path
-            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-          />
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-        </svg>
-      </button>
-      <button
-        class="inline-flex items-center justify-center w-7 h-7 rounded-md border border-transparent bg-transparent cursor-pointer text-gray-600 transition-all duration-120 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-600 disabled:opacity-45 disabled:cursor-not-allowed"
-        title="删除"
-        aria-label="删除任务"
-        :disabled="saving"
-        @click.stop="$emit('delete', task.id)"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6" />
-          <path d="M14 11v6" />
-          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-        </svg>
-      </button>
+      <ActionBar :items="taskActionItems" />
     </div>
     <div
       :class="[
@@ -145,72 +58,26 @@
       <template v-if="latestAgentTask">
         <div class="border-t border-dashed border-cyan-500/25"></div>
         <div class="inline-flex items-center gap-1.5 text-xs min-w-0">
-          <svg
+          <TaskStatusRunningIcon
             v-if="getAgentTaskVisualState(latestAgentTask) === 'running'"
             class="size-3.5 shrink-0 animate-spin text-secondary"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
             aria-hidden="true"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            />
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          <svg
+          />
+          <TaskStatusSuccessIcon
             v-else-if="getAgentTaskVisualState(latestAgentTask) === 'success'"
             class="size-3.5 shrink-0 text-primary"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
             aria-hidden="true"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <svg
+          />
+          <TaskStatusFailedIcon
             v-else-if="getAgentTaskVisualState(latestAgentTask) === 'failed'"
             class="size-3.5 shrink-0 text-red-600"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
             aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <svg
+          />
+          <TaskStatusDefaultIcon
             v-else
             class="size-3.5 shrink-0 text-foreground-muted"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
             aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-          </svg>
+          />
           <span :class="getAgentTaskStatusTextClass(latestAgentTask)">
             {{ getAgentTaskSummaryText(latestAgentTask) }}
           </span>
@@ -227,6 +94,17 @@ import {
   type AgentTaskResponse,
   type TaskResponse,
 } from "@/api";
+import ActionBar, { type ActionBarItem } from "@/components/ActionBar.vue";
+import {
+  DeleteIcon,
+  EditIcon,
+  TaskAssignIcon,
+  TaskReassignIcon,
+  TaskStatusDefaultIcon,
+  TaskStatusFailedIcon,
+  TaskStatusRunningIcon,
+  TaskStatusSuccessIcon,
+} from "@/components/icons";
 import { useUserStore } from "@/store/user";
 import {
   registerEntityChangeHandler,
@@ -460,6 +338,41 @@ function getAgentTaskStatusTextClass(agentTask: AgentTaskResponse) {
 const agentTasks = computed<AgentTaskResponse[]>(() =>
   [...localAgentTasks.value].sort((a, b) => b.id - a.id),
 );
+
+const taskActionItems = computed<ActionBarItem[]>(() => {
+  const hasAgentTask = agentTasks.value.length > 0;
+  return [
+    {
+      key: "assign",
+      title: hasAgentTask ? "重新分配给员工" : "分配给员工",
+      ariaLabel: hasAgentTask ? "重新分配给员工" : "分配给员工",
+      iconKey: hasAgentTask ? "reassign" : "assign",
+      icon: hasAgentTask ? TaskReassignIcon : TaskAssignIcon,
+      disabled: props.saving,
+      onClick: () => emit("assign", localTask.value),
+    },
+    {
+      key: "edit",
+      title: "编辑",
+      ariaLabel: "编辑任务",
+      iconKey: "edit",
+      icon: EditIcon,
+      disabled: props.saving,
+      onClick: () => emit("edit", localTask.value),
+    },
+    {
+      key: "delete",
+      title: "删除",
+      ariaLabel: "删除任务",
+      iconKey: "delete",
+      icon: DeleteIcon,
+      className:
+        "hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-600",
+      disabled: props.saving,
+      onClick: () => emit("delete", props.task.id),
+    },
+  ];
+});
 
 const latestAgentTask = computed(() => agentTasks.value[0] ?? null);
 

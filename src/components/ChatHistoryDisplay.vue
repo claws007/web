@@ -19,12 +19,13 @@
       <div v-for="row in renderRows" :key="row.id" class="w-full">
         <div
           v-if="row.kind === 'item'"
-          class="text-xs p-3 shadow-md rounded-md break-all v gap-2 cursor-pointer transition-all hover:opacity-80"
-          :class="
+          class="text-xs p-3 shadow-md rounded-md break-all v gap-2 transition-all"
+          :class="[
             row.item.isStreaming
               ? 'bg-white/50 border border-primary/20'
-              : 'bg-primary/8'
-          "
+              : 'bg-primary/8',
+            DEBUG ? 'hover:opacity-80 cursor-pointer' : '',
+          ]"
           @click="showHistoryDataDetail(row.item)"
         >
           <div class="flex items-center gap-1.5 mb-0.5">
@@ -84,7 +85,7 @@
           </div>
           <MarkdownPreviewer
             :content="row.item.displayContent"
-            class="leading-tight break-all text-sm!"
+            class="leading-tight break-all"
             :class="
               row.item.condensed
                 ? 'text-gray-600 italic line-clamp-3'
@@ -104,7 +105,8 @@
             <div
               v-for="item in row.items"
               :key="`group-${item.id}`"
-              class="flex items-start gap-1.5 text-foreground-muted cursor-pointer transition-all hover:opacity-80"
+              class="flex items-start gap-1.5 text-foreground-muted transition-all"
+              :class="[DEBUG ? 'hover:opacity-80 cursor-pointer' : '']"
               @click="showHistoryDataDetail(item)"
             >
               <span
