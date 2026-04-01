@@ -28,6 +28,7 @@ execFileSync(
 	[
 		packageManagerEntrypoint,
 		"exec",
+		"--",
 		"swagger-typescript-api",
 		"generate",
 		"--path",

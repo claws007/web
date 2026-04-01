@@ -39,6 +39,7 @@ const model = ref("");
 const modelConnectorId = ref<number>();
 const useDockerSandbox = ref(false);
 const containerImage = ref("");
+const sandboxStartupArguments = ref("");
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
 const modelConnectorOptions = ref<SelectorItem[]>([]);
 const modelOptions = ref<SelectorItem[]>([]);
@@ -222,6 +223,7 @@ async function loadAgentById() {
         : undefined;
     useDockerSandbox.value = agent.sandboxType === "DOCKER";
     containerImage.value = agent.containerImage ?? "";
+    sandboxStartupArguments.value = agent.sandboxStartupArguments ?? "";
 
     const imageUrl = getImageUrlByFileId(agent.avatarFileId);
     if (imageUrl) {
@@ -297,8 +299,11 @@ async function handleFormSubmit() {
     modelConnectorId: connectorId,
     sandboxType,
     containerImage: useDockerSandbox.value
-      ? containerImage.value.trim() || undefined
-      : undefined,
+      ? containerImage.value.trim() || ""
+      : "",
+    sandboxStartupArguments: useDockerSandbox.value
+      ? sandboxStartupArguments.value.trim() || ""
+      : "",
     avatarFile: avatarFile.value ?? undefined,
   };
 
@@ -507,6 +512,12 @@ onMounted(async () => {
                 </button>
               </section>
             </div>
+            <Input
+              v-if="useDockerSandbox"
+              v-model="sandboxStartupArguments"
+              label="启动参数"
+              placeholder="例如：--cpus=1 --memory=1g"
+            />
           </div>
         </div>
 

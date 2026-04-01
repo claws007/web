@@ -33,7 +33,7 @@
             aria-label="用户菜单"
           >
             <img
-              v-if="avatarUrl"
+              v-if="userStore.user?.avatarFileId"
               :src="avatarUrl"
               alt="用户头像"
               class="h-full w-full object-cover"

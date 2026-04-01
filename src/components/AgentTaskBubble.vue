@@ -41,7 +41,7 @@
               <div class="v gap-1 flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2 mb-2">
                   <h4 class="text-sm font-semibold truncate">
-                    {{ localAgent?.name || `Agent #${agentTask.agentId}` }}
+                    {{ localAgent?.name || `Agent #${localAgentTask.agentId}` }}
                   </h4>
                   <div class="flex items-center gap-4 shrink-0">
                     <ActionBar :items="taskControlItems" />
@@ -113,7 +113,7 @@
                     </svg>
                     <TimeDisplay
                       class="text-xs whitespace-nowrap"
-                      :timestamp="agentTask.assignedAt"
+                      :timestamp="localAgentTask.assignedAt"
                     />
                   </div>
                 </div>
@@ -143,14 +143,14 @@
             </button>
             <AgentTaskComments
               ref="commentsRef"
-              :agent-task-id="agentTask.id"
+              :agent-task-id="localAgentTask.id"
             />
           </div>
         </template>
 
         <ChatHistoryDisplay
           v-if="hasLoadedChatHistories"
-          :agent-task-id="agentTask.id"
+          :agent-task-id="localAgentTask.id"
           class="py-3 px-3"
         />
       </Collapse>
@@ -173,6 +173,7 @@ import { notify } from "@/components/notification";
 import TimeDisplay from "@/components/TimeDisplay.vue";
 import { dialogs } from "virtual:dialogs";
 import type {
+  AgentTaskEntityRecord,
   AgentEntityRecord,
   EntityChangePayload,
 } from "@/api/generated-ws";
@@ -200,6 +201,7 @@ const props = defineProps<{
 const isChatExpanded = ref(Boolean(props.isLatest));
 const hasLoadedChatHistories = ref(Boolean(props.isLatest));
 const commentsRef = ref<InstanceType<typeof AgentTaskComments> | null>(null);
+const localAgentTask = ref<AgentTaskResponse>({ ...props.agentTask });
 
 // Local copy of agent, kept in sync with prop and updated via CUD events.
 const localAgent = ref<AgentResponse | undefined>(
@@ -213,7 +215,15 @@ watch(
   },
 );
 
+watch(
+  () => props.agentTask,
+  (next) => {
+    localAgentTask.value = { ...next };
+  },
+);
+
 let unsubscribeAgentChange: (() => void) | null = null;
+let unsubscribeAgentTaskChange: (() => void) | null = null;
 let releaseAgentSubscription: (() => void) | null = null;
 
 function handleAgentEntityChange(payload: EntityChangePayload) {
@@ -241,6 +251,44 @@ function handleAgentEntityChange(payload: EntityChangePayload) {
   };
 }
 
+function toAgentTaskResponse(
+  record: AgentTaskEntityRecord,
+  existing: AgentTaskResponse,
+): AgentTaskResponse {
+  return {
+    id: record.id,
+    agentId: record.agentId,
+    content: record.content,
+    ac: (record.ac as string | null) ?? existing.ac ?? null,
+    state: record.state,
+    queueOrder: record.queueOrder,
+    assignedAt: record.assignedAt,
+    startedAt:
+      (record.startedAt as string | null) ?? existing.startedAt ?? null,
+    finishedAt:
+      (record.finishedAt as string | null) ?? existing.finishedAt ?? null,
+    updatedAt: record.updatedAt,
+    result: existing.result,
+  };
+}
+
+function handleAgentTaskEntityChange(payload: EntityChangePayload) {
+  if (payload.entity !== "agent_task") return;
+  const agentTaskId = Number(payload.entityId);
+  if (agentTaskId !== localAgentTask.value.id) return;
+
+  if (payload.operation === "delete") {
+    localAgentTask.value = {
+      ...localAgentTask.value,
+      state: "CANCELLED",
+    };
+    return;
+  }
+
+  const record = payload.record as AgentTaskEntityRecord;
+  localAgentTask.value = toAgentTaskResponse(record, localAgentTask.value);
+}
+
 function startAgentRealtime() {
   const token = userStore.token?.trim() || null;
   const companyId = readStoredActiveCompanyId();
@@ -250,7 +298,7 @@ function startAgentRealtime() {
     token,
     companyId,
     events: ["entity_change"],
-    entities: ["agent"],
+    entities: ["agent", "agent_task"],
   });
   unsubscribeAgentChange ??= registerEntityChangeHandler(
     handleAgentEntityChange,
@@ -258,11 +306,19 @@ function startAgentRealtime() {
       entities: ["agent"],
     },
   );
+  unsubscribeAgentTaskChange ??= registerEntityChangeHandler(
+    handleAgentTaskEntityChange,
+    {
+      entities: ["agent_task"],
+    },
+  );
 }
 
 function stopAgentRealtime() {
   unsubscribeAgentChange?.();
   unsubscribeAgentChange = null;
+  unsubscribeAgentTaskChange?.();
+  unsubscribeAgentTaskChange = null;
   releaseAgentSubscription?.();
   releaseAgentSubscription = null;
 }
@@ -299,8 +355,11 @@ function getTaskStateText(state: string): string {
 
 function getVisualState(agentTask: AgentTaskResponse): string {
   const normalized = (agentTask.state || "").toUpperCase();
-  if (normalized === "ACTIVE" || normalized === "PENDING") {
+  if (normalized === "ACTIVE") {
     return "running";
+  }
+  if (normalized === "PENDING") {
+    return "pending";
   }
   if (normalized === "FINISHED" || normalized === "TRANSFERRED") {
     return "success";
@@ -311,18 +370,18 @@ function getVisualState(agentTask: AgentTaskResponse): string {
   return "default";
 }
 
-const visualState = computed(() => getVisualState(props.agentTask));
+const visualState = computed(() => getVisualState(localAgentTask.value));
 
 const isTaskActive = computed(
-  () => (props.agentTask.state ?? "").toUpperCase() === "ACTIVE",
+  () => (localAgentTask.value.state ?? "").toUpperCase() === "ACTIVE",
 );
 
 const summaryText = computed(() => {
-  const state = getVisualState(props.agentTask);
+  const state = getVisualState(localAgentTask.value);
   if (state === "running") return "进行中...";
-  const summary = props.agentTask.result?.submission?.summary;
+  const summary = localAgentTask.value.result?.submission?.summary;
   if (summary?.trim()) return summary.trim();
-  return getTaskStateText(props.agentTask.state);
+  return getTaskStateText(localAgentTask.value.state);
 });
 
 const statusTextClass = computed(() => {
@@ -384,7 +443,7 @@ const taskControlItems = computed<ActionBarItem[]>(() => {
 
 async function stopTask() {
   try {
-    await api.agentTask.postAgentTaskByIdStop(props.agentTask.id);
+    await api.agentTask.postAgentTaskByIdStop(localAgentTask.value.id);
     notify.success("任务已停止");
   } catch (error) {
     notify.error(error instanceof Error ? error.message : "停止任务失败");
@@ -405,9 +464,12 @@ async function resumeTask() {
   }
 
   try {
-    await api.agentTask.postAgentTaskByIdRetryContinue(props.agentTask.id, {
-      message: result.value || undefined,
-    });
+    await api.agentTask.postAgentTaskByIdRetryContinue(
+      localAgentTask.value.id,
+      {
+        message: result.value || undefined,
+      },
+    );
     notify.success("任务已恢复");
   } catch (error) {
     notify.error(error instanceof Error ? error.message : "恢复任务失败");
@@ -425,7 +487,7 @@ async function restartTask() {
     })
     .resolve(async () => {
       try {
-        await api.agentTask.postAgentTaskByIdRetry(props.agentTask.id);
+        await api.agentTask.postAgentTaskByIdRetry(localAgentTask.value.id);
         notify.success("已重新开始任务");
       } catch (error) {
         notify.error(error instanceof Error ? error.message : "重新开始失败");

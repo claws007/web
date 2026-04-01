@@ -611,6 +611,7 @@ onBeforeUnmount(() => {
             class="w-full font-bold text-on-surface leading-relaxed truncate"
             :title="agentName"
           >
+            <span class="text-xs font-normal pr-1"> #{{ agent.id }} </span>
             <span class="pr-2">
               {{ agentName }}
             </span>

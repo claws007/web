@@ -161,6 +161,7 @@ export interface AgentResponse {
   model?: string | null;
   sandboxType?: "NONE" | "DOCKER";
   containerImage?: string | null;
+  sandboxStartupArguments?: string | null;
   avatarFileId?: number | null;
   companyId: number;
   modelConnectorId: number;
@@ -773,8 +774,10 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<D extends unknown, E extends unknown = unknown>
-  extends Response {
+export interface HttpResponse<
+  D extends unknown,
+  E extends unknown = unknown,
+> extends Response {
   data: D;
   error: E;
 }
@@ -1240,7 +1243,7 @@ export class Api<
      *
      * @tags Company
      * @name PostCompany
-     * @summary Create a company
+     * @summary Create a company (multipart/form-data, optional brandFile binary; brand metadata + brandFileId are persisted transactionally)
      * @request POST:/company
      */
     postCompany: (
@@ -1249,7 +1252,7 @@ export class Api<
         name: string;
         description?: string;
         /**
-         * Optional company brand image file
+         * Optional company brand image file; when provided, the server uploads metadata and writes brandFileId in the same database transaction as company creation
          * @format binary
          */
         brandFile?: File;
@@ -1286,7 +1289,7 @@ export class Api<
      *
      * @tags Company
      * @name PutCompanyByCompanyId
-     * @summary Update company
+     * @summary Update company (multipart/form-data, optional brandFile binary; updates brandFileId transactionally with other fields)
      * @request PUT:/company/{companyId}
      */
     putCompanyByCompanyId: (
@@ -1297,7 +1300,7 @@ export class Api<
         /** Send empty string to clear description */
         description?: string;
         /**
-         * Optional company brand image file
+         * Optional company brand image file; when provided, the server uploads metadata and updates brandFileId in the same database transaction as other Company fields
          * @format binary
          */
         brandFile?: File;
@@ -1440,7 +1443,7 @@ export class Api<
       }),
 
     /**
-     * @description Creates a new agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and writes `avatarFileId` atomically with Agent creation. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
+     * @description Creates a new agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and writes `avatarFileId` atomically with Agent creation. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - `sandboxStartupArguments` is optional and appended to `docker run` before the image name. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
      *
      * @tags Agent
      * @name PostCompanyByCompanyIdAgent
@@ -1460,6 +1463,7 @@ export class Api<
         sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
         containerImage?: string;
+        sandboxStartupArguments?: string;
         /** @min 1 */
         modelConnectorId: number;
         /**
@@ -1500,7 +1504,7 @@ export class Api<
       }),
 
     /**
-     * @description Updates an existing agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and updates `avatarFileId` in the same database transaction as other Agent updates. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
+     * @description Updates an existing agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and updates `avatarFileId` in the same database transaction as other Agent updates. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - `sandboxStartupArguments` updates additional `docker run` arguments used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
      *
      * @tags Agent
      * @name PutCompanyByCompanyIdAgentById
@@ -1522,6 +1526,7 @@ export class Api<
         sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
         containerImage?: string;
+        sandboxStartupArguments?: string;
         /** @min 1 */
         modelConnectorId?: number;
         /**
@@ -1585,7 +1590,6 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
-          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: {
@@ -1634,7 +1638,7 @@ export class Api<
       }),
 
     /**
-     * @description Starts queued tasks for the agent. When `sandboxType=DOCKER`, task commands run inside a container created from `containerImage`. If no `containerImage` is configured, `alpine:latest` is used by default.
+     * @description Starts queued tasks for the agent. When `sandboxType=DOCKER`, task commands run inside a container created from `containerImage`. When configured, `sandboxStartupArguments` are injected into `docker run` before the image name. If no `containerImage` is configured, `alpine:latest` is used by default.
      *
      * @tags Agent
      * @name PostCompanyByCompanyIdAgentByIdRun
@@ -2447,7 +2451,6 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
-          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: {
