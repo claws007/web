@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref } from "vue";
 import { useFormContext } from "@/composables/useForm";
+import FlowPrimaryBackground from "./FlowPrimaryBackground.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -14,10 +15,8 @@ const props = withDefaults(
 );
 
 const form = useFormContext();
-const btnRef = ref<HTMLButtonElement | null>(null);
 const isHovered = ref(false);
 
-// Computed disabled state: considers form validation state
 const computedDisabled = computed(() => {
   // If disabled prop is explicitly set, use it
   if (props.disabled) {
@@ -36,50 +35,23 @@ const computedDisabled = computed(() => {
 
   return false;
 });
-
-let pos = 0;
-let raf = 0;
-let lastTs = 0;
-
-// Speed in % per second (frame-rate independent via delta time)
-// Normal: 12 %/s -> full cycle in ~8.3s
-// Hover: 36 %/s -> 3x faster
-const SPEED_NORMAL = 12;
-const SPEED_HOVER = 36;
-
-function tick(ts: DOMHighResTimeStamp) {
-  const delta = lastTs === 0 ? 0 : ts - lastTs;
-  lastTs = ts;
-
-  const speed = isHovered.value ? SPEED_HOVER : SPEED_NORMAL;
-  pos = (pos + speed * delta * 0.0025) % 600;
-
-  if (btnRef.value) {
-    btnRef.value.style.backgroundPosition = `${pos.toFixed(3)}% 50%`;
-  }
-  raf = requestAnimationFrame(tick);
-}
-
-onMounted(() => {
-  raf = requestAnimationFrame(tick);
-});
-onUnmounted(() => {
-  cancelAnimationFrame(raf);
-});
 </script>
 
 <template>
   <button
-    ref="btnRef"
-    class="primary-btn"
-    :class="`primary-btn--${size}`"
-    :disabled="computedDisabled"
-    v-bind="$attrs"
     @mouseenter="isHovered = !computedDisabled && true"
     @mouseleave="isHovered = false"
+    class="cursor-pointer shadow-none!"
   >
-    <span v-if="loading" class="spinner" />
-    <slot />
+    <FlowPrimaryBackground
+      :is-hovered="isHovered"
+      class="primary-btn"
+      :class="`primary-btn--${size}`"
+      :disabled="computedDisabled"
+    >
+      <span v-if="loading" class="spinner" />
+      <slot />
+    </FlowPrimaryBackground>
   </button>
 </template>
 
@@ -92,26 +64,8 @@ onUnmounted(() => {
   padding: 0.55rem 1.75rem;
   border: none;
   border-radius: var(--radius-pill);
-
-  /*
-   * Gradient repeats twice within background-size: 200%.
-   * Each half (0→50%, 50→100%) is identical: cyan→purple→pink→cyan.
-   * When JS pos wraps 100→0, the visible slice shifts from second half
-   * back to first half — both identical, so zero visual jump.
-   */
-  background: linear-gradient(
-    110deg,
-    #0ea5a0 0%,
-    #7825ea 16.7%,
-    #a43073 33.3%,
-    #0ea5a0 50%,
-    #7825ea 66.7%,
-    #a43073 83.3%,
-    #0ea5a0 100%
-  );
-  background-size: 600% 100%;
-  background-position: 0% 50%;
-
+  position: relative;
+  isolation: isolate;
   color: #fff;
   font-family: var(--font-sans);
   font-size: 0.875rem;

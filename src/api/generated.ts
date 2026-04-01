@@ -1154,6 +1154,35 @@ export class Api<
         format: "json",
         ...params,
       }),
+
+    /**
+     * @description Updates the current user's profile via multipart/form-data. Form fields: - `name`: optional new display name. Send empty string to clear. - `avatarFile`: optional avatar image blob. When provided, the server uploads it as a File and writes `avatarFileId` atomically with the profile update.
+     *
+     * @tags User
+     * @name PutUserMe
+     * @summary Update current user profile
+     * @request PUT:/user/me
+     */
+    putUserMe: (
+      data: {
+        /** Send empty string to clear display name */
+        name?: string;
+        /**
+         * Optional avatar image file
+         * @format binary
+         */
+        avatarFile?: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SafeUserResponse, ErrorResponse>({
+        path: `/user/me`,
+        method: "PUT",
+        body: data,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
   };
   events = {
     /**

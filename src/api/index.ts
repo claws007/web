@@ -35,6 +35,8 @@ import {
   type SkillResponse,
   type SubAgentPageResponse,
   type SubAgentResponse,
+  type SafeUserResponse,
+  type ValidationErrorResponse,
 } from "./generated";
 
 export type DockerAvailabilityResponse = {
@@ -604,6 +606,24 @@ function requestCompanyJson<T>(
 }
 
 export const api = Object.assign(rawApi, {
+  user: {
+    ...rawApi.user,
+    putUserMe: (
+      data: {
+        name?: string | null;
+        avatarFile?: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      rawApi.request<SafeUserResponse, ValidationErrorResponse>({
+        path: "/user/me",
+        method: "PUT",
+        body: data,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
+  },
   agent: {
     getAgent: withCompanyScope(
       (

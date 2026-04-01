@@ -11,3 +11,4 @@ export { AgentTaskStopIcon } from "./AgentTaskStopIcon";
 export { AgentTaskResumeIcon } from "./AgentTaskResumeIcon";
 export { AgentTaskRestartIcon } from "./AgentTaskRestartIcon";
 export { AgentTaskCommentIcon } from "./AgentTaskCommentIcon";
+export { CloseIcon } from "./CloseIcon";

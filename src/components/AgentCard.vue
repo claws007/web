@@ -584,46 +584,39 @@ onBeforeUnmount(() => {
 
 <template>
   <article
-    class="group flex flex-col gap-3.5 rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow backdrop-blur-xl"
+    class="group rounded-md p-3 bg-linear-to-br from-surface-container-lowest to-surface-container shadow backdrop-blur-xl"
     role="region"
     :aria-label="agentName"
   >
-    <div class="flex items-start gap-3 min-w-0">
-      <div class="shrink-0 w-12 h-12">
-        <img
-          v-if="avatarUrl"
-          class="w-full h-full rounded-md block object-cover border border-primary/15"
-          :src="avatarUrl"
-          :alt="`${agentName} 头像`"
-          @error="avatarLoadFailed = true"
-        />
-        <div
-          v-else
-          class="w-full h-full rounded-md flex items-center justify-center font-bold text-sm tracking-wide text-white avatar-gradient"
-          aria-hidden="true"
-        >
-          {{ avatarText }}
-        </div>
-      </div>
-
-      <div class="min-w-0 flex flex-col gap-3 items-start">
-        <div class="v items-start gap-1">
-          <div class="h items-center gap-2">
-            <span
-              class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-xs bg-primary/10 shadow"
-              :title="`${modelConnectorName} ${modelName}`"
-            >
-              <span class="text-foreground-muted">
-                {{ modelConnectorName }}
-              </span>
-              <span class="text-foreground"> : {{ modelName }} </span>
-            </span>
+    <div class="v gap-2.5">
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="shrink-0 w-12 h-12">
+          <img
+            v-if="avatarUrl"
+            class="shadow w-full h-full rounded-md block object-cover border border-primary/15"
+            :src="avatarUrl"
+            :alt="`${agentName} 头像`"
+            @error="avatarLoadFailed = true"
+          />
+          <div
+            v-else
+            class="w-full h-full rounded-md flex items-center justify-center font-bold text-sm tracking-wide text-white avatar-gradient"
+            aria-hidden="true"
+          >
+            {{ avatarText }}
           </div>
+        </div>
+        <div class="v items-start stretch">
           <h3
-            class="text-base break-all font-bold text-on-surface leading-relaxed"
+            class="w-full font-bold text-on-surface leading-relaxed truncate"
             :title="agentName"
           >
-            {{ agentName }}
+            <span class="pr-2">
+              {{ agentName }}
+            </span>
+            <span class="font-normal text-xs">
+              {{ modelName }}
+            </span>
           </h3>
           <p
             class="text-on-surface-variant text-xs leading-relaxed overflow-hidden line-clamp-2"
@@ -632,90 +625,90 @@ onBeforeUnmount(() => {
             {{ abilityIntro }}
           </p>
         </div>
-        <span
-          v-if="shouldShowLatestTaskInfo"
-          class="v gap-1 max-w-full text-xs break-all items-start"
-          :class="latestTaskStateInfo.color"
-          :title="latestTask?.content || latestTaskStateInfo.text"
-        >
-          <div class="h items-center gap-1 text-foreground">
-            <svg
-              class="w-3.5 h-3.5 shrink-0"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 11l3 3L22 4" />
-              <path
-                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-              />
-            </svg>
-            <div>
-              {{ latestTask?.taskContent || "暂无关联任务内容" }}
-            </div>
-          </div>
-          <div class="h items-start gap-1 pl-4">
-            <!-- Loading icon for ACTIVE -->
-            <svg
-              v-if="latestTaskStateInfo.icon === 'loading'"
-              class="w-4 h-4 shrink-0 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <!-- Check icon for FINISHED -->
-            <svg
-              v-else-if="latestTaskStateInfo.icon === 'check'"
-              class="w-3.5 h-3.5 shrink-0"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <!-- Error icon for FAILED -->
-            <svg
-              v-else-if="latestTaskStateInfo.icon === 'error'"
-              class="w-3.5 h-3.5 shrink-0"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            {{ latestTaskStateInfo.text }}
-          </div>
-        </span>
       </div>
+      <span
+        v-if="shouldShowLatestTaskInfo"
+        class="v gap-1 max-w-full text-xs break-all items-start"
+        :class="latestTaskStateInfo.color"
+        :title="latestTask?.content || latestTaskStateInfo.text"
+      >
+        <div class="h items-start gap-1 text-foreground">
+          <svg
+            class="w-3.5 h-3.5 shrink-0"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 11l3 3L22 4" />
+            <path
+              d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+            />
+          </svg>
+          <div>
+            {{ latestTask?.taskContent || "暂无关联任务内容" }}
+          </div>
+        </div>
+        <div class="h items-start gap-1 pl-4">
+          <!-- Loading icon for ACTIVE -->
+          <svg
+            v-if="latestTaskStateInfo.icon === 'loading'"
+            class="w-4 h-4 shrink-0 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <!-- Check icon for FINISHED -->
+          <svg
+            v-else-if="latestTaskStateInfo.icon === 'check'"
+            class="w-3.5 h-3.5 shrink-0"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <!-- Error icon for FAILED -->
+          <svg
+            v-else-if="latestTaskStateInfo.icon === 'error'"
+            class="w-3.5 h-3.5 shrink-0"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          {{ latestTaskStateInfo.text }}
+        </div>
+      </span>
     </div>
 
     <ActionBar

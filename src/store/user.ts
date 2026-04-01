@@ -254,6 +254,32 @@ export const useUserStore = defineStore("user", () => {
     syncCompanies(nextCompanies);
   }
 
+  function upsertCompany(company: CompanyResponse) {
+    const index = companies.value.findIndex((item) => item.id === company.id);
+    if (index < 0) {
+      syncCompanies([...companies.value, company]);
+      return;
+    }
+
+    const next = [...companies.value];
+    next[index] = company;
+    syncCompanies(next);
+  }
+
+  function updateUserProfile(nextProfile: SafeUserResponse) {
+    if (!user.value) {
+      return;
+    }
+
+    const nextUser: UserWithCompanyMeta = {
+      ...user.value,
+      ...nextProfile,
+    };
+
+    user.value = nextUser;
+    persistUser(nextUser);
+  }
+
   return {
     token,
     user,
@@ -263,5 +289,7 @@ export const useUserStore = defineStore("user", () => {
     login,
     logout,
     markCompanyCreated,
+    upsertCompany,
+    updateUserProfile,
   };
 });

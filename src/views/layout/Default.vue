@@ -1,8 +1,8 @@
 <template>
   <div class="size-full v bg-[rgb(247 249 251)]">
-    <Navbar class="absolute top-0 left-0 z-40" />
-    <div class="stretch overflow-auto pt-16">
-      <!-- Main Content -->
+    <Navbar class="z-40" />
+    <!-- Main Content -->
+    <div class="stretch">
       <router-view />
     </div>
   </div>

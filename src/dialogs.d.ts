@@ -24,9 +24,11 @@ declare module "virtual:dialogs" {
 		DebugDialog: (...args: _A<typeof import("./components/dialog/DebugDialog.vue")["default"]>) => _H<typeof import("./components/dialog/DebugDialog.vue")["default"]>;
 		EditOrCreateAgentDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentDialog.vue")["default"]>;
 		EditOrCreateAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateAgentFilePermissionDialog.vue")["default"]>;
+		EditOrCreateCompanyDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateCompanyDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateCompanyDialog.vue")["default"]>;
 		EditOrCreateMcpServerDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateMcpServerDialog.vue")["default"]>;
 		EditOrCreateModelConnectorDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateModelConnectorDialog.vue")["default"]>;
 		EditOrCreateSkillDialog: (...args: _A<typeof import("./components/dialog/EditOrCreateSkillDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditOrCreateSkillDialog.vue")["default"]>;
+		EditUserInfoDialog: (...args: _A<typeof import("./components/dialog/EditUserInfoDialog.vue")["default"]>) => _H<typeof import("./components/dialog/EditUserInfoDialog.vue")["default"]>;
 		ManageAgentFilePermissionDialog: (...args: _A<typeof import("./components/dialog/ManageAgentFilePermissionDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentFilePermissionDialog.vue")["default"]>;
 		ManageAgentMcpServerDialog: (...args: _A<typeof import("./components/dialog/ManageAgentMcpServerDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentMcpServerDialog.vue")["default"]>;
 		ManageAgentSkillDialog: (...args: _A<typeof import("./components/dialog/ManageAgentSkillDialog.vue")["default"]>) => _H<typeof import("./components/dialog/ManageAgentSkillDialog.vue")["default"]>;

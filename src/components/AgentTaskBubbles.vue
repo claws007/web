@@ -1,5 +1,5 @@
 <template>
-  <div class="v h-full min-w-0 v *:px-5">
+  <div class="v *:px-5">
     <!-- Header: Task Info -->
     <div class="">
       <div class="p-3 bg-primary/6 rounded-md shadow">
@@ -14,27 +14,12 @@
               {{ task.content }}
             </h3>
           </div>
-          <button
-            class="shrink-0 w-5 cursor-pointer h-5 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-            aria-label="Close"
-            @click="$emit('close')"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <ActionBar
+            class="shrink-0"
+            :items="headerActionItems"
+            container-class="h gap-1 p-0 bg-transparent shadow-none rounded-none"
+            button-class="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          />
         </div>
       </div>
     </div>
@@ -66,19 +51,28 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { readStoredActiveCompanyId } from "@/api";
+import { api, readStoredActiveCompanyId } from "@/api";
 import type { AgentResponse, AgentTaskResponse, TaskResponse } from "@/api";
 import type {
   EntityChangePayload,
   AgentTaskEntityRecord,
 } from "@/api/generated-ws";
+import ActionBar, { type ActionBarItem } from "@/components/ActionBar.vue";
 import AutoStickBottom from "@/components/AutoStickBottom.vue";
 import AgentTaskBubble from "@/components/AgentTaskBubble.vue";
+import { notify } from "@/components/notification";
+import {
+  AgentTaskRestartIcon,
+  AgentTaskResumeIcon,
+  AgentTaskStopIcon,
+  CloseIcon,
+} from "@/components/icons";
 import {
   registerEntityChangeHandler,
   requestRealtimeSubscription,
 } from "@/services/events-realtime";
 import { useUserStore } from "@/store/user";
+import { dialogs } from "virtual:dialogs";
 
 const props = defineProps<{
   task: TaskResponse;
@@ -203,6 +197,133 @@ function getAgentForTask(
 const sortedAgentTasks = computed(() => {
   return [...localAgentTasks.value].sort((a, b) => a.id - b.id);
 });
+
+const latestAgentTask = computed<AgentTaskResponse | null>(() => {
+  if (sortedAgentTasks.value.length === 0) {
+    return null;
+  }
+  return sortedAgentTasks.value[sortedAgentTasks.value.length - 1];
+});
+
+const isLatestTaskActive = computed(
+  () => (latestAgentTask.value?.state ?? "").toUpperCase() === "ACTIVE",
+);
+
+const isLatestTaskCompleted = computed(() => {
+  const state = (latestAgentTask.value?.state ?? "").toUpperCase();
+  return state === "FINISHED" || state === "TRANSFERRED";
+});
+
+const headerActionItems = computed<ActionBarItem[]>(() => {
+  const items: ActionBarItem[] = [];
+  if (latestAgentTask.value) {
+    if (isLatestTaskActive.value) {
+      items.push({
+        key: "pause-latest",
+        title: "暂停最新任务",
+        ariaLabel: "暂停最新任务",
+        iconKey: "pause-latest",
+        icon: AgentTaskStopIcon,
+        className: "text-amber-700",
+        onClick: stopLatestTask,
+      });
+    } else if (isLatestTaskCompleted.value) {
+      items.push({
+        key: "replay-latest",
+        title: "重新开始最新任务",
+        ariaLabel: "重新开始最新任务",
+        iconKey: "replay-latest",
+        icon: AgentTaskRestartIcon,
+        onClick: restartLatestTask,
+      });
+    } else {
+      items.push({
+        key: "play-latest",
+        title: "恢复最新任务",
+        ariaLabel: "恢复最新任务",
+        iconKey: "play-latest",
+        icon: AgentTaskResumeIcon,
+        onClick: resumeLatestTask,
+      });
+    }
+  }
+
+  items.push({
+    key: "close",
+    title: "关闭",
+    ariaLabel: "关闭",
+    iconKey: "close",
+    icon: CloseIcon,
+    onClick: () => emit("close"),
+  });
+
+  return items;
+});
+
+async function stopLatestTask() {
+  const latest = latestAgentTask.value;
+  if (!latest) {
+    return;
+  }
+  try {
+    await api.agentTask.postAgentTaskByIdStop(latest.id);
+    notify.success("任务已停止");
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : "停止任务失败");
+  }
+}
+
+async function resumeLatestTask() {
+  const latest = latestAgentTask.value;
+  if (!latest) {
+    return;
+  }
+
+  const result = await dialogs.TextPromptDialog({
+    title: "恢复任务",
+    description: "可以补充说明，也可以留空直接恢复。",
+    placeholder: "输入额外信息（可选）",
+    confirmText: "恢 复",
+    required: false,
+    rows: 4,
+  });
+  if (result.type !== "resolve") {
+    return;
+  }
+
+  try {
+    await api.agentTask.postAgentTaskByIdRetryContinue(latest.id, {
+      message: result.value || undefined,
+    });
+    notify.success("任务已恢复");
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : "恢复任务失败");
+  }
+}
+
+async function restartLatestTask() {
+  const latest = latestAgentTask.value;
+  if (!latest) {
+    return;
+  }
+
+  dialogs
+    .ConfirmDialog({
+      title: "重新开始",
+      content:
+        "重新开始会删除该对话后的所有内容，再从当前 AgentTask 重新开始，是否继续？",
+      confirmText: "重 新 开 始",
+      confirmType: "danger",
+    })
+    .resolve(async () => {
+      try {
+        await api.agentTask.postAgentTaskByIdRetry(latest.id);
+        notify.success("已重新开始任务");
+      } catch (error) {
+        notify.error(error instanceof Error ? error.message : "重新开始失败");
+      }
+    });
+}
 </script>
 
 <style scoped>

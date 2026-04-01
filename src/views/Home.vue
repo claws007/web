@@ -2,13 +2,9 @@
   <div class="h size-full items-stretch">
     <!-- 头部：标题 + 新建按钮 -->
     <section
-      class="p-5 bg-primary/5 flex flex-col gap-6 flex-1 shrink backdrop-blur-md overflow-y-auto"
+      class="p-5 bg-primary/5 flex flex-col gap-3 w-64 shrink backdrop-blur-md overflow-y-auto"
     >
       <div class="flex items-center justify-between">
-        <div class="v gap-1">
-          <div class="text-xl font-bold">员工列表</div>
-          <div class="text-sm text-(--on-surface-variant)">Agents</div>
-        </div>
         <PrimaryButton
           size="small"
           title="新建 Agent"
@@ -19,21 +15,7 @@
             })
           "
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <PlusIcon />
           <span>招人</span>
         </PrimaryButton>
       </div>
@@ -63,7 +45,7 @@
       <!-- 空列表 -->
       <div
         v-else-if="agents.length === 0"
-        class="flex min-h-48 flex-col items-center justify-center gap-2 text-sm text-(--on-surface-variant)"
+        class="text-foreground-muted items-center justify-center gap-2 text-sm"
       >
         暂无员工，点击「新建」创建第一个 Agent
       </div>
@@ -71,7 +53,7 @@
       <!-- Agent 卡片列表 -->
       <div v-else class="v gap-3">
         <AgentCard
-          v-for="agent in agents"
+          v-for="agent in agents.filter((a) => !a.builtin)"
           :key="agent.id"
           :agent="agent"
           @edit="handleEdit"
@@ -81,34 +63,33 @@
       </div>
     </section>
 
-    <section class="h-full flex-1 min-w-0 v gap-3 *:px-5 py-5">
-      <Textarea
-        v-model="newTaskContent"
-        placeholder="创建任务"
-        @enter="handleCreateTask"
-      />
-      <div
-        v-if="taskError"
-        class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
-      >
-        {{ taskError }}
+    <section class="h-full w-88 min-w-0 v *:p-5">
+      <div class="bg-primary/2 shadow">
+        <Textarea
+          v-model="newTaskContent"
+          placeholder="创建任务"
+          @enter="handleCreateTask"
+        />
       </div>
-
-      <div
-        v-if="taskLoading"
-        class="stretch mt-4 flex min-h-36 items-center justify-center text-sm text-(--on-surface-variant)"
-      >
-        正在加载任务...
-      </div>
-
-      <div
-        v-else-if="tasks.length === 0"
-        class="stretch mt-4 flex min-h-36 items-center justify-center rounded-md border border-dashed border-[rgb(0_104_119/0.2)] text-sm text-(--on-surface-variant)"
-      >
-        暂无任务，先创建一个吧
-      </div>
-
-      <div v-else class="v gap-3 stretch overflow-y-auto">
+      <div class="v gap-3 stretch overflow-y-auto">
+        <div
+          v-if="taskError"
+          class="mt-4 rounded-xl border border-[rgb(192_57_43/0.35)] bg-[rgb(192_57_43/0.08)] px-3 py-2 text-sm text-[#c0392b]"
+        >
+          {{ taskError }}
+        </div>
+        <div
+          v-if="taskLoading"
+          class="stretch mt-4 flex min-h-36 items-center justify-center text-sm text-(--on-surface-variant)"
+        >
+          正在加载任务...
+        </div>
+        <div
+          v-else-if="tasks.length === 0"
+          class="stretch mt-4 flex min-h-36 items-center justify-center rounded-md border border-dashed border-[rgb(0_104_119/0.2)] text-sm text-(--on-surface-variant)"
+        >
+          暂无任务，先创建一个吧
+        </div>
         <Task
           v-for="task in sortedTasks"
           :key="task.id"
@@ -130,7 +111,7 @@
         />
       </div>
     </section>
-    <div class="flex-[3.5] shrink bg-primary/5 backdrop-blur-xs">
+    <div class="stretch shrink bg-primary/5 backdrop-blur-xs">
       <AgentTaskBubbles
         v-if="selectedTaskId && tasks.find((t) => t.id === selectedTaskId)"
         :task="tasks.find((t) => t.id === selectedTaskId)!"
@@ -157,6 +138,7 @@ import type {
 } from "@/api/generated-ws";
 import AgentCard from "@/components/AgentCard.vue";
 import Task from "@/components/Task.vue";
+import PlusIcon from "@/icons/PlusIcon.vue";
 import AgentTaskBubbles from "@/components/AgentTaskBubbles.vue";
 import { dialogs } from "virtual:dialogs";
 import {

@@ -229,7 +229,7 @@ defineExpose({
         :rows="rows"
         :placeholder="placeholder"
         :value="modelValue"
-        class="flex-1 min-w-0 resize-y border-0 bg-transparent outline-none px-3 py-2.5 text-[0.9375rem] font-sans text-foreground leading-[1.6] placeholder:text-foreground-muted/45 focus:shadow-none"
+        class="flex-1 min-w-0 resize-none border-0 bg-transparent outline-none px-3 py-2.5 text-[0.9375rem] font-sans text-foreground leading-[1.6] placeholder:text-foreground-muted/45 focus:shadow-none"
         @input="onInput"
         @keydown.enter="onEnter"
       />

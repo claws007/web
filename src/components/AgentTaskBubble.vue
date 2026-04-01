@@ -44,10 +44,7 @@
                     {{ localAgent?.name || `Agent #${agentTask.agentId}` }}
                   </h4>
                   <div class="flex items-center gap-4 shrink-0">
-                    <ActionBar
-                      :items="taskControlItems"
-                      class="group-hover:opacity-100 opacity-0 duration-200"
-                    />
+                    <ActionBar :items="taskControlItems" />
                     <svg
                       v-if="visualState === 'running'"
                       class="w-4 h-4 animate-spin text-secondary"

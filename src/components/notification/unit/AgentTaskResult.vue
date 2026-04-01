@@ -74,7 +74,7 @@ async function retryTask() {
       }}</span>
     </div>
 
-    <div class="max-h-40 overflow-y-auto bg-black/5 rounded-md p-2">
+    <div class="overflow-y-auto bg-black/5 rounded-md p-2">
       <MarkdownPreviewer
         :content="entry.content"
         class="text-xs!"
@@ -105,7 +105,7 @@ async function retryTask() {
 <style scoped>
 .nw-task-result {
   padding: 0.55rem 0.65rem;
-  max-height: 20rem;
+  max-height: 40rem;
   border-radius: var(--radius-sm);
   background: var(--surface-container-low);
   border: 1px solid var(--outline-ghost);

@@ -34,7 +34,7 @@
               class="inline-flex items-end gap-2"
             >
               <span
-                class="inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700"
+                class="shadow inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700"
               >
                 <img
                   v-if="resolveActorAvatar(row.item.role)"
@@ -47,7 +47,7 @@
               <span class="font-semibold text-slate-700 text-sm">
                 {{ resolveActorLabel(row.item.role) }}
               </span>
-              <span
+              <FlowPrimaryBackground
                 v-if="row.item.isStreaming"
                 class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs uppercase text-white bg-black/70"
               >
@@ -73,7 +73,7 @@
                   ></path>
                 </svg>
                 输出中
-              </span>
+              </FlowPrimaryBackground>
             </span>
             <span
               v-else
@@ -111,7 +111,7 @@
             >
               <span
                 v-if="useActorAvatar(item.role)"
-                class="inline-flex size-4 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700"
+                class="shadow inline-flex size-4 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700"
               >
                 <img
                   v-if="resolveActorAvatar(item.role)"
