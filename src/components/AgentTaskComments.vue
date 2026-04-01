@@ -51,7 +51,8 @@
             </div>
           </div>
           <p
-            class="whitespace-pre-wrap break-all text-xs leading-5 text-gray-700"
+            :title="comment.content"
+            class="whitespace-pre-wrap break-all text-xs leading-5 text-gray-700 line-clamp-2"
           >
             {{ comment.content }}
           </p>
