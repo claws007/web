@@ -30,6 +30,7 @@ import {
   type NotificationPageResponse,
   type NotificationResponse,
   type RequestParams,
+  type SkillDownloadFilesResponse,
   type SkillPageResponse,
   type SkillResponse,
   type SubAgentPageResponse,
@@ -341,6 +342,10 @@ type EnhancedApi = Api<string> & {
       id: number,
       params?: RequestParams,
     ): Promise<HttpResponse<SkillResponse, unknown>>;
+    downloadSkillById(
+      id: number,
+      params?: RequestParams,
+    ): Promise<HttpResponse<SkillDownloadFilesResponse, unknown>>;
     postSkill(
       data: Parameters<
         Api<string>["company"]["postCompanyByCompanyIdSkill"]
@@ -892,6 +897,14 @@ export const api = Object.assign(rawApi, {
     getSkillById: withCompanyScope(
       (companyId, id: number, params: RequestParams = {}) =>
         rawApi.company.getCompanyByCompanyIdSkillById(companyId, id, params),
+    ),
+    downloadSkillById: withCompanyScope(
+      (companyId, id: number, params: RequestParams = {}) =>
+        rawApi.company.getCompanyByCompanyIdSkillByIdDownload(
+          companyId,
+          id,
+          params,
+        ),
     ),
     postSkill: withCompanyScope(
       (

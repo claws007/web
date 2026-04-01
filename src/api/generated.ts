@@ -669,6 +669,19 @@ export interface SkillResponse {
   } | null;
 }
 
+export interface SkillDownloadFileResponse {
+  fileId: number;
+  filePath: string;
+  contentType?: string | null;
+  contentBase64: string;
+}
+
+export interface SkillDownloadFilesResponse {
+  skillId: number;
+  skillName: string;
+  files: SkillDownloadFileResponse[];
+}
+
 export interface TaskResponse {
   id: number;
   companyId: number;
@@ -3228,6 +3241,26 @@ export class Api<
       this.request<SuccessResponse, ErrorResponse>({
         path: `/company/${companyId}/skill/${id}`,
         method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Downloads all files of a skill as JSON payload for frontend packaging. Response fields: - `skillId`, `skillName`: skill metadata. - `files[]`: list of file entries with `filePath`, optional `contentType`, and `contentBase64`. Frontend should decode `contentBase64` and package files as ZIP using JSZip. Returns 404 if the skill has no files.
+     *
+     * @tags Skill
+     * @name GetCompanyByCompanyIdSkillByIdDownload
+     * @summary Download skill files payload for frontend ZIP packaging
+     * @request GET:/company/{companyId}/skill/{id}/download
+     */
+    getCompanyByCompanyIdSkillByIdDownload: (
+      companyId: number,
+      id: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<SkillDownloadFilesResponse, ErrorResponse>({
+        path: `/company/${companyId}/skill/${id}/download`,
+        method: "GET",
         format: "json",
         ...params,
       }),

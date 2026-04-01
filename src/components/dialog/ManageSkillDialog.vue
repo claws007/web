@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { api, type SkillResponse } from "@/api";
+import JSZip from "jszip";
 import Dialog, {
   createDialogExpose,
   useDialogContext,
@@ -17,6 +18,7 @@ const closing = ref(false);
 const loading = ref(false);
 const refreshing = ref(false);
 const deletingId = ref<number | null>(null);
+const downloadingId = ref<number | null>(null);
 const error = ref<string | null>(null);
 
 const skills = ref<SkillResponse[]>([]);
@@ -110,7 +112,6 @@ async function loadSkills(useSoftLoading = false) {
   }
 }
 
-
 async function handleCreate() {
   const result = await dialogs.EditOrCreateSkillDialog();
   if (result.type !== "resolve") {
@@ -127,6 +128,63 @@ async function handleEdit(skill: SkillResponse) {
   }
 
   await loadSkills(true);
+}
+
+async function handleDownload(skill: SkillResponse) {
+  if (downloadingId.value === skill.id) {
+    return;
+  }
+
+  downloadingId.value = skill.id;
+  const skillName = skill.name || `skill-${skill.id}`;
+  const task = notify.progress(`正在下载 ${skillName}...`);
+
+  try {
+    const response = await api.skill.downloadSkillById(skill.id);
+    const payload = response.data;
+    const files = payload.files ?? [];
+
+    if (files.length === 0) {
+      throw new Error("Skill 暂无可下载文件");
+    }
+
+    const zip = new JSZip();
+    const total = files.length;
+
+    for (const [index, file] of files.entries()) {
+      const binaryString = atob(file.contentBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i += 1) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      zip.file(file.filePath, bytes);
+      const progress = Math.floor(((index + 1) / total) * 85);
+      task.update(progress, `正在处理文件 ${index + 1}/${total}`);
+    }
+
+    task.update(90, "正在生成 ZIP...");
+    const blob = await zip.generateAsync({ type: "blob" });
+
+    // Create a temporary URL for the zip blob
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${payload.skillName || skillName}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    task.complete("Skill 下载完成");
+    notify.success("Skill 下载成功");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "下载 Skill 失败";
+    task.fail(message);
+    notify.error(message);
+  } finally {
+    downloadingId.value = null;
+  }
 }
 
 async function handleDelete(skill: SkillResponse) {
@@ -233,6 +291,13 @@ onMounted(loadSkills);
             </td>
             <td class="mono">{{ prettyNumber(getSkillFileCount(item)) }}</td>
             <td class="actions-cell">
+              <button
+                class="link-btn"
+                :disabled="downloadingId === item.id"
+                @click="handleDownload(item)"
+              >
+                {{ downloadingId === item.id ? "下载中..." : "下载" }}
+              </button>
               <button
                 class="link-btn"
                 :disabled="deletingId === item.id"
