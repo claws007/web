@@ -34,6 +34,7 @@ export interface AgentEntityRecord {
   model: string | unknown;
   sandboxType: "NONE" | "DOCKER";
   containerImage: string | unknown;
+  autoStoreSandboxContext: boolean;
   modelConnectorId: number;
   builtin: boolean;
 }

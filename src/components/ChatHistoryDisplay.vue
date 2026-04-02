@@ -307,6 +307,7 @@ const taskResultCard = computed((): TaskResultCard | null => {
 });
 
 let syncSerial = 0;
+let lastTaskAgentReloadSignature: string | null = null;
 let unsubscribeEntityChange: (() => void) | null = null;
 let unsubscribeAgentTaskChange: (() => void) | null = null;
 let unsubscribeAgentChange: (() => void) | null = null;
@@ -762,7 +763,6 @@ async function loadChatHistories(serial = syncSerial) {
   const snapshot = (res.data?.items ?? []).map(normalizeHistory);
   chatHistories.value = mergeChatHistories(chatHistories.value, snapshot);
 }
-
 async function loadTaskAgent(serial = syncSerial) {
   try {
     const res = await api.agentTask.getAgentTaskById(props.agentTaskId);
@@ -771,6 +771,9 @@ async function loadTaskAgent(serial = syncSerial) {
     }
     taskAgent.value = res.data?.agent ?? null;
     taskData.value = res.data ?? null;
+    if (res.data?.state && res.data?.updatedAt) {
+      lastTaskAgentReloadSignature = `${res.data.state}:${res.data.updatedAt}`;
+    }
   } catch {
     if (serial !== syncSerial) {
       return;
@@ -832,6 +835,16 @@ function handleAgentTaskChange(payload: EntityChangePayload) {
 
   const state = (record.state || "").toUpperCase();
   if (FINISHED_STATES.has(state)) {
+    const signature =
+      typeof record.updatedAt === "string"
+        ? `${state}:${record.updatedAt}`
+        : null;
+    if (signature && signature === lastTaskAgentReloadSignature) {
+      return;
+    }
+    if (signature) {
+      lastTaskAgentReloadSignature = signature;
+    }
     void loadTaskAgent(syncSerial);
   }
 }
@@ -1024,6 +1037,7 @@ function stopRealtime() {
 
 async function syncRealtimeAndHistories() {
   const currentSerial = ++syncSerial;
+  lastTaskAgentReloadSignature = null;
   stopRealtime();
   clearStreamingHistory();
   chatHistories.value = [];

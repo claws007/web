@@ -161,6 +161,7 @@ export interface AgentResponse {
   model?: string | null;
   sandboxType?: "NONE" | "DOCKER";
   containerImage?: string | null;
+  autoStoreSandboxContext?: boolean;
   sandboxStartupArguments?: string | null;
   avatarFileId?: number | null;
   companyId: number;
@@ -774,10 +775,8 @@ export interface ApiConfig<SecurityDataType = unknown> {
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<
-  D extends unknown,
-  E extends unknown = unknown,
-> extends Response {
+export interface HttpResponse<D extends unknown, E extends unknown = unknown>
+  extends Response {
   data: D;
   error: E;
 }
@@ -1443,7 +1442,7 @@ export class Api<
       }),
 
     /**
-     * @description Creates a new agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and writes `avatarFileId` atomically with Agent creation. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - `sandboxStartupArguments` is optional and appended to `docker run` before the image name. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
+     * @description Creates a new agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and writes `avatarFileId` atomically with Agent creation. Sandbox fields: - `sandboxType` controls whether the task runs directly (`NONE`) or in Docker (`DOCKER`). - `containerImage` is optional and only used when `sandboxType=DOCKER`. - `autoStoreSandboxContext` (boolean, default: false) automatically runs `docker commit` before sandbox cleanup if the sandbox supports it. When enabled, the persisted image name is written back to `containerImage` so the next task run resumes from the saved state. - `sandboxStartupArguments` is optional and appended to `docker run` before the image name. - If `containerImage` is omitted for Docker sandboxes, the runtime default image is `alpine:latest`.
      *
      * @tags Agent
      * @name PostCompanyByCompanyIdAgent
@@ -1463,6 +1462,7 @@ export class Api<
         sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
         containerImage?: string;
+        autoStoreSandboxContext?: boolean;
         sandboxStartupArguments?: string;
         /** @min 1 */
         modelConnectorId: number;
@@ -1504,7 +1504,7 @@ export class Api<
       }),
 
     /**
-     * @description Updates an existing agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and updates `avatarFileId` in the same database transaction as other Agent updates. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - `sandboxStartupArguments` updates additional `docker run` arguments used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
+     * @description Updates an existing agent via multipart/form-data. Avatar fields: - `avatarFile` is optional. If provided, the server uploads it as a File and updates `avatarFileId` in the same database transaction as other Agent updates. Sandbox fields: - `sandboxType` toggles sandbox mode. - `containerImage` updates the Docker image name used by future task runs. - `autoStoreSandboxContext` toggles auto-persist: when true, the sandbox is committed before cleanup and `containerImage` is updated to the resulting image. - `sandboxStartupArguments` updates additional `docker run` arguments used by future task runs. - Set `containerImage` only when Docker sandboxing is desired.
      *
      * @tags Agent
      * @name PutCompanyByCompanyIdAgentById
@@ -1526,6 +1526,7 @@ export class Api<
         sandboxType?: "NONE" | "DOCKER";
         /** @minLength 1 */
         containerImage?: string;
+        autoStoreSandboxContext?: boolean;
         sandboxStartupArguments?: string;
         /** @min 1 */
         modelConnectorId?: number;
@@ -1590,6 +1591,7 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
+          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: {
@@ -2451,6 +2453,7 @@ export class Api<
           | "FAILED"
           | "FINISHED"
           | "CANCELLED"
+          | "TRANSFERRED"
           | null;
         /** Ordered notify stack. The last entry is processed first. BottomOnly flags are only honored when the current entry is the stack bottom; non-bottom entries always notify. */
         notifies?: {

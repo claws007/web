@@ -39,6 +39,7 @@ const model = ref("");
 const modelConnectorId = ref<number>();
 const useDockerSandbox = ref(false);
 const containerImage = ref("");
+const autoStoreSandboxContext = ref(false);
 const sandboxStartupArguments = ref("");
 const modelConnectors = ref<AIModelConnectorResponse[]>([]);
 const modelConnectorOptions = ref<SelectorItem[]>([]);
@@ -223,6 +224,7 @@ async function loadAgentById() {
         : undefined;
     useDockerSandbox.value = agent.sandboxType === "DOCKER";
     containerImage.value = agent.containerImage ?? "";
+    autoStoreSandboxContext.value = Boolean(agent.autoStoreSandboxContext);
     sandboxStartupArguments.value = agent.sandboxStartupArguments ?? "";
 
     const imageUrl = getImageUrlByFileId(agent.avatarFileId);
@@ -301,6 +303,9 @@ async function handleFormSubmit() {
     containerImage: useDockerSandbox.value
       ? containerImage.value.trim() || ""
       : "",
+    autoStoreSandboxContext: useDockerSandbox.value
+      ? autoStoreSandboxContext.value
+      : false,
     sandboxStartupArguments: useDockerSandbox.value
       ? sandboxStartupArguments.value.trim() || ""
       : "",
@@ -473,6 +478,11 @@ onMounted(async () => {
 
           <div class="sandbox-area">
             <Checkbox v-model="useDockerSandbox" label="启用 Docker 沙箱" />
+            <Checkbox
+              v-if="useDockerSandbox"
+              v-model="autoStoreSandboxContext"
+              label="自动保存沙箱上下文"
+            />
             <div class="selector-stack">
               <label class="selector-label form-label">容器镜像</label>
               <section
