@@ -32,6 +32,7 @@ const url = ref("");
 const command = ref("");
 const commandArguments = ref("");
 const headersText = ref("");
+const envsText = ref("");
 const builtinReadonly = ref(false);
 
 const typeOptions: SelectorItem[] = [
@@ -123,6 +124,7 @@ async function loadMcpServerById() {
     headersText.value = item.headers
       ? JSON.stringify(item.headers, null, 2)
       : "";
+    envsText.value = item.envs ? JSON.stringify(item.envs, null, 2) : "";
     builtinReadonly.value = Boolean((item as { builtin?: boolean }).builtin);
   } catch (error) {
     const message =
@@ -147,6 +149,27 @@ function parseHeadersInput(): Record<string, any> | undefined {
   }
 
   return parsed as Record<string, any>;
+}
+
+function parseEnvsInput(): Record<string, string> | undefined {
+  const raw = envsText.value.trim();
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("环境变量配置必须是 JSON 对象");
+  }
+
+  // Validate all values are strings
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== "string") {
+      throw new Error(`环境变量 "${key}" 的值必须是字符串`);
+    }
+  }
+
+  return parsed as Record<string, string>;
 }
 
 function normalizeHttpUrl(value: string): string {
@@ -207,6 +230,16 @@ async function handleFormSubmit() {
     return;
   }
 
+  let parsedEnvs: Record<string, string> | undefined;
+  try {
+    parsedEnvs = parseEnvsInput();
+  } catch (error) {
+    notify.error(
+      error instanceof Error ? error.message : "环境变量 JSON 格式错误",
+    );
+    return;
+  }
+
   const payload: Parameters<typeof api.mcpServer.postMcpServer>[0] = {
     name: trimmedName,
     description: description.value.trim() || null,
@@ -215,7 +248,8 @@ async function handleFormSubmit() {
     command: type === "STDIO" ? trimmedCommand : null,
     commandArguments:
       type === "STDIO" ? commandArguments.value.trim() || null : null,
-    headers: parsedHeaders,
+    headers: type === "HTTP" ? parsedHeaders : undefined,
+    envs: type === "STDIO" ? parsedEnvs : undefined,
   };
 
   saving.value = true;
@@ -303,10 +337,20 @@ onMounted(loadMcpServerById);
         />
 
         <Textarea
+          v-if="isHttpType"
           v-model="headersText"
           label="请求头 JSON"
           placeholder='例如：{"Authorization":"Bearer <token>"}'
           field-name="headers"
+          :rows="4"
+        />
+
+        <Textarea
+          v-if="isStdioType"
+          v-model="envsText"
+          label="环境变量 JSON"
+          placeholder='例如：{"API_KEY":"xxx","DEBUG":"true"}'
+          field-name="envs"
           :rows="4"
         />
       </div>

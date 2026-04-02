@@ -563,12 +563,15 @@ export interface MCPServerResponse {
   command?: string | null;
   commandArguments?: string | null;
   headers?: MCPServerHeaders;
+  envs?: MCPServerEnvs;
 }
 
 export type MCPServerHeaders = {
   toolList?: ToolListItem[];
   [key: string]: any;
 } | null;
+
+export type MCPServerEnvs = Record<string, string>;
 
 export interface AgentMcpServerRelationResponse {
   id: number;
@@ -2205,6 +2208,7 @@ export class Api<
             metadata?: object | null;
           }[];
         };
+        envs?: object | null;
       },
       params: RequestParams = {},
     ) =>
@@ -2270,6 +2274,7 @@ export class Api<
             metadata?: object | null;
           }[];
         };
+        envs?: object | null;
       },
       params: RequestParams = {},
     ) =>
