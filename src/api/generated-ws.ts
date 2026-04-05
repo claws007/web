@@ -79,6 +79,7 @@ export interface ChatHistoryEntityRecord {
   role: "SYSTEM" | "USER" | "ASSISTANT" | "TOOL";
   eventType: "MESSAGE" | "EXECUTION" | "MCP_CALL" | "MCP_RESULT" | "SKILL_CALL" | "TOOL_CALL";
   eventTypeName: string | unknown;
+  contextSize: number | unknown;
   durationMs: number | unknown;
   extraLogs: unknown;
   content: string;

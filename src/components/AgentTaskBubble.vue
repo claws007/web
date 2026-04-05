@@ -111,6 +111,12 @@
                     >
                       <circle cx="12" cy="12" r="10" />
                     </svg>
+                    <span
+                      v-if="contextSizeLabel"
+                      class="text-xs whitespace-nowrap rounded bg-slate-100 px-2 py-0.5 text-slate-600"
+                    >
+                      {{ contextSizeLabel }}
+                    </span>
                     <TimeDisplay
                       class="text-xs whitespace-nowrap"
                       :timestamp="localAgentTask.assignedAt"
@@ -175,6 +181,7 @@ import { dialogs } from "virtual:dialogs";
 import type {
   AgentTaskEntityRecord,
   AgentEntityRecord,
+  ChatHistoryEntityRecord,
   EntityChangePayload,
 } from "@/api/generated-ws";
 import {
@@ -202,6 +209,7 @@ const isChatExpanded = ref(Boolean(props.isLatest));
 const hasLoadedChatHistories = ref(Boolean(props.isLatest));
 const commentsRef = ref<InstanceType<typeof AgentTaskComments> | null>(null);
 const localAgentTask = ref<AgentTaskResponse>({ ...props.agentTask });
+const latestContextSize = ref<number | null>(null);
 
 // Local copy of agent, kept in sync with prop and updated via CUD events.
 const localAgent = ref<AgentResponse | undefined>(
@@ -219,12 +227,27 @@ watch(
   () => props.agentTask,
   (next) => {
     localAgentTask.value = { ...next };
+    void loadLatestContextSize();
   },
 );
 
 let unsubscribeAgentChange: (() => void) | null = null;
 let unsubscribeAgentTaskChange: (() => void) | null = null;
+let unsubscribeChatHistoryChange: (() => void) | null = null;
 let releaseAgentSubscription: (() => void) | null = null;
+
+function formatContextSize(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(digits)} KB`;
+}
+
+const contextSizeLabel = computed(() =>
+  formatContextSize(latestContextSize.value),
+);
 
 function handleAgentEntityChange(payload: EntityChangePayload) {
   if (payload.entity !== "agent") return;
@@ -289,6 +312,46 @@ function handleAgentTaskEntityChange(payload: EntityChangePayload) {
   localAgentTask.value = toAgentTaskResponse(record, localAgentTask.value);
 }
 
+async function loadLatestContextSize() {
+  try {
+    const response = await api.chatHistory.getChatHistoryAgentTaskByAgentTaskId(
+      localAgentTask.value.id,
+      {
+        page: 1,
+        pageSize: 20,
+        reverse: true,
+      },
+    );
+
+    const matched = response.data.items.find(
+      (item) => typeof item.contextSize === "number" && item.contextSize > 0,
+    );
+    latestContextSize.value = matched?.contextSize ?? null;
+  } catch {
+    latestContextSize.value = null;
+  }
+}
+
+function handleChatHistoryEntityChange(payload: EntityChangePayload) {
+  if (payload.entity !== "chat_history") return;
+
+  if (payload.operation === "delete") {
+    const record = payload.record as Partial<ChatHistoryEntityRecord> & {
+      agentTaskId?: number;
+    };
+    if (record.agentTaskId === localAgentTask.value.id) {
+      void loadLatestContextSize();
+    }
+    return;
+  }
+
+  const record = payload.record as ChatHistoryEntityRecord;
+  if (record.agentTaskId !== localAgentTask.value.id) return;
+  if (typeof record.contextSize === "number" && record.contextSize > 0) {
+    latestContextSize.value = record.contextSize;
+  }
+}
+
 function startAgentRealtime() {
   const token = userStore.token?.trim() || null;
   const companyId = readStoredActiveCompanyId();
@@ -298,7 +361,7 @@ function startAgentRealtime() {
     token,
     companyId,
     events: ["entity_change"],
-    entities: ["agent", "agent_task"],
+    entities: ["agent", "agent_task", "chat_history"],
   });
   unsubscribeAgentChange ??= registerEntityChangeHandler(
     handleAgentEntityChange,
@@ -312,6 +375,12 @@ function startAgentRealtime() {
       entities: ["agent_task"],
     },
   );
+  unsubscribeChatHistoryChange ??= registerEntityChangeHandler(
+    handleChatHistoryEntityChange,
+    {
+      entities: ["chat_history"],
+    },
+  );
 }
 
 function stopAgentRealtime() {
@@ -319,11 +388,16 @@ function stopAgentRealtime() {
   unsubscribeAgentChange = null;
   unsubscribeAgentTaskChange?.();
   unsubscribeAgentTaskChange = null;
+  unsubscribeChatHistoryChange?.();
+  unsubscribeChatHistoryChange = null;
   releaseAgentSubscription?.();
   releaseAgentSubscription = null;
 }
 
 onMounted(startAgentRealtime);
+onMounted(() => {
+  void loadLatestContextSize();
+});
 onBeforeUnmount(stopAgentRealtime);
 
 watch(isChatExpanded, (expanded) => {

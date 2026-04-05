@@ -692,6 +692,8 @@ function toDisplayChatHistory(
     eventType: record.eventType as ChatHistoryResponse["eventType"],
     eventTypeName:
       typeof record.eventTypeName === "string" ? record.eventTypeName : null,
+    contextSize:
+      typeof record.contextSize === "number" ? record.contextSize : null,
     durationMs:
       typeof record.durationMs === "number" ? record.durationMs : null,
     extraLogs: isRecord(record.extraLogs) ? record.extraLogs : undefined,

@@ -330,6 +330,7 @@ export interface ChatHistoryResponse {
     | "SKILL_CALL"
     | "TOOL_CALL";
   eventTypeName?: string | null;
+  contextSize?: number | null;
   durationMs?: number | null;
   extraLogs?: Record<string, any>;
   content: string;
