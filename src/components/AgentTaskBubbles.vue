@@ -279,26 +279,36 @@ async function resumeLatestTask() {
     return;
   }
 
-  const result = await dialogs.TextPromptDialog({
-    title: "恢复任务",
-    description: "可以补充说明，也可以留空直接恢复。",
-    placeholder: "输入额外信息（可选）",
-    confirmText: "恢 复",
-    required: false,
-    rows: 4,
-  });
-  if (result.type !== "resolve") {
-    return;
-  }
+  dialogs
+    .ConfirmDialog({
+      title: "恢复任务",
+      content:
+        "恢复任务会删除该任务后续的所有子任务，再从当前 AgentTask 继续执行，是否继续？",
+      confirmText: "恢 复 任 务",
+      confirmType: "warning",
+    })
+    .resolve(async () => {
+      const result = await dialogs.TextPromptDialog({
+        title: "恢复任务",
+        description: "可以补充说明，也可以留空直接恢复。",
+        placeholder: "输入额外信息（可选）",
+        confirmText: "恢 复",
+        required: false,
+        rows: 4,
+      });
+      if (result.type !== "resolve") {
+        return;
+      }
 
-  try {
-    await api.agentTask.postAgentTaskByIdRetryContinue(latest.id, {
-      message: result.value || undefined,
+      try {
+        await api.agentTask.postAgentTaskByIdRetryContinue(latest.id, {
+          message: result.value || undefined,
+        });
+        notify.success("任务已恢复");
+      } catch (error) {
+        notify.error(error instanceof Error ? error.message : "恢复任务失败");
+      }
     });
-    notify.success("任务已恢复");
-  } catch (error) {
-    notify.error(error instanceof Error ? error.message : "恢复任务失败");
-  }
 }
 
 async function restartLatestTask() {
