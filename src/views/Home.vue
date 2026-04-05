@@ -53,7 +53,7 @@
       <!-- Agent 卡片列表 -->
       <div v-else class="v gap-3">
         <AgentCard
-          v-for="agent in nonBuiltinAgents"
+          v-for="agent in agents"
           :key="agent.id"
           :agent="agent"
           @edit="handleEdit"
@@ -207,11 +207,6 @@ function getTaskChainStatus(task: TaskResponse): TaskChainStatus {
 const taskChainStatusMap = ref<Map<number, TaskChainStatus>>(new Map());
 
 const sortedTasks = computed(() => tasks.value);
-const nonBuiltinAgents = computed(() =>
-  agents.value.filter(
-    (agent) => !isBuiltinAssistantAgent(agent as AgentWithBuiltin),
-  ),
-);
 
 const newTaskContent = ref("");
 const newTaskAssignment = ref<AgentAssignmentValue>({
