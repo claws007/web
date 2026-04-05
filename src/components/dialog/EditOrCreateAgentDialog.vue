@@ -16,8 +16,8 @@ import Textarea from "@/components/Textarea.vue";
 import Checkbox from "@/components/Checkbox.vue";
 import Selector, { type SelectorItem } from "@/components/Selector.vue";
 import Button from "@/components/dialog/Button.vue";
+import SelectOptionDialogSelector from "@/components/dialog/SelectOptionDialogSelector.vue";
 import PrimaryButton from "@/components/PrimaryButton.vue";
-import { dialogs } from "virtual:dialogs";
 import { notify } from "@/components/notification";
 import { minLength, required, type Validator } from "@/utils/validators";
 
@@ -327,60 +327,6 @@ async function handleFormSubmit() {
   }
 }
 
-async function openDockerImageDialog() {
-  if (!useDockerSandbox.value) {
-    notify.info("请先启用 Docker 沙箋");
-    return;
-  }
-
-  const result = await dialogs.SelectOptionDialog({
-    title: "选择 Docker 镜像",
-    description: "从本地镜像列表中搜索并分页选择",
-    modelValue: containerImage.value || null,
-    pageSize: 10,
-    searchPlaceholder: "按镜像名搜索，例如 nginx",
-    emptyText: "暂无本地镜像",
-    loadingText: "正在加载本地镜像...",
-    fetchOptions: async ({ keyword, page, pageSize }) => {
-      const res = await api.modelConnector.getDockerImages({
-        page,
-        pageSize,
-        keyword: keyword || undefined,
-      });
-
-      const pageData = res.data;
-      return {
-        items: (pageData.items || []).map((item) => ({
-          id: item.fullName,
-          label: item.fullName,
-          description: `ID: ${item.imageId} · ${item.size || "未知大小"}`,
-          keywords: [item.repository, item.tag, item.imageId],
-        })),
-        total: pageData.total || 0,
-        page: pageData.page || page,
-        pageSize: pageData.pageSize || pageSize,
-        totalPages: pageData.totalPages || 0,
-      };
-    },
-    normalizeKeyword: (value) => value.trim(),
-    allowEmptyKeyword: true,
-    searchOnInput: true,
-    debounceMs: 260,
-  });
-
-  if (result.type !== "resolve" || !result.value) {
-    return;
-  }
-
-  const image = String(result.value.id || "").trim();
-  if (!image) {
-    return;
-  }
-
-  containerImage.value = image;
-  notify.success(`已选择镜像：${image}`);
-}
-
 onMounted(async () => {
   await loadModelConnectors();
   await loadAgentById();
@@ -483,45 +429,47 @@ onMounted(async () => {
               v-model="autoStoreSandboxContext"
               label="自动保存沙箱上下文"
             />
-            <div class="selector-stack">
-              <label class="selector-label form-label">容器镜像</label>
-              <section
-                class="image-selector-shell rounded-lg"
-                @click="openDockerImageDialog"
-              >
-                <button
-                  type="button"
-                  class="image-selector-trigger"
-                  :disabled="!useDockerSandbox"
-                >
-                  <span
-                    class="stretch min-w-0 text-left"
-                    :class="
-                      containerImage
-                        ? 'text-foreground'
-                        : 'text-[color-mix(in_srgb,var(--foreground)_55%,white)]'
-                    "
-                  >
-                    {{
-                      containerImage
-                        ? `容器镜像：${containerImage}`
-                        : useDockerSandbox
-                          ? "请选择 Docker 镜像"
-                          : "请先启用 Docker 沙箱"
-                    }}
-                  </span>
-                  <span class="image-selector-icon" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 16 16"
-                      class="h-full w-full fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]"
-                    >
-                      <path d="M2.5 8h11" />
-                      <path d="m9 4.5 3.5 3.5L9 11.5" />
-                    </svg>
-                  </span>
-                </button>
-              </section>
-            </div>
+            <SelectOptionDialogSelector
+              v-model="containerImage"
+              label="容器镜像"
+              :enabled="useDockerSandbox"
+              selected-prefix="容器镜像："
+              enabled-placeholder="请选择 Docker 镜像"
+              disabled-placeholder="请先启用 Docker 沙箱"
+              title="选择 Docker 镜像"
+              description="从本地镜像列表中搜索并分页选择"
+              :page-size="10"
+              search-placeholder="按镜像名搜索，例如 nginx"
+              empty-text="暂无本地镜像"
+              loading-text="正在加载本地镜像..."
+              :fetch-options="
+                async ({ keyword, page, pageSize }) => {
+                  const res = await api.modelConnector.getDockerImages({
+                    page,
+                    pageSize,
+                    keyword: keyword || undefined,
+                  });
+
+                  const pageData = res.data;
+                  return {
+                    items: (pageData.items || []).map((item) => ({
+                      id: item.fullName,
+                      label: item.fullName,
+                      description: `ID: ${item.imageId} · ${item.size || '未知大小'}`,
+                      keywords: [item.repository, item.tag, item.imageId],
+                    })),
+                    total: pageData.total || 0,
+                    page: pageData.page || page,
+                    pageSize: pageData.pageSize || pageSize,
+                    totalPages: pageData.totalPages || 0,
+                  };
+                }
+              "
+              :normalize-keyword="(value) => value.trim()"
+              :allow-empty-keyword="true"
+              :search-on-input="true"
+              :debounce-ms="260"
+            />
             <Input
               v-if="useDockerSandbox"
               v-model="sandboxStartupArguments"
@@ -587,41 +535,6 @@ onMounted(async () => {
 .sandbox-actions {
   display: flex;
   justify-content: flex-end;
-}
-
-.image-selector-shell {
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--primary) 18%, white);
-  background: transparent;
-  box-shadow: 0 12px 30px rgb(0 104 119 / 0.08);
-}
-
-.image-selector-trigger {
-  display: flex;
-  width: 100%;
-  cursor: pointer;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  background: transparent;
-  padding: 0.55rem 0.75rem;
-  color: var(--foreground);
-  text-align: left;
-  font-size: 0.95rem;
-}
-
-.image-selector-trigger:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.image-selector-icon {
-  display: flex;
-  height: 1.1rem;
-  width: 1.1rem;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
 }
 
 .hidden-submit {

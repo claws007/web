@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ActionBar: typeof import('./components/ActionBar.vue')['default']
+    AgentAssignmentSelect: typeof import('./components/AgentAssignmentSelect.vue')['default']
     AgentCard: typeof import('./components/AgentCard.vue')['default']
     AgentCardActionBar: typeof import('./components/AgentCardActionBar.vue')['default']
     AgentTaskBubble: typeof import('./components/AgentTaskBubble.vue')['default']
@@ -19,6 +20,7 @@ declare module 'vue' {
     AgentTaskChatHistoryDialog: typeof import('./components/dialog/AgentTaskChatHistoryDialog.vue')['default']
     AgentTaskComments: typeof import('./components/AgentTaskComments.vue')['default']
     AgentTaskResult: typeof import('./components/notification/unit/AgentTaskResult.vue')['default']
+    AssignTaskDialog: typeof import('./components/dialog/AssignTaskDialog.vue')['default']
     AuroraBackground: typeof import('./components/AuroraBackground.vue')['default']
     AutoStickBottom: typeof import('./components/AutoStickBottom.vue')['default']
     Button: typeof import('./components/dialog/Button.vue')['default']
@@ -71,6 +73,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SearchSelector: typeof import('./components/SearchSelector.vue')['default']
     SelectOptionDialog: typeof import('./components/dialog/SelectOptionDialog.vue')['default']
+    SelectOptionDialogSelector: typeof import('./components/dialog/SelectOptionDialogSelector.vue')['default']
     Selector: typeof import('./components/Selector.vue')['default']
     Switch: typeof import('./components/Switch.vue')['default']
     Tabs: typeof import('./components/Tabs.vue')['default']

@@ -166,6 +166,8 @@ export interface AgentResponse {
   avatarFileId?: number | null;
   companyId: number;
   modelConnectorId: number;
+  builtin: boolean;
+  builtinType?: "SYSTEM_ASSISTANT" | null;
   user?: Record<string, any>;
   modelConnector?: AIModelConnectorResponse;
 }
@@ -3337,6 +3339,9 @@ export class Api<
       data: {
         /** @minLength 1 */
         content: string;
+        autoAssign?: boolean;
+        /** @min 1 */
+        agentId?: number;
       },
       params: RequestParams = {},
     ) =>
@@ -3411,6 +3416,33 @@ export class Api<
       this.request<SuccessResponse, ErrorResponse>({
         path: `/company/${companyId}/task/${id}`,
         method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Task
+     * @name PostCompanyByCompanyIdTaskByIdAssign
+     * @summary Assign or auto-assign an existing task
+     * @request POST:/company/{companyId}/task/{id}/assign
+     */
+    postCompanyByCompanyIdTaskByIdAssign: (
+      companyId: number,
+      id: number,
+      data: {
+        autoAssign?: boolean;
+        /** @min 1 */
+        agentId?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AgentTaskResponse, ValidationErrorResponse | ErrorResponse>({
+        path: `/company/${companyId}/task/${id}/assign`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

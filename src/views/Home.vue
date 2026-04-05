@@ -53,7 +53,7 @@
       <!-- Agent 卡片列表 -->
       <div v-else class="v gap-3">
         <AgentCard
-          v-for="agent in agents.filter((a) => !a.builtin)"
+          v-for="agent in nonBuiltinAgents"
           :key="agent.id"
           :agent="agent"
           @edit="handleEdit"
@@ -64,12 +64,21 @@
     </section>
 
     <section class="h-full w-88 min-w-0 v *:p-5">
-      <div class="bg-primary/2 shadow">
+      <div class="bg-primary/2 shadow v gap-3">
         <Textarea
           v-model="newTaskContent"
           placeholder="创建任务"
           @enter="handleCreateTask"
         />
+        <div class="h justify-between gap-1">
+          <AgentAssignmentSelect
+            v-model="newTaskAssignment"
+            :disabled="taskSaving"
+          />
+          <Button size="small" :disabled="taskSaving" @click="handleCreateTask">
+            创建任务
+          </Button>
+        </div>
       </div>
       <div class="v gap-3 stretch overflow-y-auto">
         <div
@@ -140,6 +149,10 @@ import AgentCard from "@/components/AgentCard.vue";
 import Task from "@/components/Task.vue";
 import PlusIcon from "@/icons/PlusIcon.vue";
 import AgentTaskBubbles from "@/components/AgentTaskBubbles.vue";
+import type {
+  AgentAssignmentValue,
+  AssignableAgent,
+} from "@/components/AgentAssignmentSelect.vue";
 import { dialogs } from "virtual:dialogs";
 import {
   registerEntityChangeHandler,
@@ -161,6 +174,25 @@ const tasks = ref<TaskResponse[]>([]);
 
 type TaskChainStatus = "completed" | "incompleteOrFailed";
 const finishedStates = new Set(["FINISHED", "CANCELLED", "TRANSFERRED"]);
+type BuiltinAgentType = "SYSTEM_ASSISTANT";
+type AgentWithBuiltin = AgentResponse & {
+  builtin?: boolean | null;
+  builtinType?: BuiltinAgentType | null;
+};
+
+function isBuiltinAssistantAgent(agent: AgentWithBuiltin) {
+  return agent.builtinType === "SYSTEM_ASSISTANT";
+}
+
+function toAssignableAgent(agent: AgentResponse): AssignableAgent {
+  return {
+    id: agent.id,
+    name: agent.name?.trim() || `Agent #${agent.id}`,
+    avatarFileId: agent.avatarFileId ?? null,
+    capacity: agent.capacity ?? null,
+    extraPrompt: agent.extraPrompt ?? null,
+  };
+}
 
 function getTaskChainStatus(task: TaskResponse): TaskChainStatus {
   const agentTasks = task.agentTasks ?? [];
@@ -175,8 +207,17 @@ function getTaskChainStatus(task: TaskResponse): TaskChainStatus {
 const taskChainStatusMap = ref<Map<number, TaskChainStatus>>(new Map());
 
 const sortedTasks = computed(() => tasks.value);
+const nonBuiltinAgents = computed(() =>
+  agents.value.filter(
+    (agent) => !isBuiltinAssistantAgent(agent as AgentWithBuiltin),
+  ),
+);
 
 const newTaskContent = ref("");
+const newTaskAssignment = ref<AgentAssignmentValue>({
+  mode: "auto",
+  agent: null,
+});
 
 const editingTaskId = ref<number | null>(null);
 const editTaskContent = ref("");
@@ -222,7 +263,12 @@ async function fetchTasks() {
   }
 }
 
-async function handleCreateTask() {
+async function handleCreateTask(_event?: KeyboardEvent) {
+  console.debug("handleCreateTask", { content: newTaskContent.value });
+  if (taskSaving.value) {
+    return;
+  }
+
   const companyId = readStoredActiveCompanyId();
   if (!companyId) {
     dialogs.MessageDialog({
@@ -240,12 +286,25 @@ async function handleCreateTask() {
 
   taskSaving.value = true;
   try {
+    const payload =
+      newTaskAssignment.value.mode === "manual"
+        ? {
+            content,
+            agentId: Number(newTaskAssignment.value.agent.id),
+          }
+        : {
+            content,
+            autoAssign: true,
+          };
+
     await api.company.postCompanyByCompanyIdTask(companyId, {
-      content,
+      ...payload,
     });
     newTaskContent.value = "";
+    newTaskAssignment.value = { mode: "auto", agent: null };
     await fetchTasks();
   } catch (e) {
+    console.error("创建 Task 失败", e);
     dialogs.MessageDialog({
       type: "error",
       content: e instanceof Error ? e.message : "创建 Task 失败",
@@ -335,96 +394,59 @@ async function handleDeleteTask(taskId: number) {
 }
 
 async function handleAssignTask(task: TaskResponse) {
-  let allAgents: AgentResponse[] = [];
-  try {
-    const res = await api.agent.getAgent({ subAgents: false } as any);
-    allAgents = res.data.items ?? [];
-  } catch (err) {
-    dialogs.MessageDialog({
-      type: "error",
-      content: err instanceof Error ? err.message : "获取 Agent 列表失败",
-    });
-    return;
-  }
+  const latestAgentTask = [...(task.agentTasks ?? [])].sort(
+    (a, b) => b.id - a.id,
+  )[0];
+  const defaultAgent = latestAgentTask
+    ? (agents.value.find((item) => item.id === latestAgentTask.agentId) ?? null)
+    : null;
 
-  if (!allAgents.length) {
-    dialogs.MessageDialog({
-      type: "error",
-      content: "暂无可分配 Agent，请先创建 Agent",
-    });
-    return;
-  }
+  const defaultValue: AgentAssignmentValue = defaultAgent
+    ? {
+        mode: "manual",
+        agent: toAssignableAgent(defaultAgent),
+      }
+    : { mode: "auto", agent: null };
 
-  const result = await dialogs.SelectOptionDialog({
-    title: "选择 Agent",
-    description: `将 Task #${task.id} 分配给一个 Agent`,
-    modelValue: null,
-    pageSize: 10,
-    searchPlaceholder: "按名称搜索 Agent",
-    emptyText: "暂无可选 Agent",
-    loadingText: "正在加载 Agent...",
-    fetchOptions: async ({ keyword, page, pageSize }) => {
-      const kw = keyword?.trim().toLowerCase() ?? "";
-      const filtered = kw
-        ? allAgents.filter((agent) => {
-            const name = (agent.name ?? "").toLowerCase();
-            const capacity = (agent.capacity ?? "").toLowerCase();
-            const extraPrompt = (agent.extraPrompt ?? "").toLowerCase();
-            return (
-              name.includes(kw) ||
-              capacity.includes(kw) ||
-              extraPrompt.includes(kw)
-            );
-          })
-        : allAgents;
-
-      const start = (page - 1) * pageSize;
-      const pageItems = filtered.slice(start, start + pageSize);
-      return {
-        items: pageItems.map((agent) => ({
-          id: agent.id,
-          label: agent.name || `Agent #${agent.id}`,
-          description: agent.capacity || agent.extraPrompt || "-",
-          keywords: [
-            agent.name ?? "",
-            agent.capacity ?? "",
-            agent.extraPrompt ?? "",
-          ],
-        })),
-        total: filtered.length,
-        page,
-        pageSize,
-        totalPages: Math.ceil(filtered.length / pageSize) || 1,
-      };
-    },
-    normalizeKeyword: (value) => value.trim(),
-    allowEmptyKeyword: true,
-    searchOnInput: true,
-    debounceMs: 160,
+  const result = await dialogs.AssignTaskDialog({
+    taskId: task.id,
+    taskContent: task.content,
+    defaultValue,
   });
 
   if (result.type !== "resolve" || !result.value) {
     return;
   }
 
-  const agentId = Number(result.value.id);
-  if (!agentId) {
-    return;
-  }
+  const payload =
+    result.value.mode === "manual"
+      ? { agentId: Number(result.value.agent.id) }
+      : { autoAssign: true };
+  const assignedAgentName =
+    result.value.mode === "manual" ? result.value.agent.name : "系统助理";
 
   taskSaving.value = true;
   try {
-    await api.agent.postAgentByIdTasks(agentId, {
-      taskId: task.id,
-      content: task.content,
-    } as any);
+    const companyId = readStoredActiveCompanyId();
+    if (!companyId) {
+      dialogs.MessageDialog({
+        type: "error",
+        content: "未选择公司，无法分配任务",
+      });
+      return;
+    }
+    await api.company.postCompanyByCompanyIdTaskByIdAssign(
+      companyId,
+      task.id,
+      payload as any,
+    );
     selectedTaskId.value = task.id;
     await fetchTasks();
-    notify.success(`Task #${task.id} 已分配给 Agent #${agentId}`);
+    notify.success(`Task #${task.id} 已分配给 ${assignedAgentName}`);
   } catch (err) {
     dialogs.MessageDialog({
       type: "error",
-      content: err instanceof Error ? err.message : "分配 Agent 失败",
+      content: err instanceof Error ? err.message : "分配任务失败",
     });
   } finally {
     taskSaving.value = false;

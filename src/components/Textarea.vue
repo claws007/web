@@ -146,6 +146,11 @@ function onInput(event: Event) {
 }
 
 function onEnter(event: KeyboardEvent) {
+  if (event.isComposing || event.shiftKey || event.repeat) {
+    return;
+  }
+
+  event.preventDefault();
   const value = (event.target as HTMLTextAreaElement).value;
   emit("enter", event, value);
 }
