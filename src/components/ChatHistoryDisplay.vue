@@ -222,6 +222,10 @@ const props = defineProps<{
   maxItems?: number;
 }>();
 
+const emit = defineEmits<{
+  "update:latest-context-size": [value: number | null];
+}>();
+
 type DisplayChatHistory = Omit<ChatHistoryResponse, "role"> & {
   role: string;
   isStreaming?: boolean;
@@ -349,6 +353,14 @@ const visibleChatHistories = computed(() => {
     : chatHistories.value;
 
   return items.slice(0, maxHistoryItems.value);
+});
+
+const latestContextSize = computed(() => {
+  const matched = visibleChatHistories.value.find(
+    (item) => typeof item.contextSize === "number" && item.contextSize > 0,
+  );
+
+  return matched?.contextSize ?? null;
 });
 
 const renderedChatHistories = computed(() => {
@@ -1145,6 +1157,14 @@ watch(
   },
 );
 
+watch(
+  latestContextSize,
+  (value) => {
+    emit("update:latest-context-size", value);
+  },
+  { immediate: true },
+);
+
 function showHistoryDataDetail(item: RenderedChatHistory) {
   if (!DEBUG) {
     return;
@@ -1159,6 +1179,7 @@ function showHistoryDataDetail(item: RenderedChatHistory) {
     role: item.role,
     eventType: item.eventType,
     eventTypeName: item.eventTypeName,
+    contextSize: item.contextSize,
     durationMs: item.durationMs,
     extraLogs: item.extraLogs,
     content: item.content,

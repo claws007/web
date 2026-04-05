@@ -158,6 +158,7 @@
           v-if="hasLoadedChatHistories"
           :agent-task-id="localAgentTask.id"
           class="py-3 px-3"
+          @update:latest-context-size="handleLatestContextSizeUpdate"
         />
       </Collapse>
     </div>
@@ -181,7 +182,6 @@ import { dialogs } from "virtual:dialogs";
 import type {
   AgentTaskEntityRecord,
   AgentEntityRecord,
-  ChatHistoryEntityRecord,
   EntityChangePayload,
 } from "@/api/generated-ws";
 import {
@@ -227,13 +227,12 @@ watch(
   () => props.agentTask,
   (next) => {
     localAgentTask.value = { ...next };
-    void loadLatestContextSize();
+    latestContextSize.value = null;
   },
 );
 
 let unsubscribeAgentChange: (() => void) | null = null;
 let unsubscribeAgentTaskChange: (() => void) | null = null;
-let unsubscribeChatHistoryChange: (() => void) | null = null;
 let releaseAgentSubscription: (() => void) | null = null;
 
 function formatContextSize(value: number | null | undefined): string {
@@ -248,6 +247,10 @@ function formatContextSize(value: number | null | undefined): string {
 const contextSizeLabel = computed(() =>
   formatContextSize(latestContextSize.value),
 );
+
+function handleLatestContextSizeUpdate(value: number | null) {
+  latestContextSize.value = value;
+}
 
 function handleAgentEntityChange(payload: EntityChangePayload) {
   if (payload.entity !== "agent") return;
@@ -312,46 +315,6 @@ function handleAgentTaskEntityChange(payload: EntityChangePayload) {
   localAgentTask.value = toAgentTaskResponse(record, localAgentTask.value);
 }
 
-async function loadLatestContextSize() {
-  try {
-    const response = await api.chatHistory.getChatHistoryAgentTaskByAgentTaskId(
-      localAgentTask.value.id,
-      {
-        page: 1,
-        pageSize: 20,
-        reverse: true,
-      },
-    );
-
-    const matched = response.data.items.find(
-      (item) => typeof item.contextSize === "number" && item.contextSize > 0,
-    );
-    latestContextSize.value = matched?.contextSize ?? null;
-  } catch {
-    latestContextSize.value = null;
-  }
-}
-
-function handleChatHistoryEntityChange(payload: EntityChangePayload) {
-  if (payload.entity !== "chat_history") return;
-
-  if (payload.operation === "delete") {
-    const record = payload.record as Partial<ChatHistoryEntityRecord> & {
-      agentTaskId?: number;
-    };
-    if (record.agentTaskId === localAgentTask.value.id) {
-      void loadLatestContextSize();
-    }
-    return;
-  }
-
-  const record = payload.record as ChatHistoryEntityRecord;
-  if (record.agentTaskId !== localAgentTask.value.id) return;
-  if (typeof record.contextSize === "number" && record.contextSize > 0) {
-    latestContextSize.value = record.contextSize;
-  }
-}
-
 function startAgentRealtime() {
   const token = userStore.token?.trim() || null;
   const companyId = readStoredActiveCompanyId();
@@ -361,7 +324,7 @@ function startAgentRealtime() {
     token,
     companyId,
     events: ["entity_change"],
-    entities: ["agent", "agent_task", "chat_history"],
+    entities: ["agent", "agent_task"],
   });
   unsubscribeAgentChange ??= registerEntityChangeHandler(
     handleAgentEntityChange,
@@ -375,12 +338,6 @@ function startAgentRealtime() {
       entities: ["agent_task"],
     },
   );
-  unsubscribeChatHistoryChange ??= registerEntityChangeHandler(
-    handleChatHistoryEntityChange,
-    {
-      entities: ["chat_history"],
-    },
-  );
 }
 
 function stopAgentRealtime() {
@@ -388,16 +345,11 @@ function stopAgentRealtime() {
   unsubscribeAgentChange = null;
   unsubscribeAgentTaskChange?.();
   unsubscribeAgentTaskChange = null;
-  unsubscribeChatHistoryChange?.();
-  unsubscribeChatHistoryChange = null;
   releaseAgentSubscription?.();
   releaseAgentSubscription = null;
 }
 
 onMounted(startAgentRealtime);
-onMounted(() => {
-  void loadLatestContextSize();
-});
 onBeforeUnmount(stopAgentRealtime);
 
 watch(isChatExpanded, (expanded) => {
