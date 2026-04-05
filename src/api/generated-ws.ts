@@ -11,9 +11,21 @@ export type WsEventType = "entity_change" | "model_stream";
 
 export type NotificationState = "PENDING" | "RESOLVE";
 
-export type NotificationType = "REQUEST_INPUT" | "REQUEST_SELECT_SINGLE" | "REQUEST_SELECT_MULTI" | "REQUEST_CONFIRM" | "COMMAND_PROGRESS";
+export type NotificationType =
+  | "REQUEST_INPUT"
+  | "REQUEST_SELECT_SINGLE"
+  | "REQUEST_SELECT_MULTI"
+  | "REQUEST_CONFIRM"
+  | "COMMAND_PROGRESS";
 
-export type EntityType = "agent" | "task" | "agent_task" | "chat_history" | "skill" | "mcp_server" | "notification";
+export type EntityType =
+  | "agent"
+  | "task"
+  | "agent_task"
+  | "chat_history"
+  | "skill"
+  | "mcp_server"
+  | "notification";
 
 export type EntityOperation = "create" | "update" | "delete";
 
@@ -77,7 +89,13 @@ export interface ChatHistoryEntityRecord {
   companyId: number;
   createdByUserId: number | unknown;
   role: "SYSTEM" | "USER" | "ASSISTANT" | "TOOL";
-  eventType: "MESSAGE" | "EXECUTION" | "MCP_CALL" | "MCP_RESULT" | "SKILL_CALL" | "TOOL_CALL";
+  eventType:
+    | "MESSAGE"
+    | "EXECUTION"
+    | "MCP_CALL"
+    | "MCP_RESULT"
+    | "SKILL_CALL"
+    | "TOOL_CALL";
   eventTypeName: string | unknown;
   contextSize: number | unknown;
   durationMs: number | unknown;
@@ -112,7 +130,15 @@ export interface MCPServerEntityRecord {
   builtin: boolean;
 }
 
-export type EntityRecord = AgentEntityRecord | TaskEntityRecord | AgentTaskEntityRecord | ChatHistoryEntityRecord | SkillEntityRecord | MCPServerEntityRecord | AgentDeleteTombstone | NotificationEntityRecord;
+export type EntityRecord =
+  | AgentEntityRecord
+  | TaskEntityRecord
+  | AgentTaskEntityRecord
+  | ChatHistoryEntityRecord
+  | SkillEntityRecord
+  | MCPServerEntityRecord
+  | AgentDeleteTombstone
+  | NotificationEntityRecord;
 
 export interface EntityChangePayload {
   companyId: number;
@@ -142,12 +168,20 @@ export interface EventsReadyEnvelope {
 
 export interface SubscribedEnvelope {
   event: "subscribed";
-  data: { companyId?: number; agentTaskId?: number; events: SubscriptionEventList };
+  data: {
+    companyId?: number;
+    agentTaskId?: number;
+    events: SubscriptionEventList;
+  };
 }
 
 export interface UnsubscribedEnvelope {
   event: "unsubscribed";
-  data: { companyId?: number; agentTaskId?: number; events: SubscriptionEventList };
+  data: {
+    companyId?: number;
+    agentTaskId?: number;
+    events: SubscriptionEventList;
+  };
 }
 
 export interface ServerEventEnvelopeEntityChange {
@@ -184,5 +218,10 @@ export interface UnsubscribeCommand {
 /** Messages sent by the client on the `/events/ws` channel */
 export type EventsWsSend = SubscribeCommand | UnsubscribeCommand;
 /** Messages received by the client on the `/events/ws` channel */
-export type EventsWsReceive = EventsReadyEnvelope | SubscribedEnvelope | UnsubscribedEnvelope | ServerEventEnvelopeEntityChange | ServerEventEnvelopeModelStream | ServerEventEnvelopeError;
-
+export type EventsWsReceive =
+  | EventsReadyEnvelope
+  | SubscribedEnvelope
+  | UnsubscribedEnvelope
+  | ServerEventEnvelopeEntityChange
+  | ServerEventEnvelopeModelStream
+  | ServerEventEnvelopeError;
